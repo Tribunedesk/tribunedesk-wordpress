@@ -1,0 +1,77 @@
+name: Plugin CI
+
+# Repo nie mialo zadnego CI, a od 0.7.1 to, co CI spakuje, instaluje sie samo
+# w nocy u klientow. Pipeline wydania bez bramki testowej znaczylby, ze pierwszym
+# artefaktem, jaki auto-updater kiedykolwiek rozesle, jest kod, ktorego nikt nie uruchomil.
+#
+# Testy jada TA SAMA komenda co lokalnie (npx @wordpress/env), zeby "zielone u mnie"
+# i "zielone w CI" nie mogly sie rozjechac.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  php:
+    name: test (PHP ${{ matrix.php }})
+    runs-on: ubuntu-26.04
+    # 8.3 = minimum z composer.json (klienci na wlasnych serwerach), 8.5 = nasze WordPressy.
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.5']
+    # wp-env bierze wersje PHP z tej zmiennej przed phpVersion z .wp-env.json.
+    env:
+      WP_ENV_PHP_VERSION: ${{ matrix.php }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+
+      # Kopie kontraktu w tests/contract musza byc bajt w bajt tym, co lezy pod tagiem
+      # repo publicznego z tests/contract/VERSION. Testy czytaja kopie (bez sieci), a ten
+      # krok pilnuje, ze kopie to opublikowany kontrakt.
+      - name: Kontrakt z otagowanej wersji tribunedesk-cms-api
+        run: |
+          base="https://raw.githubusercontent.com/Tribunedesk/tribunedesk-cms-api/$(cat tests/contract/VERSION)"
+          curl -fsS "$base/openapi.json" | cmp - tests/contract/openapi.json
+          curl -fsS "$base/examples/payloads/article-delivered.json" | cmp - tests/contract/article-delivered.json
+
+      # php -l na kazdym pliku. xargs zwraca != 0, gdy ktorykolwiek php -l padl.
+      - name: Lint PHP
+        run: find . -path ./vendor -prune -o -name '*.php' -print0 | xargs -0 -n1 -P4 php -l
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24.14.1"
+
+      # Katalog roboczy na runnerze nazywa sie tak jak repo, a wp-env montuje
+      # wtyczke pod nazwa katalogu — stad --env-cwd z nazwy repo (dziala w kazdym repo).
+      - name: Start wp-env
+        run: npx @wordpress/env start
+
+      # Bez tego zielone "8.5" mogloby byc 8.3 z .wp-env.json, gdyby wp-env zignorowal zmienna.
+      - name: PHP w kontenerze testow
+        run: |
+          v=$(npx @wordpress/env run tests-cli php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;' 2>/dev/null | tail -n1)
+          echo "tests-cli PHP: $v"
+          test "$v" = "${{ matrix.php }}"
+
+      - name: Composer install
+        run: npx @wordpress/env run tests-cli --env-cwd=wp-content/plugins/${{ github.event.repository.name }} bash -c "composer install --no-interaction"
+
+      - name: PHPUnit
+        run: npx @wordpress/env run tests-cli --env-cwd=wp-content/plugins/${{ github.event.repository.name }} ./vendor/bin/phpunit
+
+  # Ochrona main wymaga checku o nazwie "test"; job z macierza raportuje sie jako
+  # "test (PHP x.y)", wiec ten job zbiera obie wersje pod ta jedna nazwa.
+  test:
+    needs: php
+    if: always()
+    runs-on: ubuntu-26.04
+    steps:
+      - run: test "${{ needs.php.result }}" = success

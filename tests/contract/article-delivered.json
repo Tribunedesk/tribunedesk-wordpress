@@ -1,0 +1,125 @@
+{
+  "article_id": "3f2b8c1e-5d4a-4e6b-9c7d-1a2b3c4d5e6f",
+  "org_code": "example-org",
+  "sent_at": "2026-11-04T09:00:00+00:00",
+  "topic": "City budget 2027",
+  "title": "City council approves the 2027 budget",
+  "alternative_titles": [
+    "Council passes next year's budget"
+  ],
+  "twitter_posts": [
+    "The city council approved the 2027 budget on Tuesday."
+  ],
+  "reel_captions": [
+    "What the new city budget means for you"
+  ],
+  "custom_content": [
+    {
+      "label": "Key numbers",
+      "items": [
+        "Budget: 1.2 billion"
+      ]
+    }
+  ],
+  "facebook_title": "The 2027 budget is approved",
+  "facebook_titles": [
+    "The 2027 budget is approved"
+  ],
+  "facebook_teaser": "What changes for residents next year.",
+  "facebook_teasers": [
+    "What changes for residents next year."
+  ],
+  "html": "<p>The city council approved the 2027 budget on Tuesday.</p>\n<p>It follows <a href=\"https://tribunedesk.com/app/a/8a1d2c3b-4e5f-4a6b-8c7d-9e0f1a2b3c4d\">last year's spending review</a> and <a href=\"https://news.example.com/2026/10/tram-line/\">the new tram line</a>.</p>\n<script type=\"application/ld+json\" data-hf-provenance>{\"@context\": \"https://schema.org\", \"@type\": \"NewsArticle\", \"identifier\": \"3f2b8c1e-5d4a-4e6b-9c7d-1a2b3c4d5e6f\", \"dateCreated\": \"2026-11-04T08:50:00+00:00\", \"digitalSourceType\": \"http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia\", \"hfProvenanceJws\": \"eyJhbGciOiJFZERTQSJ9.eyJleGFtcGxlIjp0cnVlfQ.c2lnbmF0dXJl\"}</script>",
+  "excerpt": "The city council approved the 2027 budget on Tuesday.",
+  "featured_image": {
+    "label": "Council chamber",
+    "url": "https://media.example.com/tribunedesk/example-org/council-chamber.jpg",
+    "template_id": null,
+    "created_at": "2026-11-04T08:55:00+00:00",
+    "filename": "council-chamber.jpg",
+    "title": "Council chamber",
+    "caption": "The council voted on Tuesday.",
+    "description": "Members of the city council during the budget vote.",
+    "alt": "City council members seated in the chamber",
+    "asset_id": "5b6c7d8e-9f0a-4b1c-8d2e-3f4a5b6c7d8e"
+  },
+  "raw_facts": "The council approved the budget on Tuesday.\nThe budget is 1.2 billion.",
+  "related_topics": [
+    {
+      "title": "Tram line opening date",
+      "reason": "Mentioned in the debate."
+    }
+  ],
+  "internal_links": [
+    {
+      "article_id": "8a1d2c3b-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+      "anchor_text": "last year's spending review",
+      "href": "https://tribunedesk.com/app/a/8a1d2c3b-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+      "url": null,
+      "kind": "placeholder",
+      "headline": "Spending review finds savings"
+    },
+    {
+      "article_id": "c4d5e6f7-a8b9-4c0d-9e1f-2a3b4c5d6e7f",
+      "anchor_text": "the new tram line",
+      "href": "https://news.example.com/2026/10/tram-line/",
+      "url": "https://news.example.com/2026/10/tram-line/",
+      "kind": "cms",
+      "headline": "New tram line approved"
+    }
+  ],
+  "link_placeholder_prefix": "https://tribunedesk.com/app/a/",
+  "evergreen": false,
+  "generated_images": [
+    {
+      "label": "Council chamber",
+      "url": "https://media.example.com/tribunedesk/example-org/council-chamber.jpg",
+      "template_id": null,
+      "created_at": "2026-11-04T08:55:00+00:00",
+      "filename": "council-chamber.jpg",
+      "title": "Council chamber",
+      "caption": "The council voted on Tuesday.",
+      "description": "Members of the city council during the budget vote.",
+      "alt": "City council members seated in the chamber",
+      "asset_id": "5b6c7d8e-9f0a-4b1c-8d2e-3f4a5b6c7d8e"
+    }
+  ],
+  "seo_title": "2027 city budget approved by the council",
+  "meta_description": "The city council approved the 2027 budget. What changes for residents.",
+  "focus_keyphrase": "city budget 2027",
+  "ai_provenance": {
+    "claims": {
+      "article_id": "3f2b8c1e-5d4a-4e6b-9c7d-1a2b3c4d5e6f",
+      "generated_at": "2026-11-04T08:50:00+00:00",
+      "content_sha256": "9f2c4a7e1b3d5f6a8c0e2b4d6f8a1c3e5b7d9f0a2c4e6b8d0f1a3c5e7b9d1f3a",
+      "generator": "Tribune Desk",
+      "v": 1,
+      "models": [
+        "example-model"
+      ],
+      "digital_source_type": "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia"
+    },
+    "jws": "eyJhbGciOiJFZERTQSJ9.eyJleGFtcGxlIjp0cnVlfQ.c2lnbmF0dXJl"
+  },
+  "sent_by": {
+    "id": "user_01",
+    "name": "Anna Editor",
+    "email": "anna@example.com"
+  },
+  "author": {
+    "id": "user_01",
+    "name": "Anna Editor",
+    "email": "anna@example.com"
+  },
+  "metadata": {
+    "created_at": "2026-11-04T08:40:00+00:00",
+    "domain": "news.example.com"
+  },
+  "language": "en",
+  "backlink_sources": [
+    {
+      "article_id": "c4d5e6f7-a8b9-4c0d-9e1f-2a3b4c5d6e7f",
+      "distance": 0.21
+    }
+  ]
+}

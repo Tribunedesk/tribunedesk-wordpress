@@ -1,0 +1,63 @@
+name: Publish manifest
+
+# To jest DEPLOY na wszystkie instalacje klientow. Dlatego osobno i recznie.
+# To samo uruchomienie z numerem poprzedniej wersji jest tama przy rollbacku:
+# instalacje, ktore jeszcze nie wziely zlej wersji, juz jej nie wezma.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Wersja do opublikowania, np. 0.7.1'
+        required: true
+        type: string
+
+env:
+  PLUGIN_SLUG: headlinesforge-receiver
+
+jobs:
+  publish:
+    runs-on: ubuntu-26.04
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_PLUGIN_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_PLUGIN_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+      R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
+      R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+      VERSION: ${{ inputs.version }}
+    steps:
+      - name: Sprawdz, ze ZIP i sidecar istnieja
+        run: |
+          set -euo pipefail
+          aws s3api head-object --bucket "${R2_BUCKET_NAME}" \
+            --key "wp-plugin/${PLUGIN_SLUG}-${VERSION}.zip" \
+            --endpoint-url "${R2_ENDPOINT_URL}" > /dev/null
+          aws s3api head-object --bucket "${R2_BUCKET_NAME}" \
+            --key "wp-plugin/${PLUGIN_SLUG}-${VERSION}.json" \
+            --endpoint-url "${R2_ENDPOINT_URL}" > /dev/null
+          echo "Artefakty wersji ${VERSION} sa na miejscu."
+
+      # Kopiujemy sidecar, NIE skladamy manifestu drugi raz — nie ma jak
+      # wyprodukowac manifestu niezgodnego z artefaktem.
+      - name: Opublikuj manifest
+        run: |
+          set -euo pipefail
+          aws s3 cp \
+            "s3://${R2_BUCKET_NAME}/wp-plugin/${PLUGIN_SLUG}-${VERSION}.json" \
+            "s3://${R2_BUCKET_NAME}/wp-plugin/manifest.json" \
+            --endpoint-url "${R2_ENDPOINT_URL}" \
+            --content-type application/json \
+            --cache-control "public, max-age=300" \
+            --metadata-directive REPLACE
+
+      - name: Potwierdz z publicznego adresu
+        run: |
+          set -euo pipefail
+          URL="${{ vars.R2_PUBLIC_BASE_URL }}/wp-plugin/manifest.json"
+          curl -sS "$URL" -o published.json -w 'http=%{http_code}\n'
+          cat published.json
+          PUBLISHED="$(python3 -c "import json;print(json.load(open('published.json'))['version'])")"
+          echo "opublikowana wersja = ${PUBLISHED}"
+          test "${PUBLISHED}" = "${VERSION}"

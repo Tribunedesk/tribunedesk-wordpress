@@ -1,0 +1,4764 @@
+{
+  "components": {
+    "schemas": {
+      "AiProvenance": {
+        "additionalProperties": false,
+        "description": "Signed statement that the text was produced with AI (EU AI Act, art. 50(2)).",
+        "properties": {
+          "claims": {
+            "$ref": "#/components/schemas/ProvenanceClaims",
+            "description": "The signed claims."
+          },
+          "jws": {
+            "description": "The claims signed as a compact JWS.",
+            "title": "Jws",
+            "type": "string"
+          }
+        },
+        "required": [
+          "claims",
+          "jws"
+        ],
+        "title": "AiProvenance",
+        "type": "object"
+      },
+      "ApiError": {
+        "description": "The one error body of every `/v3/cms` route, whatever the status code.",
+        "properties": {
+          "code": {
+            "description": "Stable machine-readable code.",
+            "enum": [
+              "unauthorized",
+              "forbidden",
+              "not_found",
+              "project_deactivated",
+              "option_locked",
+              "cursor_expired",
+              "validation_error",
+              "rate_limited",
+              "internal_error",
+              "unavailable",
+              "not_implemented",
+              "state_conflict"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "description": "Human-readable description; never echoes request bodies.",
+            "title": "Message",
+            "type": "string"
+          },
+          "retry_after": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Seconds to wait before retrying.",
+            "title": "Retry After"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ApiError",
+        "type": "object"
+      },
+      "ArticleDelivery": {
+        "additionalProperties": false,
+        "description": "The article Tribune Desk sends to your webhook when an editor clicks \"Send to CMS\".\n\nFields marked as omitted are absent from the body, not null, when they do not apply.\nNew fields may be added in a minor version; ignore the ones you do not know.",
+        "properties": {
+          "ai_provenance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiProvenance"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level 3 (full content). AI provenance statement, also embedded in `html`; null when the newsroom turned marking off."
+          },
+          "alternative_titles": {
+            "description": "Optional (editorial extras). Other headline proposals; may be empty.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Alternative Titles",
+            "type": "array"
+          },
+          "article_id": {
+            "description": "Level 1 (receive article). Tribune Desk id of the article. Repeated sends of the same article carry the same id: update the post you created the first time.",
+            "title": "Article Id",
+            "type": "string"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeliveryPerson"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level 3 (full content). Who ordered the article. Use it as the post author when `sent_by` cannot be matched."
+          },
+          "backlink_sources": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/BacklinkSource"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level 3 (full content). Older articles that should link to this one. Omitted = leave existing links alone; an empty list = no article should link here.",
+            "title": "Backlink Sources"
+          },
+          "custom_content": {
+            "description": "Optional (editorial extras). Extra text blocks defined by the newsroom.",
+            "items": {
+              "$ref": "#/components/schemas/CustomBlock"
+            },
+            "title": "Custom Content",
+            "type": "array"
+          },
+          "evergreen": {
+            "description": "Level 3 (full content). True when the article stays current (not tied to news).",
+            "title": "Evergreen",
+            "type": "boolean"
+          },
+          "excerpt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level 1 (receive article). A short summary of the article for the post excerpt (the chosen meta description); null when there is none.",
+            "title": "Excerpt"
+          },
+          "facebook_teaser": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional (editorial extras). The chosen teaser for Facebook.",
+            "title": "Facebook Teaser"
+          },
+          "facebook_teasers": {
+            "description": "Optional (editorial extras). All teaser proposals for Facebook.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Facebook Teasers",
+            "type": "array"
+          },
+          "facebook_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional (editorial extras). The chosen title for Facebook. Use it only on Facebook, not as the post title.",
+            "title": "Facebook Title"
+          },
+          "facebook_titles": {
+            "description": "Optional (editorial extras). All title proposals for Facebook.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Facebook Titles",
+            "type": "array"
+          },
+          "featured_image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeliveryImage"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level 1 (receive article). The main image: the same object as the first entry of `generated_images`; null when the article has no images."
+          },
+          "focus_keyphrase": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level 3 (full content). The focus keyphrase for SEO.",
+            "title": "Focus Keyphrase"
+          },
+          "generated_images": {
+            "description": "Level 3 (full content). Images made for the article; the first one is the main image.",
+            "items": {
+              "$ref": "#/components/schemas/DeliveryImage"
+            },
+            "title": "Generated Images",
+            "type": "array"
+          },
+          "html": {
+            "description": "Level 1 (receive article). The article body as HTML, without the headline. Internal links are already resolved (see `internal_links`).",
+            "title": "Html",
+            "type": "string"
+          },
+          "internal_links": {
+            "description": "Level 3 (full content). Links to other articles of the newsroom placed in `html`.",
+            "items": {
+              "$ref": "#/components/schemas/InternalLinkRef"
+            },
+            "title": "Internal Links",
+            "type": "array"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level 1 (receive article). The newsroom's writing language (e.g. `pl`). Omitted when not set.",
+            "title": "Language"
+          },
+          "link_placeholder_prefix": {
+            "description": "Level 3 (full content). Every link in `html` to an article that has no address in your CMS yet is `link_placeholder_prefix` followed by that article's `article_id`. Replace it with your address of that article, or keep only the link text. Do not hard-code the prefix.",
+            "title": "Link Placeholder Prefix",
+            "type": "string"
+          },
+          "meta_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level 3 (full content). The chosen meta description.",
+            "title": "Meta Description"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/DeliveryMetadata",
+            "description": "Level 1 (receive article). Where the article comes from."
+          },
+          "org_code": {
+            "description": "Level 1 (receive article). The newsroom's code in Tribune Desk.",
+            "title": "Org Code",
+            "type": "string"
+          },
+          "raw_facts": {
+            "description": "Optional (editorial extras). Facts the article was written from, one per line.",
+            "title": "Raw Facts",
+            "type": "string"
+          },
+          "reel_captions": {
+            "description": "Optional (editorial extras). Proposed captions for reels.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Reel Captions",
+            "type": "array"
+          },
+          "related_topics": {
+            "description": "Optional (editorial extras). Follow-up topics.",
+            "items": {
+              "$ref": "#/components/schemas/RelatedTopic"
+            },
+            "title": "Related Topics",
+            "type": "array"
+          },
+          "sent_at": {
+            "description": "Level 1 (receive article). When this send was made (ISO 8601).",
+            "title": "Sent At",
+            "type": "string"
+          },
+          "sent_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeliveryPerson"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level 3 (full content). Who clicked \"Send to CMS\"; null for automatic sends."
+          },
+          "seo_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level 3 (full content). The chosen SEO title.",
+            "title": "Seo Title"
+          },
+          "title": {
+            "description": "Level 1 (receive article). The article's headline. Not repeated in `html`.",
+            "title": "Title",
+            "type": "string"
+          },
+          "topic": {
+            "description": "Optional (editorial extras). The topic the article was written on.",
+            "title": "Topic",
+            "type": "string"
+          },
+          "twitter_posts": {
+            "description": "Optional (editorial extras). Proposed posts for X.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Twitter Posts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "article_id",
+          "org_code",
+          "sent_at",
+          "topic",
+          "title",
+          "alternative_titles",
+          "twitter_posts",
+          "reel_captions",
+          "custom_content",
+          "facebook_title",
+          "facebook_titles",
+          "facebook_teaser",
+          "facebook_teasers",
+          "html",
+          "excerpt",
+          "featured_image",
+          "raw_facts",
+          "related_topics",
+          "internal_links",
+          "link_placeholder_prefix",
+          "evergreen",
+          "generated_images",
+          "seo_title",
+          "meta_description",
+          "focus_keyphrase",
+          "ai_provenance",
+          "sent_by",
+          "author",
+          "metadata"
+        ],
+        "title": "ArticleDelivery",
+        "type": "object"
+      },
+      "ArticleDeliveryResult": {
+        "description": "What your webhook answers with. Every field is optional: a `2xx` status alone means\nthe article was delivered. Fields that do not match their type are ignored one by one.",
+        "properties": {
+          "cms_post_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level 1 (receive article). Your identifier of the post, as text. Tribune Desk stores it with the article.",
+            "title": "Cms Post Id"
+          },
+          "edit_url": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level 1 (receive article). An `http(s)` address where the editor edits the post; shown as \"Edit in CMS\". Other schemes are ignored.",
+            "title": "Edit Url"
+          },
+          "featured_image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FeaturedImageResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level 4 (media library). The attachment made from the featured image, so Tribune Desk can reuse it next time."
+          },
+          "permalink": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level 2 (link back). The public address of the post. Tribune Desk uses it to link to this article from other articles.",
+            "title": "Permalink"
+          },
+          "post_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Deprecated: the same as `cms_post_id`, read only when that is absent.",
+            "title": "Post Id"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "created",
+                  "updated",
+                  "skipped_already_published"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level 1 (receive article). `created`, `updated`, or `skipped_already_published` when you left an already published post alone. Informational: Tribune Desk does not act on it today.",
+            "title": "Status"
+          }
+        },
+        "title": "ArticleDeliveryResult",
+        "type": "object"
+      },
+      "ArticleResultAck": {
+        "properties": {
+          "article_id": {
+            "format": "uuid",
+            "title": "Article Id",
+            "type": "string"
+          },
+          "state": {
+            "const": "delivered",
+            "description": "The send is recorded as delivered, also when the result is repeated.",
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "article_id",
+          "state"
+        ],
+        "title": "ArticleResultAck",
+        "type": "object"
+      },
+      "BackfillCandidate": {
+        "additionalProperties": false,
+        "properties": {
+          "attached_to_published": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attached To Published"
+          },
+          "caption": {
+            "anyOf": [
+              {
+                "description": "Plain text, up to 5000 Unicode characters. Stored as sent, without cleaning or normalization; do not send markup. An empty string clears the field. A NUL character fails the whole request with `422`.",
+                "maxLength": 5000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The caption shown under the file. Identifies its source when `credit` is empty, and helps describe the file when `iptc_caption` is empty.",
+            "title": "Caption"
+          },
+          "categories": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Categories",
+            "type": "array"
+          },
+          "cms_media_id": {
+            "description": "Your identifier of the file: any text of 1 to 255 characters.",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Cms Media Id",
+            "type": "string"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "credit": {
+            "anyOf": [
+              {
+                "description": "Plain text, up to 5000 Unicode characters. Stored as sent, without cleaning or normalization; do not send markup. An empty string clears the field. A NUL character fails the whole request with `422`.",
+                "maxLength": 5000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who supplied the file (e.g. IPTC credit); used to identify its source.",
+            "title": "Credit"
+          },
+          "file_url": {
+            "format": "uri",
+            "maxLength": 2083,
+            "minLength": 1,
+            "title": "File Url",
+            "type": "string"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          },
+          "iptc_caption": {
+            "anyOf": [
+              {
+                "description": "Plain text, up to 5000 Unicode characters. Stored as sent, without cleaning or normalization; do not send markup. An empty string clears the field. A NUL character fails the whole request with `422`.",
+                "maxLength": 5000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The caption embedded in the file; helps describe it.",
+            "title": "Iptc Caption"
+          },
+          "mime_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mime Type"
+          },
+          "parent_title": {
+            "anyOf": [
+              {
+                "description": "Plain text, up to 5000 Unicode characters. Stored as sent, without cleaning or normalization; do not send markup. An empty string clears the field. A NUL character fails the whole request with `422`.",
+                "maxLength": 5000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Title of the content the file is attached to; helps describe it.",
+            "title": "Parent Title"
+          },
+          "post_title": {
+            "anyOf": [
+              {
+                "description": "Plain text, up to 5000 Unicode characters. Stored as sent, without cleaning or normalization; do not send markup. An empty string clears the field. A NUL character fails the whole request with `422`.",
+                "maxLength": 5000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The file's own title in the CMS; helps describe it.",
+            "title": "Post Title"
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
+          }
+        },
+        "required": [
+          "cms_media_id",
+          "file_url"
+        ],
+        "title": "BackfillCandidate",
+        "type": "object"
+      },
+      "BackfillFilters": {
+        "description": "You apply these when you choose candidates. The server re-checks only `min_width` and\n`max_files`; it cannot see the rest.",
+        "properties": {
+          "categories": {
+            "description": "A file in any of them; ignore this filter if your CMS has no categories.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Categories",
+            "type": "array"
+          },
+          "date_from": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "File creation date, inclusive.",
+            "title": "Date From"
+          },
+          "date_to": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "File creation date, inclusive.",
+            "title": "Date To"
+          },
+          "max_files": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Enforced by the server: past it candidates answer `max_files`.",
+            "title": "Max Files"
+          },
+          "mime_types": {
+            "description": "Empty means any allowed type.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Mime Types",
+            "type": "array"
+          },
+          "min_width": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Replaces the default minimum of 800 pixels.",
+            "title": "Min Width"
+          },
+          "only_attached_to_published": {
+            "default": false,
+            "description": "Only files used in published content, as far as you know it.",
+            "title": "Only Attached To Published",
+            "type": "boolean"
+          }
+        },
+        "title": "BackfillFilters",
+        "type": "object"
+      },
+      "BackfillPageRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "is_last": {
+            "default": false,
+            "description": "Last page of the request's results.",
+            "title": "Is Last",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BackfillCandidate"
+            },
+            "maxItems": 1000,
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "BackfillPageRequest",
+        "type": "object"
+      },
+      "BackfillPageResponse": {
+        "properties": {
+          "accepted": {
+            "description": "Candidates of this page held for the request; `ok` in `results`.",
+            "minimum": 0.0,
+            "title": "Accepted",
+            "type": "integer"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/ItemResult"
+            },
+            "title": "Results",
+            "type": "array"
+          }
+        },
+        "required": [
+          "accepted",
+          "results"
+        ],
+        "title": "BackfillPageResponse",
+        "type": "object"
+      },
+      "BackfillRequest": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/BackfillFilters"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "const": "collecting",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "filters",
+          "created_at"
+        ],
+        "title": "BackfillRequest",
+        "type": "object"
+      },
+      "BackfillRequestList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BackfillRequest"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "BackfillRequestList",
+        "type": "object"
+      },
+      "BacklinkSource": {
+        "additionalProperties": false,
+        "description": "An older article that should link to this one.",
+        "properties": {
+          "article_id": {
+            "description": "Tribune Desk id of the older article.",
+            "title": "Article Id",
+            "type": "string"
+          },
+          "distance": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "description": "Semantic distance; lower means closer in topic.",
+            "title": "Distance"
+          }
+        },
+        "required": [
+          "article_id",
+          "distance"
+        ],
+        "title": "BacklinkSource",
+        "type": "object"
+      },
+      "BatchResult": {
+        "properties": {
+          "held_batch_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when part of the request went over `mass_change_threshold` within a 60-minute run and is held. The server counts the whole run, not one request. May be null with `held` fields when a newer value of the same field already waits in a batch that is no longer pending: there is nothing to decide and nothing to resend.",
+            "title": "Held Batch Id"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/ItemResult"
+            },
+            "title": "Results",
+            "type": "array"
+          }
+        },
+        "required": [
+          "results"
+        ],
+        "title": "BatchResult",
+        "type": "object"
+      },
+      "Change": {
+        "properties": {
+          "article_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`article_sent` only: fetch the article with `GET /articles/{article_id}`.",
+            "title": "Article Id"
+          },
+          "asset_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Id"
+          },
+          "changed_at": {
+            "format": "date-time",
+            "title": "Changed At",
+            "type": "string"
+          },
+          "cms_media_id": {
+            "anyOf": [
+              {
+                "description": "Your identifier of the file: any text of 1 to 255 characters.",
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cms Media Id"
+          },
+          "cursor": {
+            "description": "Opaque cursor of this change. Passing it acknowledges this change and everything before it, so to retry a change, keep the cursor of the change before it.",
+            "title": "Cursor",
+            "type": "string"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/FieldChange"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "file_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Signed file URL (`new_asset`).",
+            "title": "File Url"
+          },
+          "file_url_expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`new_asset` only: every read of the change renews the URL.",
+            "title": "File Url Expires At"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`new_asset` only.",
+            "title": "Filename"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`new_asset` only; `null` when unknown.",
+            "title": "Height"
+          },
+          "kind": {
+            "description": "`new_asset` is a file to fetch from `file_url` (no `cms_media_id`). `settings` has no `asset_id` and no values: re-read `GET /settings`. `deleted` and `restored` say that a paired file went to the Tribune Desk trash or came back; they carry `cms_media_id`, `asset_id` and `changed_at`, and `fields` is empty. Permanent deletions are never reported. `article_sent` (read mode, tokens with `articles:read`) says an editor sent an article: fetch it with `GET /articles/{article_id}`. A token sees only the kinds of its scopes: `article_sent` needs `articles:read`, every other kind `media:read`. Skip kinds you do not know.",
+            "enum": [
+              "new_asset",
+              "fields",
+              "deleted",
+              "restored",
+              "settings",
+              "article_sent"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "mime_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`new_asset` only.",
+            "title": "Mime Type"
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`new_asset` only; `null` when Tribune Desk has no checksum.",
+            "title": "Sha256"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`new_asset` only; `null` when unknown.",
+            "title": "Width"
+          }
+        },
+        "required": [
+          "cursor",
+          "kind",
+          "changed_at"
+        ],
+        "title": "Change",
+        "type": "object"
+      },
+      "ChangesResponse": {
+        "properties": {
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/Change"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
+          "has_more": {
+            "default": false,
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "next_cursor": {
+            "description": "Always present, also when `changes` is empty (including the first poll without `cursor`): pass it as `cursor` in the next poll to acknowledge and continue.",
+            "title": "Next Cursor",
+            "type": "string"
+          }
+        },
+        "required": [
+          "changes",
+          "next_cursor"
+        ],
+        "title": "ChangesResponse",
+        "type": "object"
+      },
+      "CustomBlock": {
+        "additionalProperties": false,
+        "description": "A text block the newsroom defined for its own use (e.g. a lead or a box).",
+        "properties": {
+          "items": {
+            "description": "Proposals for the block; the first one is chosen.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "label": {
+            "description": "Name of the block, set by the newsroom.",
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "items"
+        ],
+        "title": "CustomBlock",
+        "type": "object"
+      },
+      "Deletion": {
+        "additionalProperties": false,
+        "properties": {
+          "cms_media_id": {
+            "description": "Your identifier of the file: any text of 1 to 255 characters.",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Cms Media Id",
+            "type": "string"
+          },
+          "deleted_at": {
+            "format": "date-time",
+            "title": "Deleted At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cms_media_id",
+          "deleted_at"
+        ],
+        "title": "Deletion",
+        "type": "object"
+      },
+      "DeletionsRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Deletion"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "DeletionsRequest",
+        "type": "object"
+      },
+      "DeliveryImage": {
+        "additionalProperties": false,
+        "description": "One image generated for the article.",
+        "properties": {
+          "alt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Alternative text. Omitted when empty.",
+            "title": "Alt"
+          },
+          "asset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level 4 (media library). Identifier of the file in the Tribune Desk media library. Omitted when the image is not in the library.",
+            "title": "Asset Id"
+          },
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Image caption. Omitted when empty.",
+            "title": "Caption"
+          },
+          "cms_attachment_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level 4 (media library). Your attachment identifier for this file, when you reported it earlier. Reuse that attachment instead of downloading the file again.",
+            "title": "Cms Attachment Id"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the image was made (ISO 8601).",
+            "title": "Created At"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Longer image description. Omitted when empty.",
+            "title": "Description"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Suggested file name. Omitted when empty.",
+            "title": "Filename"
+          },
+          "label": {
+            "description": "Short label of the image (its name in Tribune Desk).",
+            "title": "Label",
+            "type": "string"
+          },
+          "template_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Graphic template the image was made from.",
+            "title": "Template Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Image title. Omitted when empty.",
+            "title": "Title"
+          },
+          "url": {
+            "description": "Where to download the image. When the CMS already holds this file (level 4), this is the CMS copy's address.",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "url",
+          "template_id",
+          "created_at"
+        ],
+        "title": "DeliveryImage",
+        "type": "object"
+      },
+      "DeliveryMetadata": {
+        "additionalProperties": false,
+        "description": "Where the article comes from.",
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the article was created (ISO 8601).",
+            "title": "Created At"
+          },
+          "domain": {
+            "description": "The newsroom's domain in Tribune Desk.",
+            "title": "Domain",
+            "type": "string"
+          }
+        },
+        "required": [
+          "created_at",
+          "domain"
+        ],
+        "title": "DeliveryMetadata",
+        "type": "object"
+      },
+      "DeliveryPerson": {
+        "additionalProperties": false,
+        "description": "A Tribune Desk user.",
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "E-mail address, or null when unknown.",
+            "title": "Email"
+          },
+          "id": {
+            "description": "Stable user identifier in Tribune Desk.",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Display name, or null when unknown.",
+            "title": "Name"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email"
+        ],
+        "title": "DeliveryPerson",
+        "type": "object"
+      },
+      "FeaturedImageResult": {
+        "description": "The attachment your CMS made from `featured_image` (level 4).",
+        "properties": {
+          "asset_id": {
+            "description": "`asset_id` of the image you received.",
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "attachment_id": {
+            "description": "Your attachment identifier.",
+            "minimum": 1.0,
+            "title": "Attachment Id",
+            "type": "integer"
+          },
+          "url": {
+            "description": "Address of the file in your CMS.",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "asset_id",
+          "attachment_id",
+          "url"
+        ],
+        "title": "FeaturedImageResult",
+        "type": "object"
+      },
+      "FieldChange": {
+        "properties": {
+          "base_version": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Version"
+          },
+          "changed_at": {
+            "format": "date-time",
+            "title": "Changed At",
+            "type": "string"
+          },
+          "changed_by": {
+            "description": "Today the feed carries `editor` and `model`; a change from the CMS or an import never enters it. A repeated current value says `editor`, whoever wrote it.",
+            "enum": [
+              "editor",
+              "model",
+              "import",
+              "cms"
+            ],
+            "title": "Changed By",
+            "type": "string"
+          },
+          "field": {
+            "enum": [
+              "title",
+              "alt",
+              "caption",
+              "description"
+            ],
+            "title": "Field",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          },
+          "version": {
+            "description": "May equal the version you already hold: a resync `td_to_cms` and a link repeat the current value without a new version. Apply when it is not lower than yours.",
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "field",
+          "value",
+          "version",
+          "changed_at",
+          "changed_by"
+        ],
+        "title": "FieldChange",
+        "type": "object"
+      },
+      "FieldResult": {
+        "properties": {
+          "field": {
+            "enum": [
+              "title",
+              "alt",
+              "caption",
+              "description"
+            ],
+            "title": "Field",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "unchanged",
+              "conflict",
+              "rejected",
+              "held"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The current version of the field after processing the item, also on `conflict`. `null` only when the file is unknown.",
+            "title": "Version"
+          },
+          "winning_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "On `conflict`: the value that won, so the CMS can adopt it.",
+            "title": "Winning Value"
+          }
+        },
+        "required": [
+          "field",
+          "status"
+        ],
+        "title": "FieldResult",
+        "type": "object"
+      },
+      "FieldState": {
+        "additionalProperties": false,
+        "properties": {
+          "field": {
+            "enum": [
+              "title",
+              "alt",
+              "caption",
+              "description"
+            ],
+            "title": "Field",
+            "type": "string"
+          },
+          "value": {
+            "description": "Plain text, up to 5000 Unicode characters. Stored as sent, without cleaning or normalization; do not send markup. An empty string clears the field. A NUL character fails the whole request with `422`.",
+            "maxLength": 5000,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "value"
+        ],
+        "title": "FieldState",
+        "type": "object"
+      },
+      "FieldToggles": {
+        "additionalProperties": false,
+        "properties": {
+          "alt": {
+            "title": "Alt",
+            "type": "boolean"
+          },
+          "caption": {
+            "title": "Caption",
+            "type": "boolean"
+          },
+          "description": {
+            "title": "Description",
+            "type": "boolean"
+          },
+          "title": {
+            "title": "Title",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "title",
+          "alt",
+          "caption",
+          "description"
+        ],
+        "title": "FieldToggles",
+        "type": "object"
+      },
+      "FieldUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "cms_media_id": {
+            "description": "Your identifier of the file: any text of 1 to 255 characters.",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Cms Media Id",
+            "type": "string"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/FieldWrite"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Fields",
+            "type": "array"
+          }
+        },
+        "required": [
+          "cms_media_id",
+          "fields"
+        ],
+        "title": "FieldUpdate",
+        "type": "object"
+      },
+      "FieldWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "base_version": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The version you last saw; `1` when you do not know it. Ignored in `POST /media`.",
+            "title": "Base Version"
+          },
+          "changed_at": {
+            "description": "When the edit happened in the CMS: ISO 8601 with a time zone (a value without one gives `422`). A future time counts as now. Ignored in `POST /media`.",
+            "format": "date-time",
+            "title": "Changed At",
+            "type": "string"
+          },
+          "field": {
+            "enum": [
+              "title",
+              "alt",
+              "caption",
+              "description"
+            ],
+            "title": "Field",
+            "type": "string"
+          },
+          "value": {
+            "description": "Plain text, up to 5000 Unicode characters. Stored as sent, without cleaning or normalization; do not send markup. An empty string clears the field. A NUL character fails the whole request with `422`.",
+            "maxLength": 5000,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "value",
+          "changed_at"
+        ],
+        "title": "FieldWrite",
+        "type": "object"
+      },
+      "FieldsRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FieldUpdate"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "FieldsRequest",
+        "type": "object"
+      },
+      "HeldBatch": {
+        "properties": {
+          "count": {
+            "minimum": 0.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "direction": {
+            "enum": [
+              "cms_to_td",
+              "td_to_cms"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "description": "Always `fields` today; `files` is reserved: new files are never held.",
+            "enum": [
+              "fields",
+              "files"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "pending",
+              "sent",
+              "discarded"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "direction",
+          "state",
+          "count",
+          "created_at"
+        ],
+        "title": "HeldBatch",
+        "type": "object"
+      },
+      "HeldDecisionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "decision": {
+            "enum": [
+              "send",
+              "discard"
+            ],
+            "title": "Decision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision"
+        ],
+        "title": "HeldDecisionRequest",
+        "type": "object"
+      },
+      "HeldList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/HeldBatch"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "HeldList",
+        "type": "object"
+      },
+      "InternalLinkRef": {
+        "additionalProperties": false,
+        "description": "A link to another article of the same newsroom, placed in `html`.",
+        "properties": {
+          "anchor_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Text of the link in `html`.",
+            "title": "Anchor Text"
+          },
+          "article_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tribune Desk id of the linked article.",
+            "title": "Article Id"
+          },
+          "headline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Headline of the linked article.",
+            "title": "Headline"
+          },
+          "href": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Address the link points to in `html`: the linked article's address in your CMS, or a placeholder while that article has none yet.",
+            "title": "Href"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "cms",
+                  "placeholder"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`cms` when the linked article has an address in your CMS, `placeholder` otherwise.",
+            "title": "Kind"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Current address of the linked article.",
+            "title": "Url"
+          }
+        },
+        "title": "InternalLinkRef",
+        "type": "object"
+      },
+      "ItemResult": {
+        "properties": {
+          "asset_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`POST /media` only, on `ok`, `known` and `rejected`: the Tribune Desk file paired with this id, once it exists. `null` means not imported yet, not imported at all, or in the trash.",
+            "title": "Asset Id"
+          },
+          "fields": {
+            "description": "Per-field outcomes.",
+            "items": {
+              "$ref": "#/components/schemas/FieldResult"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "id": {
+            "description": "Identifier of the item from the request.",
+            "maxLength": 255,
+            "title": "Id",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why, for `conflict` and `rejected`; `threshold` on a reported deletion.",
+            "title": "Reason"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "known",
+              "unknown",
+              "conflict",
+              "rejected",
+              "held"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ],
+        "title": "ItemResult",
+        "type": "object"
+      },
+      "LinkRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "cms_media_id": {
+            "description": "Your identifier of the file: any text of 1 to 255 characters.",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Cms Media Id",
+            "type": "string"
+          },
+          "file_url": {
+            "format": "uri",
+            "maxLength": 2083,
+            "minLength": 1,
+            "title": "File Url",
+            "type": "string"
+          },
+          "reencoded": {
+            "default": false,
+            "description": "The CMS re-encoded the file: verification then checks that the URL answers with an image instead of comparing sha256, and the file is marked `verified_by=cms`.",
+            "title": "Reencoded",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "cms_media_id",
+          "file_url"
+        ],
+        "title": "LinkRequest",
+        "type": "object"
+      },
+      "NewMedia": {
+        "additionalProperties": false,
+        "properties": {
+          "cms_media_id": {
+            "description": "Your identifier of the file: any text of 1 to 255 characters.",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Cms Media Id",
+            "type": "string"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the file was created in the CMS.",
+            "title": "Created At"
+          },
+          "credit": {
+            "anyOf": [
+              {
+                "description": "Plain text, up to 5000 Unicode characters. Stored as sent, without cleaning or normalization; do not send markup. An empty string clears the field. A NUL character fails the whole request with `422`.",
+                "maxLength": 5000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who supplied the file (e.g. IPTC credit); used to identify its source.",
+            "title": "Credit"
+          },
+          "fields": {
+            "description": "Context for describing the file, not its values: they are not stored in the fields. `caption` also names the source when `credit` is empty. To set the values, call `POST /media/fields` once the file is paired.",
+            "items": {
+              "$ref": "#/components/schemas/FieldWrite"
+            },
+            "maxItems": 4,
+            "title": "Fields",
+            "type": "array"
+          },
+          "file_url": {
+            "format": "uri",
+            "maxLength": 2083,
+            "minLength": 1,
+            "title": "File Url",
+            "type": "string"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          },
+          "iptc_caption": {
+            "anyOf": [
+              {
+                "description": "Plain text, up to 5000 Unicode characters. Stored as sent, without cleaning or normalization; do not send markup. An empty string clears the field. A NUL character fails the whole request with `422`.",
+                "maxLength": 5000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Caption embedded in the file (IPTC), as context.",
+            "title": "Iptc Caption"
+          },
+          "iptc_title": {
+            "anyOf": [
+              {
+                "description": "Plain text, up to 5000 Unicode characters. Stored as sent, without cleaning or normalization; do not send markup. An empty string clears the field. A NUL character fails the whole request with `422`.",
+                "maxLength": 5000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Title embedded in the file (IPTC), as context.",
+            "title": "Iptc Title"
+          },
+          "mime_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mime Type"
+          },
+          "post_title": {
+            "anyOf": [
+              {
+                "description": "Plain text, up to 5000 Unicode characters. Stored as sent, without cleaning or normalization; do not send markup. An empty string clears the field. A NUL character fails the whole request with `422`.",
+                "maxLength": 5000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Title of the post the file was uploaded to, as context.",
+            "title": "Post Title"
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Accepted and not used today: the import computes its own.",
+            "title": "Sha256"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
+          }
+        },
+        "required": [
+          "cms_media_id",
+          "file_url"
+        ],
+        "title": "NewMedia",
+        "type": "object"
+      },
+      "NewMediaRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/NewMedia"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "NewMediaRequest",
+        "type": "object"
+      },
+      "ProvenanceClaims": {
+        "additionalProperties": false,
+        "description": "What the AI provenance signature states.",
+        "properties": {
+          "article_id": {
+            "description": "Tribune Desk id of the article.",
+            "title": "Article Id",
+            "type": "string"
+          },
+          "content_sha256": {
+            "description": "SHA-256 (hex) of the normalized text.",
+            "title": "Content Sha256",
+            "type": "string"
+          },
+          "digital_source_type": {
+            "description": "IPTC digital source type of the text.",
+            "title": "Digital Source Type",
+            "type": "string"
+          },
+          "generated_at": {
+            "description": "When the text was produced (ISO 8601).",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "generator": {
+            "description": "Who produced the text.",
+            "title": "Generator",
+            "type": "string"
+          },
+          "models": {
+            "description": "AI models used; may be empty.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Models",
+            "type": "array"
+          },
+          "v": {
+            "description": "Version of this claims format.",
+            "title": "V",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "article_id",
+          "generated_at",
+          "content_sha256",
+          "generator",
+          "v",
+          "models",
+          "digital_source_type"
+        ],
+        "title": "ProvenanceClaims",
+        "type": "object"
+      },
+      "PublishedArticleItem": {
+        "additionalProperties": false,
+        "properties": {
+          "article_id": {
+            "description": "Tribune Desk id of the article (`article_id` of the delivery).",
+            "format": "uuid",
+            "title": "Article Id",
+            "type": "string"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the post was published, ISO 8601 with a time zone. Optional.",
+            "title": "Published At"
+          },
+          "url": {
+            "description": "The public `http(s)` address of the post. Other schemes give `invalid_url`.",
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "article_id",
+          "url"
+        ],
+        "title": "PublishedArticleItem",
+        "type": "object"
+      },
+      "PublishedArticleResult": {
+        "properties": {
+          "article_id": {
+            "format": "uuid",
+            "title": "Article Id",
+            "type": "string"
+          },
+          "status": {
+            "description": "`ok`: stored. `not_found`: no such article. `forbidden`: the article belongs to another organization than the token. `invalid_url`: the address was rejected.",
+            "enum": [
+              "ok",
+              "not_found",
+              "forbidden",
+              "invalid_url"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "article_id",
+          "status"
+        ],
+        "title": "PublishedArticleResult",
+        "type": "object"
+      },
+      "PublishedArticlesRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PublishedArticleItem"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "PublishedArticlesRequest",
+        "type": "object"
+      },
+      "PublishedArticlesResponse": {
+        "properties": {
+          "results": {
+            "description": "One result per item, in order.",
+            "items": {
+              "$ref": "#/components/schemas/PublishedArticleResult"
+            },
+            "title": "Results",
+            "type": "array"
+          }
+        },
+        "required": [
+          "results"
+        ],
+        "title": "PublishedArticlesResponse",
+        "type": "object"
+      },
+      "PushExistingRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`next_after` of the previous answer, as is; omit to start a new run. Send the same `since` on every page of a run.",
+            "title": "After"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Only files whose original or creation date is not older.",
+            "title": "Since"
+          }
+        },
+        "title": "PushExistingRequest",
+        "type": "object"
+      },
+      "PushExistingResponse": {
+        "properties": {
+          "held_batch_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Always `null` for files.",
+            "title": "Held Batch Id"
+          },
+          "next_after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Pass it as `after` for the next page. `null` ends the run, whatever `queued` says.",
+            "title": "Next After"
+          },
+          "queued": {
+            "minimum": 0.0,
+            "title": "Queued",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "queued"
+        ],
+        "title": "PushExistingResponse",
+        "type": "object"
+      },
+      "RecentError": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "code",
+          "message"
+        ],
+        "title": "RecentError",
+        "type": "object"
+      },
+      "RelatedTopic": {
+        "additionalProperties": false,
+        "description": "A follow-up topic suggested for the newsroom.",
+        "properties": {
+          "reason": {
+            "description": "Why it is suggested; may be empty.",
+            "title": "Reason",
+            "type": "string"
+          },
+          "title": {
+            "description": "The topic.",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "reason"
+        ],
+        "title": "RelatedTopic",
+        "type": "object"
+      },
+      "ResyncConfirmRequest": {
+        "additionalProperties": false,
+        "description": "Apply a `ready` preview (valid for 24 hours). Impossible without a preview.",
+        "properties": {
+          "confirm": {
+            "const": true,
+            "title": "Confirm",
+            "type": "boolean"
+          },
+          "resync_id": {
+            "format": "uuid",
+            "title": "Resync Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resync_id",
+          "confirm"
+        ],
+        "title": "ResyncConfirmRequest",
+        "type": "object"
+      },
+      "ResyncConfirmResponse": {
+        "properties": {
+          "cursor": {
+            "description": "Always present, also when `status` is `held`: after `410 cursor_expired`, resume `/changes` from this cursor.",
+            "title": "Cursor",
+            "type": "string"
+          },
+          "held_batch_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when the result is over the mass-change threshold.",
+            "title": "Held Batch Id"
+          },
+          "status": {
+            "enum": [
+              "applied",
+              "held"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "cursor"
+        ],
+        "title": "ResyncConfirmResponse",
+        "type": "object"
+      },
+      "ResyncItem": {
+        "additionalProperties": false,
+        "properties": {
+          "cms_media_id": {
+            "description": "Your identifier of the file: any text of 1 to 255 characters.",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Cms Media Id",
+            "type": "string"
+          },
+          "fields": {
+            "description": "A field left out is not compared and does not change. An empty `value` is compared like any other: with `cms_to_td` it clears the field in Tribune Desk, with `td_to_cms` it brings the Tribune Desk value to you.",
+            "items": {
+              "$ref": "#/components/schemas/FieldState"
+            },
+            "maxItems": 4,
+            "title": "Fields",
+            "type": "array"
+          }
+        },
+        "required": [
+          "cms_media_id",
+          "fields"
+        ],
+        "title": "ResyncItem",
+        "type": "object"
+      },
+      "ResyncPreviewRequest": {
+        "additionalProperties": false,
+        "description": "Upload (a page of) the CMS state to preview a resync. Nothing changes yet.",
+        "properties": {
+          "direction": {
+            "enum": [
+              "cms_to_td",
+              "td_to_cms"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "is_last": {
+            "description": "`true` on the last page; the preview is then `ready` (an empty `items` is fine). Repeating a page replaces it. A page after the last one gives `409`: start again.",
+            "title": "Is Last",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ResyncItem"
+            },
+            "maxItems": 100,
+            "title": "Items",
+            "type": "array"
+          },
+          "resync_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Omit on the first page; send the returned id on the next.",
+            "title": "Resync Id"
+          }
+        },
+        "required": [
+          "direction",
+          "items",
+          "is_last"
+        ],
+        "title": "ResyncPreviewRequest",
+        "type": "object"
+      },
+      "ResyncPreviewResponse": {
+        "properties": {
+          "differences": {
+            "description": "Fields that differ, not files.",
+            "minimum": 0.0,
+            "title": "Differences",
+            "type": "integer"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "resync_id": {
+            "format": "uuid",
+            "title": "Resync Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "collecting",
+              "ready"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resync_id",
+          "status",
+          "differences",
+          "expires_at"
+        ],
+        "title": "ResyncPreviewResponse",
+        "type": "object"
+      },
+      "SettingsLimits": {
+        "properties": {
+          "file_url_ttl_hours": {
+            "title": "File Url Ttl Hours",
+            "type": "integer"
+          },
+          "max_backfill_page_items": {
+            "title": "Max Backfill Page Items",
+            "type": "integer"
+          },
+          "max_batch_items": {
+            "title": "Max Batch Items",
+            "type": "integer"
+          },
+          "max_field_value_length": {
+            "title": "Max Field Value Length",
+            "type": "integer"
+          },
+          "requests_per_minute": {
+            "title": "Requests Per Minute",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "max_batch_items",
+          "max_backfill_page_items",
+          "max_field_value_length",
+          "requests_per_minute",
+          "file_url_ttl_hours"
+        ],
+        "title": "SettingsLimits",
+        "type": "object"
+      },
+      "SettingsOptions": {
+        "additionalProperties": false,
+        "properties": {
+          "cms_deletion_trashes_in_td": {
+            "title": "Cms Deletion Trashes In Td",
+            "type": "boolean"
+          },
+          "conflict_rule": {
+            "enum": [
+              "last_change",
+              "cms",
+              "td"
+            ],
+            "title": "Conflict Rule",
+            "type": "string"
+          },
+          "fields_cms_to_td": {
+            "$ref": "#/components/schemas/FieldToggles"
+          },
+          "fields_td_to_cms": {
+            "$ref": "#/components/schemas/FieldToggles"
+          },
+          "keep_copies_in_td": {
+            "title": "Keep Copies In Td",
+            "type": "boolean"
+          },
+          "keep_nonempty_cms_to_td": {
+            "title": "Keep Nonempty Cms To Td",
+            "type": "boolean"
+          },
+          "keep_nonempty_td_to_cms": {
+            "title": "Keep Nonempty Td To Cms",
+            "type": "boolean"
+          },
+          "mass_change_threshold": {
+            "description": "Changes in one run, 1 to 500; above it they are held for a decision. A resync preview is one run; for field changes sent from the CMS a run is the 60 minutes after the first counted change.",
+            "maximum": 500.0,
+            "minimum": 1.0,
+            "title": "Mass Change Threshold",
+            "type": "integer"
+          },
+          "model_texts_to_cms": {
+            "enum": [
+              "never",
+              "empty_only"
+            ],
+            "title": "Model Texts To Cms",
+            "type": "string"
+          },
+          "new_files_cms_to_td": {
+            "title": "New Files Cms To Td",
+            "type": "boolean"
+          },
+          "new_files_cms_to_td_min_width": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Files Cms To Td Min Width"
+          },
+          "new_files_cms_to_td_since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Files Cms To Td Since"
+          },
+          "new_files_td_to_cms": {
+            "title": "New Files Td To Cms",
+            "type": "boolean"
+          },
+          "td_deletion_marks_in_cms": {
+            "title": "Td Deletion Marks In Cms",
+            "type": "boolean"
+          },
+          "td_to_cms_editor_files": {
+            "title": "Td To Cms Editor Files",
+            "type": "boolean"
+          },
+          "td_to_cms_graphics": {
+            "title": "Td To Cms Graphics",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "new_files_cms_to_td",
+          "new_files_cms_to_td_since",
+          "new_files_cms_to_td_min_width",
+          "new_files_td_to_cms",
+          "td_to_cms_editor_files",
+          "td_to_cms_graphics",
+          "fields_cms_to_td",
+          "fields_td_to_cms",
+          "conflict_rule",
+          "keep_nonempty_cms_to_td",
+          "keep_nonempty_td_to_cms",
+          "model_texts_to_cms",
+          "mass_change_threshold",
+          "cms_deletion_trashes_in_td",
+          "td_deletion_marks_in_cms",
+          "keep_copies_in_td"
+        ],
+        "title": "SettingsOptions",
+        "type": "object"
+      },
+      "SettingsResponse": {
+        "properties": {
+          "image_hosts": {
+            "description": "Hosts that image URLs in deliveries and in the change feed come from: the Tribune Desk file storage and the hosts of your CMS set for the organization. Download images only from these hosts.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Image Hosts",
+            "type": "array"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/SettingsLimits"
+          },
+          "locked_options": {
+            "description": "Options locked by the super admin, as dotted names of `options` such as `conflict_rule` or `fields_cms_to_td.alt`. Writing one gives `409 option_locked`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Locked Options",
+            "type": "array"
+          },
+          "options": {
+            "$ref": "#/components/schemas/SettingsOptions"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "variant": {
+            "enum": [
+              "full",
+              "cms_to_td_only",
+              "td_to_cms_only",
+              "custom"
+            ],
+            "title": "Variant",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant",
+          "options",
+          "locked_options",
+          "limits"
+        ],
+        "title": "SettingsResponse",
+        "type": "object"
+      },
+      "SettingsUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "options": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SettingsOptions"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required when `variant` is `custom`, forbidden otherwise."
+          },
+          "variant": {
+            "enum": [
+              "full",
+              "cms_to_td_only",
+              "td_to_cms_only",
+              "custom"
+            ],
+            "title": "Variant",
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant"
+        ],
+        "title": "SettingsUpdate",
+        "type": "object"
+      },
+      "StatusResponse": {
+        "properties": {
+          "contract_version": {
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "held_batches": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Batches held by the mass-change threshold, waiting for a decision. `null` while `disabled`.",
+            "title": "Held Batches"
+          },
+          "last_changes_poll_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Last `/changes` poll by any token of the organization. `null` before the first.",
+            "title": "Last Changes Poll At"
+          },
+          "org_code": {
+            "title": "Org Code",
+            "type": "string"
+          },
+          "pending_changes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Changes not yet acknowledged by the CMS. `null` while `disabled`.",
+            "title": "Pending Changes"
+          },
+          "recent_errors": {
+            "description": "Always empty today: nothing fills it yet, so an empty list proves nothing.",
+            "items": {
+              "$ref": "#/components/schemas/RecentError"
+            },
+            "title": "Recent Errors",
+            "type": "array"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Scopes",
+            "type": "array"
+          },
+          "state": {
+            "description": "`disabled` until a super admin enables the integration (and again if they disable it); `stalled` when the CMS has not polled `/changes` for 24 hours; `active` otherwise.",
+            "enum": [
+              "active",
+              "stalled",
+              "disabled"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_code",
+          "contract_version",
+          "scopes",
+          "state"
+        ],
+        "title": "StatusResponse",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "description": "Integration token: `Authorization: Bearer tdcms_...`.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "Contract between a CMS and Tribune Desk. The CMS is the client: it polls changes with a cursor (`GET /changes`) and sends its own.\n\n**Authentication:** `Authorization: Bearer tdcms_...`. A super admin issues the token for one organization with scopes `media:read`, `media:write`, `settings:read`, `settings:write`, `backfill:write`, `articles:read`, `articles:write`.\n\n**Limits:** 600 requests per minute per token (`429` with `Retry-After`).\n\n**Errors:** every error of every route has the body `ApiError` (`code`, `message`, `retry_after`).\n\nOperations marked `x-status: planned` require their scope but answer `501 not_implemented`.",
+    "title": "Tribune Desk CMS API",
+    "version": "3.2.0-draft"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/v3/cms/articles/published": {
+      "post": {
+        "description": "Level 2 (link back): tell Tribune Desk the public address of posts made from delivered articles, 1 to 100 per request. Tribune Desk shows the link to the editor and uses the article as a target of internal links. Each item gets its own status; a bad item does not fail the others. Repeating an item with the same address changes nothing. Replaces the deprecated `POST /v2/cms/published-urls`.",
+        "operationId": "reportPublishedArticles",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishedArticlesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishedArticlesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unauthorized`: missing, unknown or revoked token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`forbidden`: the token lacks the scope of this route."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`project_deactivated`: the organization is frozen and rejects writes; `option_locked`: the option is locked by the super admin; `state_conflict`: the object is not in a state that allows this (e.g. a held batch already decided, a resync preview that is not `ready` or has expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`validation_error`: the request does not match the schema."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`internal_error`."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Report where articles were published (link back)",
+        "tags": [
+          "cms-v3"
+        ]
+      }
+    },
+    "/v3/cms/articles/{article_id}": {
+      "get": {
+        "description": "Read mode, for a CMS without a public endpoint: the same body the `article.delivered` webhook would carry, built from the current state of the article. Fetch it after an `article_sent` change in `GET /changes`, then report the outcome with `POST /articles/{article_id}/result`. `404 not_found`: no such article in the organization, or it was never sent to the CMS.",
+        "operationId": "getArticle",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "article_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Article Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArticleDelivery"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unauthorized`: missing, unknown or revoked token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`forbidden`: the token lacks the scope of this route."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`not_found`: no such object in this organization."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`validation_error`: the request does not match the schema."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`internal_error`."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Read a sent article (read mode)",
+        "tags": [
+          "cms-v3"
+        ]
+      }
+    },
+    "/v3/cms/articles/{article_id}/result": {
+      "post": {
+        "description": "Read mode: the body your webhook would answer with (`ArticleDeliveryResult`). Tribune Desk stores `cms_post_id`, `edit_url` and `permalink` and marks the send as delivered. Unlike a webhook answer, this request is validated: a field of the wrong type gives `422 validation_error`; an `edit_url` that is not `http(s)` is ignored. Repeating the result is safe. `404 not_found`: no such article in the organization.",
+        "operationId": "reportArticleResult",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "article_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Article Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArticleDeliveryResult"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArticleResultAck"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unauthorized`: missing, unknown or revoked token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`forbidden`: the token lacks the scope of this route."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`not_found`: no such object in this organization."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`project_deactivated`: the organization is frozen and rejects writes; `option_locked`: the option is locked by the super admin; `state_conflict`: the object is not in a state that allows this (e.g. a held batch already decided, a resync preview that is not `ready` or has expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`validation_error`: the request does not match the schema."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`internal_error`."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Report the outcome of a sent article (read mode)",
+        "tags": [
+          "cms-v3"
+        ]
+      }
+    },
+    "/v3/cms/backfill/requests": {
+      "get": {
+        "description": "Requests still waiting for candidates. A request leaves this list after its last page, when it reaches `max_files`, when it is cancelled and while it is paused; a paused request comes back when it resumes.",
+        "operationId": "listBackfillRequests",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackfillRequestList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unauthorized`: missing, unknown or revoked token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`forbidden`: the token lacks the scope of this route."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`internal_error`."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Export requests for the historical import",
+        "tags": [
+          "cms-v3"
+        ]
+      }
+    },
+    "/v3/cms/backfill/requests/{request_id}/pages": {
+      "post": {
+        "description": "Up to 1000 candidates per page. Per item: `ok` (held for the request, also when you repeat a page), `known` (the file or its identifier is already in Tribune Desk) or `rejected` with `reason`: `host`, `too_small`, `mime`, `missing_metadata`, `agency` (the `credit`, or the `caption` when `credit` is empty, names an agency excluded for this organization) or `max_files` (the request is full). `is_last` closes the request, and so does reaching `max_files`; a request with no candidates closes with an empty last page. `409 state_conflict` when the request is closed (it took its last page, is full or cancelled), paused, or was never listed for your CMS. To tell a pause from the end, send an empty page with `is_last` false: a paused or open request answers `200` with `accepted: 0`, so keep your position; `409` again means the end. `404 not_found`: no such request in this organization.",
+        "operationId": "postBackfillPage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Request Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackfillPageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackfillPageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unauthorized`: missing, unknown or revoked token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`forbidden`: the token lacks the scope of this route."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`not_found`: no such object in this organization."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`project_deactivated`: the organization is frozen and rejects writes; `option_locked`: the option is locked by the super admin; `state_conflict`: the object is not in a state that allows this (e.g. a held batch already decided, a resync preview that is not `ready` or has expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`validation_error`: the request does not match the schema."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`internal_error`."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "A page of export results, newest first",
+        "tags": [
+          "cms-v3"
+        ]
+      }
+    },
+    "/v3/cms/changes": {
+      "get": {
+        "description": "Changed fields, new files (`new_asset`), settings changes and, with `td_deletion_marks_in_cms`, files trashed (`deleted`) or restored (`restored`) in Tribune Desk, oldest first; skip kinds you do not know. Every read of a `new_asset` change renews its `file_url`; a file that was trashed, deleted or linked meanwhile is left out and the cursor still moves on. A `settings` change carries no `asset_id` and no values: re-read `GET /settings`. `cursor` omitted means: start from now - no history is returned, only an empty list and a `next_cursor`. `next_cursor` is present on every 200, so a client always has a cursor to continue from. Pass it to acknowledge and continue. Changes are kept 90 days; an older cursor gives `410 cursor_expired`: run `POST /resync` and resume with the cursor it returns. `409 state_conflict` when the integration is not enabled (a super admin enables it).",
+        "operationId": "getChanges",
+        "parameters": [
+          {
+            "description": "Last acknowledged cursor; omit to start from now.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Last acknowledged cursor; omit to start from now.",
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unauthorized`: missing, unknown or revoked token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`forbidden`: the token lacks the scope of this route."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`state_conflict`: the integration is not enabled. A frozen organization (`project_deactivated`) rejects writes only, so a read still works."
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`cursor_expired`: the cursor is older than 90 days, or the integration was disabled and enabled again. Run `POST /resync`, then resume with the cursor it returns."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`validation_error`: the request does not match the schema."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`internal_error`."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Changes for the CMS since a cursor",
+        "tags": [
+          "cms-v3"
+        ]
+      }
+    },
+    "/v3/cms/held": {
+      "get": {
+        "description": "Batches of the organization, newest first. A `sent` batch stays listed while it is applied, and a decided batch for 24 hours after the end.",
+        "operationId": "listHeld",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeldList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unauthorized`: missing, unknown or revoked token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`forbidden`: the token lacks the scope of this route."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`internal_error`."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Batches held by the mass-change threshold",
+        "tags": [
+          "cms-v3"
+        ]
+      }
+    },
+    "/v3/cms/held/{held_id}/decision": {
+      "post": {
+        "description": "`send` answers `state: sent` at once; the changes are then applied in the background, in portions, and the cursor from `POST /resync` stays valid. `discard` changes nothing. `409 state_conflict`: the batch is no longer `pending`, the integration is not enabled, or `send` on a batch older than the change history (after re-enabling the integration or after 90 days), or `send` on a `cms_to_td` batch older than 7 days (`td_to_cms` has no such limit): discard it and run a new resync. `discard` always works. A `sent` batch that becomes older than the change history is not applied and turns `discarded`.",
+        "operationId": "decideHeld",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "held_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Held Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeldDecisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeldBatch"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unauthorized`: missing, unknown or revoked token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`forbidden`: the token lacks the scope of this route."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`not_found`: no such object in this organization."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`project_deactivated`: the organization is frozen and rejects writes; `option_locked`: the option is locked by the super admin; `state_conflict`: the object is not in a state that allows this (e.g. a held batch already decided, a resync preview that is not `ready` or has expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`validation_error`: the request does not match the schema."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`internal_error`."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Send or discard a held batch",
+        "tags": [
+          "cms-v3"
+        ]
+      }
+    },
+    "/v3/cms/media": {
+      "post": {
+        "description": "Up to 100 items, downloaded later at their own pace; `cms_media_id` is any text of yours. `ok`: accepted; `known`: already received. Both carry `asset_id` once the file exists in Tribune Desk. An accepted item has no file yet: the pair appears after the import, and until then `POST /media/fields`, `POST /media/deletions` and `POST /resync` treat the id as unknown. Repeat the item to learn the `asset_id`; it stays `null` if the import refused the file. `rejected` with `reason`: `new_files_disabled`, `before_since`, `below_min_width`, `missing_metadata` (`width`, `height` and `mime_type` are required here), `host` (the URL is not `https` on a host allowed for the organization), `too_small` (under 800 pixels wide), `mime` (not JPEG, PNG or WebP), `excluded_agency`. A refusal is not remembered: send the item again after the settings change. New files are not subject to `mass_change_threshold`; initial `fields` only help describe the file (see the schema). `409 state_conflict` when the integration or the media library is not enabled.",
+        "operationId": "postMedia",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewMediaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unauthorized`: missing, unknown or revoked token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`forbidden`: the token lacks the scope of this route."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`project_deactivated`: the organization is frozen and rejects writes; `option_locked`: the option is locked by the super admin; `state_conflict`: the object is not in a state that allows this (e.g. a held batch already decided, a resync preview that is not `ready` or has expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`validation_error`: the request does not match the schema."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`internal_error`."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "New files from the CMS",
+        "tags": [
+          "cms-v3"
+        ]
+      }
+    },
+    "/v3/cms/media/deletions": {
+      "post": {
+        "description": "Up to 100 items, each `cms_media_id` once. The file is marked as missing from the CMS and is no longer suggested to editors, whatever the settings say; the mark is set to `deleted_at`. With `cms_deletion_trashes_in_td` the file also goes to the trash; nothing is ever deleted permanently. `ok`: recorded. `known`: this deletion was already recorded. `unknown`: no such file in this organization yet; a file sent with `POST /media` and not imported yet answers this too, so report it again later. Moves to the trash count towards `mass_change_threshold` in the same 60-minute run as field changes; past it the file only gets the mark and the item answers `ok` with `reason: threshold`. That is final: repeating answers `known` and does not trash it. `held_batch_id` stays `null`: nothing waits for a decision. A trash caused here can also produce a `deleted` change in `GET /changes` when `td_deletion_marks_in_cms` is on; ignore it for a file you no longer have. Link the file again with `POST /media/{asset_id}/link` when it is back in your library: that clears the mark. `409 state_conflict` when the integration is not enabled.",
+        "operationId": "postDeletions",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeletionsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unauthorized`: missing, unknown or revoked token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`forbidden`: the token lacks the scope of this route."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`project_deactivated`: the organization is frozen and rejects writes; `option_locked`: the option is locked by the super admin; `state_conflict`: the object is not in a state that allows this (e.g. a held batch already decided, a resync preview that is not `ready` or has expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`validation_error`: the request does not match the schema."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`internal_error`."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Deletions from the CMS",
+        "tags": [
+          "cms-v3"
+        ]
+      }
+    },
+    "/v3/cms/media/fields": {
+      "post": {
+        "description": "Up to 100 items, each with at most one write per field and values up to 5000 characters. The result lists per-field outcomes; on `conflict` `winning_value` carries the value that won. A write without `base_version` applies when its `changed_at` is not older than the last change of the field in Tribune Desk (a `changed_at` in the future counts as now); otherwise `conflict_rule` decides, and a tie goes to the CMS. A run is the 60 minutes after the first counted change from the CMS; changes past `mass_change_threshold` in a run change nothing yet: their fields answer `held` and `held_batch_id` is set; decide with `POST /held/{id}/decision`. Values equal to the current ones answer `unchanged` and do not count. An unknown or trashed file answers `unknown`. `409 state_conflict` when the integration is not enabled.",
+        "operationId": "postFields",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unauthorized`: missing, unknown or revoked token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`forbidden`: the token lacks the scope of this route."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`project_deactivated`: the organization is frozen and rejects writes; `option_locked`: the option is locked by the super admin; `state_conflict`: the object is not in a state that allows this (e.g. a held batch already decided, a resync preview that is not `ready` or has expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`validation_error`: the request does not match the schema."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`internal_error`."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Field changes from the CMS",
+        "tags": [
+          "cms-v3"
+        ]
+      }
+    },
+    "/v3/cms/media/push-existing": {
+      "post": {
+        "description": "Queues up to 1000 files as `new_asset` changes, oldest first; `queued` says how many. Send `next_after` back as `after` until it is `null`: that ends the run, not `queued`. It skips files already linked and files whose change you have not acknowledged yet, so it does not duplicate. A file you acknowledged without linking it is not offered again within a run, so a file you cannot download does not block the rest; a new run, without `after`, offers it again. Only images allowed by the settings (`new_files_td_to_cms` with `td_to_cms_editor_files` or `td_to_cms_graphics`) are queued. Keep polling with your cursor: a poll without a cursor starts from now and skips what was queued. Files only add, so `mass_change_threshold` does not apply and `held_batch_id` stays `null`. `409 state_conflict` when the integration is not enabled or `GET /changes` has not been polled yet: poll first, so you hold a cursor from before the queued files. `422 validation_error`: an invalid `after`.",
+        "operationId": "pushExisting",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushExistingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushExistingResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unauthorized`: missing, unknown or revoked token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`forbidden`: the token lacks the scope of this route."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`project_deactivated`: the organization is frozen and rejects writes; `option_locked`: the option is locked by the super admin; `state_conflict`: the object is not in a state that allows this (e.g. a held batch already decided, a resync preview that is not `ready` or has expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`validation_error`: the request does not match the schema."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`internal_error`."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Send existing TD files to the CMS",
+        "tags": [
+          "cms-v3"
+        ]
+      }
+    },
+    "/v3/cms/media/{asset_id}/link": {
+      "post": {
+        "description": "Call it after adding a `new_asset` file to your library, also when you already had the file (for example from an article delivery). `ok`: recorded; `known`: the same values were already recorded. `id` in the answer is your `cms_media_id`. After a change Tribune Desk adds a `fields` change with the current texts allowed by the settings, so a text changed after you read `new_asset` is not lost. Also the way to clear the missing mark of a file you sent yourself: take `asset_id` from `POST /media`. `404 not_found`: unknown or trashed file. `422 validation_error`: the URL is not `https` on a host allowed for the organization. `409 state_conflict`: the integration is not enabled, the `cms_media_id` belongs to another file, this file already has another `cms_media_id`, or Tribune Desk keeps no copy of this file and the URL differs.",
+        "operationId": "linkMedia",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Asset Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unauthorized`: missing, unknown or revoked token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`forbidden`: the token lacks the scope of this route."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`not_found`: no such object in this organization."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`project_deactivated`: the organization is frozen and rejects writes; `option_locked`: the option is locked by the super admin; `state_conflict`: the object is not in a state that allows this (e.g. a held batch already decided, a resync preview that is not `ready` or has expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`validation_error`: the request does not match the schema."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`internal_error`."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "CMS confirms it took a file from TD",
+        "tags": [
+          "cms-v3"
+        ]
+      }
+    },
+    "/v3/cms/resync": {
+      "post": {
+        "description": "Two forms. Preview: upload the CMS state, up to 100 items per request, in pages (`is_last` closes the upload), for either direction; nothing changes and the answer carries the number of differences. Confirm: `{resync_id, confirm: true}` applies a `ready` preview within 24 hours and returns the cursor to resume `/changes` from. The chosen direction wins. Resync covers only paired files; it does not restore new files or deletions - those need `POST /media/push-existing`. `409 state_conflict`: the integration is not enabled for the organization, a preview with more than 50000 differences, a page sent to a closed or expired session or with a different direction than its first page, or confirming a preview that is not `ready` or has expired, or a session started before the integration was re-enabled (run a new resync). Repeating the confirmation of an applied or held resync changes nothing and gives the same answer. Only fields enabled in the settings for the direction are compared and applied. Over `mass_change_threshold` differences the confirmation changes nothing and answers `status: held` with `held_batch_id` and the cursor: decide with `POST /held/{id}/decision`.",
+        "operationId": "resync",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ResyncPreviewRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ResyncConfirmRequest"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ResyncPreviewResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ResyncConfirmResponse"
+                    }
+                  ],
+                  "title": "Response Resync"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unauthorized`: missing, unknown or revoked token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`forbidden`: the token lacks the scope of this route."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`not_found`: no such object in this organization."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`project_deactivated`: the organization is frozen and rejects writes; `option_locked`: the option is locked by the super admin; `state_conflict`: the object is not in a state that allows this (e.g. a held batch already decided, a resync preview that is not `ready` or has expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`validation_error`: the request does not match the schema."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`internal_error`."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Compare fields after an outage or an expired cursor",
+        "tags": [
+          "cms-v3"
+        ]
+      }
+    },
+    "/v3/cms/settings": {
+      "get": {
+        "description": "`409 state_conflict` when the integration is not enabled for the organization (a super admin enables it).",
+        "operationId": "getSettings",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unauthorized`: missing, unknown or revoked token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`forbidden`: the token lacks the scope of this route."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`state_conflict`: the integration is not enabled. A frozen organization (`project_deactivated`) rejects writes only, so a read still works."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`internal_error`."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Publisher settings",
+        "tags": [
+          "cms-v3"
+        ]
+      },
+      "put": {
+        "description": "`variant` is required. `options` is required exactly when `variant` is `custom` and forbidden otherwise; every option must then be given explicitly. A write that would change an option locked by the super admin, directly or through a variant, gives `409 option_locked` and saves nothing. `409 state_conflict` when the integration is not enabled.",
+        "operationId": "putSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unauthorized`: missing, unknown or revoked token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`forbidden`: the token lacks the scope of this route."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`project_deactivated`: the organization is frozen and rejects writes; `option_locked`: the option is locked by the super admin; `state_conflict`: the object is not in a state that allows this (e.g. a held batch already decided, a resync preview that is not `ready` or has expired)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`validation_error`: the request does not match the schema."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`internal_error`."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Save publisher settings",
+        "tags": [
+          "cms-v3"
+        ]
+      }
+    },
+    "/v3/cms/status": {
+      "get": {
+        "operationId": "getStatus",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unauthorized`: missing, unknown or revoked token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`forbidden`: the token lacks the scope of this route."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`internal_error`."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Integration status",
+        "tags": [
+          "cms-v3"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.tribunedesk.com"
+    }
+  ],
+  "webhooks": {
+    "article.delivered": {
+      "post": {
+        "description": "Sent when an editor clicks \"Send to CMS\" (or a newsroom widget sends the article). Tribune Desk makes a `POST` with a JSON body to the webhook address set for the organization.\n\n**Signature:** when your organization has a signing secret (`whsec_...`), every request carries `webhook-id`, `webhook-timestamp` and `webhook-signature` as defined by Standard Webhooks: HMAC-SHA256 of `{webhook-id}.{webhook-timestamp}.{body}`, keyed with the base64-decoded secret, as `v1,<base64>`. Two active secrets give two space-separated signatures; any match is valid. Reject a timestamp more than 5 minutes from your clock. `webhook-id` is the same for every attempt of one send.\n\n**Headers:** `X-Webhook-Secret` is deprecated: the shared secret, sent only when your organization has a secret set (compare it with yours and answer `401` when it differs or is missing); `X-Delivery-Id` stays the same for every attempt of one send, so you can drop duplicates; `X-Delivery-Attempt` is the attempt number, starting at 1.\n\n**Your answer:** any `2xx` means delivered. Answer within 30 seconds.\n\n**Retries:** after a network error, a timeout, `5xx` or `408, 425, 429`, Tribune Desk tries again after 2, 10, 30, 120, 360, 840 minutes. Any other status (another `4xx`, or a `3xx`: redirects are not followed) ends the send at once.\n\n**Idempotency:** the same article comes again with the same `article_id` when it is resent or edited: update the post you created the first time, do not create a second one.",
+        "operationId": "articleDelivered",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArticleDelivery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArticleDeliveryResult"
+                }
+              }
+            },
+            "description": "Delivered. Any `2xx` counts; the body is optional."
+          },
+          "3XX": {
+            "description": "Not delivered; redirects are not followed, the send ends."
+          },
+          "4XX": {
+            "description": "Not delivered. `408, 425, 429` are retried; any other `4xx` ends the send at once (for example a wrong secret or an unknown organization)."
+          },
+          "5XX": {
+            "description": "Not delivered; retried."
+          }
+        },
+        "summary": "An article is sent to your CMS"
+      }
+    }
+  }
+}

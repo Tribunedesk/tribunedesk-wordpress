@@ -1,0 +1,1037 @@
+# Copyright (C) 2026 Dominik Czarnota
+# This file is distributed under the MIT.
+msgid ""
+msgstr ""
+"Project-Id-Version: Tribune Desk 2.0.2\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/tribune-desk\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-11-05T12:42:41+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: tribune-desk\n"
+
+#. Plugin Name of the plugin
+#: headlinesforge-receiver.php
+#: src/WordPress/Settings.php:31
+msgid "Tribune Desk"
+msgstr ""
+
+#. Plugin URI of the plugin
+#: headlinesforge-receiver.php
+msgid "https://github.com/Tribunedesk/tribunedesk-wordpress"
+msgstr ""
+
+#. Description of the plugin
+#: headlinesforge-receiver.php
+msgid "Receives finished articles from Tribune Desk (ArticleWriter) and creates them as drafts or publishes them immediately."
+msgstr ""
+
+#. Author of the plugin
+#: headlinesforge-receiver.php
+msgid "Dominik Czarnota"
+msgstr ""
+
+#: src/WordPress/Backfill.php:60
+msgid "all posts sent; the next click starts from the beginning"
+msgstr ""
+
+#: src/WordPress/Backfill.php:61
+msgid "no published posts from HeadlinesForge"
+msgstr ""
+
+#. translators: %d: number of posts skipped
+#: src/WordPress/Backfill.php:105
+#, php-format
+msgid "skipped %d posts without a UUID"
+msgstr ""
+
+#: src/WordPress/Backfill.php:108
+msgid "HeadlinesForge request limit hit again after the retry — try again in a minute"
+msgstr ""
+
+#: src/WordPress/Backfill.php:136
+#: src/WordPress/CmsSettingsScreen.php:215
+msgid "Insufficient permissions."
+msgstr ""
+
+#: src/WordPress/CmsApiClient.php:118
+msgid "The integration is not connected: the CMS API token is missing."
+msgstr ""
+
+#: src/WordPress/CmsApiClient.php:119
+msgid "The Tribune Desk API address must start with https://, so the plugin did not send the token."
+msgstr ""
+
+#: src/WordPress/CmsApiClient.php:120
+msgid "Could not connect to Tribune Desk. Try again in a moment."
+msgstr ""
+
+#: src/WordPress/CmsApiClient.php:121
+msgid "Tribune Desk rejected the token: it is invalid or revoked."
+msgstr ""
+
+#: src/WordPress/CmsApiClient.php:122
+msgid "The token lacks permission for this operation. Required: articles:write, settings:read, settings:write, media:read, media:write, backfill:write."
+msgstr ""
+
+#: src/WordPress/CmsApiClient.php:123
+msgid "Tribune Desk does not know this object in this organization."
+msgstr ""
+
+#: src/WordPress/CmsApiClient.php:124
+msgid "The organization in Tribune Desk is frozen and does not accept changes."
+msgstr ""
+
+#: src/WordPress/CmsApiClient.php:125
+msgid "This change was not saved: it includes an option locked by the Tribune Desk administrator."
+msgstr ""
+
+#: src/WordPress/CmsApiClient.php:126
+msgid "Tribune Desk cannot do this now: the integration is not enabled or the batch is no longer awaiting a decision. If the batch is too old, reject it and start a new resync."
+msgstr ""
+
+#: src/WordPress/CmsApiClient.php:127
+msgid "Tribune Desk did not accept these values."
+msgstr ""
+
+#: src/WordPress/CmsApiClient.php:128
+msgid "The changes cursor expired: fetching is paused until the fields are synced with Tribune Desk."
+msgstr ""
+
+#: src/WordPress/CmsApiClient.php:129
+msgid "Too many requests to Tribune Desk. Try again in a moment."
+msgstr ""
+
+#: src/WordPress/CmsApiClient.php:131
+msgid "Tribune Desk is temporarily unavailable. Try again in a moment."
+msgstr ""
+
+#: src/WordPress/CmsApiClient.php:132
+#: src/WordPress/CmsResync.php:89
+#: src/WordPress/CmsResync.php:147
+#: src/WordPress/CmsSettingsScreen.php:164
+#: src/WordPress/CmsSettingsScreen.php:274
+#: src/WordPress/CmsSync.php:302
+msgid "Tribune Desk returned an unexpected response."
+msgstr ""
+
+#: src/WordPress/CmsBackfill.php:57
+msgid "An unexpected plugin error interrupted the import candidates export."
+msgstr ""
+
+#: src/WordPress/CmsBackfill.php:179
+msgid "Tribune Desk rejected the import candidates page, so the plugin will retry it on the next run."
+msgstr ""
+
+#: src/WordPress/CmsBackfill.php:187
+msgid "Tribune Desk rejected the import candidates page 5 times in a row, so the plugin paused this task's export for an hour. Check the task in Tribune Desk and the plugin version."
+msgstr ""
+
+#: src/WordPress/CmsBackfill.php:195
+msgid "The CMS API token lacks the backfill:write permission, so the plugin cannot hand over backfill import candidates. The rest of the exchange works unchanged."
+msgstr ""
+
+#. translators: 1: queue limit, 2: number of files
+#: src/WordPress/CmsDeletions.php:166
+#, php-format
+msgid "The deletion report queue reached its limit of %1$d rows, so Tribune Desk will not learn about newer deletions: %2$d."
+msgstr ""
+
+#: src/WordPress/CmsDeletions.php:256
+#: src/WordPress/CmsDeletions.php:258
+#: src/WordPress/CmsDeletions.php:312
+msgid "Deleted in TD"
+msgstr ""
+
+#: src/WordPress/CmsDeletions.php:257
+#: src/WordPress/CmsDeletions.php:311
+msgid "All files"
+msgstr ""
+
+#: src/WordPress/CmsResync.php:42
+msgid "Choose the sync direction."
+msgstr ""
+
+#: src/WordPress/CmsResync.php:44
+msgid "A sync is already running."
+msgstr ""
+
+#: src/WordPress/CmsResync.php:48
+msgid "Sync started: fields are sent to Tribune Desk in batches in the background."
+msgstr ""
+
+#: src/WordPress/CmsResync.php:72
+msgid "There is no preview ready to approve."
+msgstr ""
+
+#: src/WordPress/CmsResync.php:76
+msgid "The preview expired (valid for 24 hours). Cancel and start over."
+msgstr ""
+
+#. translators: %s: batch identifier
+#: src/WordPress/CmsResync.php:103
+#, php-format
+msgid "There are more changes than the bulk-change threshold, so Tribune Desk held batch %s. Decide on it in the “Held change batches” section."
+msgstr ""
+
+#: src/WordPress/CmsResync.php:105
+msgid "Sync approved. The changes feed keeps running."
+msgstr ""
+
+#: src/WordPress/CmsResync.php:118
+msgid "Sync cancelled. The feed will start from now, and changes from the gap will not arrive."
+msgstr ""
+
+#: src/WordPress/CmsResync.php:209
+msgid "Sync with Tribune Desk"
+msgstr ""
+
+#: src/WordPress/CmsResync.php:211
+msgid "The changes feed expired: Tribune Desk no longer holds changes since the last fetch. The feed is paused until you sync the fields or cancel. Sending your changes continues."
+msgstr ""
+
+#: src/WordPress/CmsResync.php:216
+msgid "WordPress wins: WordPress values will replace differing values in Tribune Desk."
+msgstr ""
+
+#: src/WordPress/CmsResync.php:218
+msgid "Tribune Desk wins: Tribune Desk values will replace differing values in WordPress."
+msgstr ""
+
+#: src/WordPress/CmsResync.php:219
+msgid "Start sync"
+msgstr ""
+
+#: src/WordPress/CmsResync.php:227
+msgid "WordPress wins: differing values in Tribune Desk will be replaced with WordPress values."
+msgstr ""
+
+#: src/WordPress/CmsResync.php:228
+msgid "Tribune Desk wins: differing values in WordPress will be replaced with Tribune Desk values."
+msgstr ""
+
+#. translators: %d: id of the last file sent
+#: src/WordPress/CmsResync.php:237
+#, php-format
+msgid "Sending files in batches of 100 (last sent: %d)."
+msgstr ""
+
+#: src/WordPress/CmsResync.php:242
+msgid "Resume from the saved position"
+msgstr ""
+
+#. translators: %d: number of differences
+#: src/WordPress/CmsResync.php:247
+#, php-format
+msgid "Preview ready. Number of differences: %d."
+msgstr ""
+
+#: src/WordPress/CmsResync.php:249
+msgid "The preview expired (valid for 24 hours): cancel and start over."
+msgstr ""
+
+#: src/WordPress/CmsResync.php:254
+msgid "Approve sync"
+msgstr ""
+
+#: src/WordPress/CmsResync.php:266
+msgid "Cancelling starts the feed from now: changes from the gap will not arrive."
+msgstr ""
+
+#: src/WordPress/CmsResync.php:267
+msgid "Cancel and start from now"
+msgstr ""
+
+#: src/WordPress/CmsResync.php:296
+msgid "You do not have permission."
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:49
+msgid "Media sync with Tribune Desk"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:52
+msgid "Media sync requires a CMS API token"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:101
+msgid "Settings saved in Tribune Desk."
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:113
+msgid "Invalid decision."
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:123
+msgid "Batch sent: Tribune Desk applies the changes in portions in the background."
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:125
+msgid "Batch discarded: these changes will not be applied."
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:146
+#: src/WordPress/CmsSettingsScreen.php:361
+msgid "Invalid date - expected format YYYY-MM-DD."
+msgstr ""
+
+#. translators: %d: number of files
+#: src/WordPress/CmsSettingsScreen.php:170
+#, php-format
+msgid "All older files have been sent. Queued in this click: %d."
+msgstr ""
+
+#. translators: %d: number of files
+#: src/WordPress/CmsSettingsScreen.php:174
+#, php-format
+msgid "Queued: %d. Click again to send the next portion."
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:181
+msgid "The changes feed has not been fetched yet. Wait for the first fetch (up to 5 minutes) and click again."
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:198
+msgid "Older files from Tribune Desk"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:200
+msgid "Sending is in progress: click again to send the next portion. A different date starts from the beginning."
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:205
+msgid "From day (empty: all)"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:207
+msgid "Send older files from Tribune Desk"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:290
+msgid "Invalid sync variant."
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:333
+msgid "Invalid option value."
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:342
+msgid "The mass-change threshold must be a whole number from 1."
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:352
+msgid "The minimum width must be a whole number from 1 or empty."
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:417
+msgid "running"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:418
+msgid "stopped: the CMS has not fetched changes for over 24 hours"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:419
+msgid "not enabled: a Tribune Desk administrator turns it on"
+msgstr ""
+
+#. translators: %s: integration state
+#: src/WordPress/CmsSettingsScreen.php:422
+#, php-format
+msgid "Integration status: %s"
+msgstr ""
+
+#. translators: %d: number of changes
+#: src/WordPress/CmsSettingsScreen.php:426
+#, php-format
+msgid "Changes waiting to be fetched: %d"
+msgstr ""
+
+#. translators: %s: date
+#: src/WordPress/CmsSettingsScreen.php:430
+#, php-format
+msgid "Last changes fetch: %s"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:435
+msgid "Recent errors:"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:449
+msgid "Last changes fetch by the plugin"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:450
+msgid "Last send by the plugin"
+msgstr ""
+
+#. translators: %s: error message
+#: src/WordPress/CmsSettingsScreen.php:469
+#, php-format
+msgid "Backfill import: %s"
+msgstr ""
+
+#. translators: %s: attachment IDs
+#: src/WordPress/CmsSettingsScreen.php:475
+#, php-format
+msgid "Attachments skipped after 5 failed saves of changes from Tribune Desk: %s"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:491
+msgid "Full"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:492
+msgid "CMS → TD only"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:493
+msgid "TD → CMS only"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:494
+msgid "Custom"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:497
+msgid "Fields, new files and deletions go through the new exchange: the feed every 5 minutes, sending one minute after a change."
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:504
+msgid "Sync variant:"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:514
+msgid "Save in Tribune Desk"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:524
+msgid "New files"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:525
+msgid "New files CMS → TD"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:526
+msgid "From day (empty: no threshold)"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:527
+msgid "Minimum width in pixels (empty: no threshold)"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:528
+msgid "New files TD → CMS"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:529
+msgid "TD → CMS: editor files"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:530
+msgid "TD → CMS: graphics"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:533
+msgid "title"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:534
+msgid "alt text"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:535
+msgid "caption"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:536
+msgid "description"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:538
+msgid "Fields"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:545
+msgid "Rules"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:546
+msgid "Conflict"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:547
+msgid "last change"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:548
+msgid "CMS wins"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:549
+msgid "TD wins"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:551
+msgid "Do not overwrite non-empty fields: CMS → TD"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:552
+msgid "Do not overwrite non-empty fields: TD → CMS"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:553
+msgid "Model texts to the CMS"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:554
+msgid "never"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:555
+msgid "empty fields only"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:557
+msgid "Mass-change threshold per run"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:558
+msgid "Deleting in the CMS moves to the trash in TD"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:559
+msgid "Deleting in TD marks the file in the CMS (except files used in published content)"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:560
+msgid "Copies of new files in TD"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:585
+msgid "locked by a Tribune Desk administrator"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:643
+msgid "Held change batches"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:646
+msgid "No held batches."
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:651
+msgid "awaiting decision"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:652
+msgid "sent, being applied in the background"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:653
+msgid "discarded"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:656
+msgid "Created"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:656
+msgid "Direction"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:656
+msgid "Kind"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:656
+msgid "Number of changes"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:656
+#: src/WordPress/Settings.php:632
+msgid "Status"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:656
+msgid "Decision"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:670
+msgid "fields"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:670
+msgid "files"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:687
+msgid "Send"
+msgstr ""
+
+#: src/WordPress/CmsSettingsScreen.php:688
+msgid "Discard"
+msgstr ""
+
+#: src/WordPress/CmsSync.php:67
+msgid "Every 5 minutes (Tribune Desk)"
+msgstr ""
+
+#: src/WordPress/CmsSync.php:216
+msgid "An unexpected plugin error interrupted the exchange run."
+msgstr ""
+
+#: src/WordPress/CmsSync.php:230
+msgid "Fetching changes is more than 30 minutes late, and WP-Cron is disabled (DISABLE_WP_CRON). The exchange only works when the server runs wp-cron.php itself."
+msgstr ""
+
+#: src/WordPress/CmsSync.php:233
+msgid "Fetching changes is more than 30 minutes late: WP-Cron is not running tasks on time."
+msgstr ""
+
+#: src/WordPress/CmsSync.php:396
+msgid "Could not save a change from Tribune Desk, so the feed will retry this page."
+msgstr ""
+
+#: src/WordPress/CmsSync.php:404
+msgid "A file from Tribune Desk could not be downloaded after 5 attempts, so the feed moved on."
+msgstr ""
+
+#: src/WordPress/CmsSync.php:637
+msgid "Tribune Desk no longer knows the file the plugin downloaded: it is deleted or in the trash. The attachment stays in the library."
+msgstr ""
+
+#: src/WordPress/CmsSync.php:642
+msgid "Tribune Desk rejected the file address from this site: add the host in the Tribune Desk panel. The attachment stays in the library."
+msgstr ""
+
+#: src/WordPress/CmsSync.php:669
+msgid "Tribune Desk did not link the file to the attachment: the ID or address already belongs to another file. The attachment stays in the library."
+msgstr ""
+
+#: src/WordPress/CmsSync.php:893
+msgid "Could not save a change from Tribune Desk after the batch decision."
+msgstr ""
+
+#: src/WordPress/CmsSync.php:935
+msgid "Skipped a field longer than 5000 characters or containing a NUL character: Tribune Desk will not accept it."
+msgstr ""
+
+#: src/WordPress/CmsSync.php:1061
+msgid "Could not save the winning value from Tribune Desk."
+msgstr ""
+
+#: src/WordPress/CmsSync.php:1073
+msgid "Could not save a change from Tribune Desk."
+msgstr ""
+
+#: src/WordPress/ImageHosts.php:54
+msgid "could not fetch image_hosts from Tribune Desk — images are checked for https only"
+msgstr ""
+
+#. translators: 1: language code, 2: comma-separated list of configured languages
+#: src/WordPress/Language.php:49
+#, php-format
+msgid "language \"%1$s\" is not configured in Polylang (configured: %2$s)"
+msgstr ""
+
+#. translators: %d: limit of posts processed per publication
+#: src/WordPress/LinkResolver.php:270
+#, php-format
+msgid "repaired %d linking posts - per-publication limit reached, the rest will repair themselves on their own save"
+msgstr ""
+
+#. translators: %s: image host name
+#: src/WordPress/MediaHandler.php:97
+#, php-format
+msgid "image skipped: host not in the Tribune Desk image_hosts list or address without https: %s"
+msgstr ""
+
+#: src/WordPress/PublishedUrlsClient.php:69
+msgid "no posts with a UUID to send"
+msgstr ""
+
+#. translators: %d: maximum number of items in one batch
+#: src/WordPress/PublishedUrlsClient.php:74
+#, php-format
+msgid "batch larger than %d items"
+msgstr ""
+
+#: src/WordPress/PublishedUrlsClient.php:91
+msgid "Tribune Desk has no /v3/cms/articles/published route"
+msgstr ""
+
+#: src/WordPress/PublishedUrlsClient.php:92
+msgid "Tribune Desk rejected the token (revoked or invalid)"
+msgstr ""
+
+#: src/WordPress/PublishedUrlsClient.php:93
+msgid "Tribune Desk token lacks the articles:write permission"
+msgstr ""
+
+#. translators: %s: reason the /v3 route was not used
+#: src/WordPress/PublishedUrlsClient.php:98
+#, php-format
+msgid "%s, and no webhook secret for the old route"
+msgstr ""
+
+#. translators: %s: reason the /v3 route was not used
+#: src/WordPress/PublishedUrlsClient.php:105
+#, php-format
+msgid "%s — sent via the old route (/v2)"
+msgstr ""
+
+#: src/WordPress/PublishedUrlsClient.php:114
+msgid "no webhook secret in the plugin settings"
+msgstr ""
+
+#: src/WordPress/PublishedUrlsClient.php:180
+msgid "Tribune Desk token rejected"
+msgstr ""
+
+#: src/WordPress/PublishedUrlsClient.php:181
+msgid "the secret matches no newsroom in HeadlinesForge"
+msgstr ""
+
+#: src/WordPress/PublishedUrlsClient.php:189
+msgid "HeadlinesForge request limit"
+msgstr ""
+
+#: src/WordPress/PublishedUrlsClient.php:200
+msgid "response without a results field"
+msgstr ""
+
+#: src/WordPress/PublishedUrlsClient.php:218
+msgid "the article exists, but not in this secret's newsroom"
+msgstr ""
+
+#: src/WordPress/PublishedUrlsClient.php:219
+msgid "Tribune Desk does not know this article_id"
+msgstr ""
+
+#. translators: %s: URL
+#: src/WordPress/PublishedUrlsClient.php:222
+#, php-format
+msgid "HeadlinesForge rejected the address: %s"
+msgstr ""
+
+#. translators: %s: item status
+#: src/WordPress/PublishedUrlsClient.php:227
+#, php-format
+msgid "unknown item status: %s"
+msgstr ""
+
+#: src/WordPress/PublishNotifier.php:96
+msgid "HeadlinesForge did not return a status for this item"
+msgstr ""
+
+#: src/WordPress/PublishNotifier.php:105
+msgid "retry"
+msgstr ""
+
+#: src/WordPress/PublishNotifier.php:109
+msgid "retry in 5 min"
+msgstr ""
+
+#: src/WordPress/ReadMore.php:104
+msgid "Read more"
+msgstr ""
+
+#: src/WordPress/Settings.php:105
+msgid "Webhook settings"
+msgstr ""
+
+#: src/WordPress/Settings.php:112
+msgid "Webhook secret"
+msgstr ""
+
+#: src/WordPress/Settings.php:120
+msgid "Signing secret (whsec_…)"
+msgstr ""
+
+#: src/WordPress/Settings.php:128
+msgid "Default author"
+msgstr ""
+
+#: src/WordPress/Settings.php:136
+msgid "Publish immediately"
+msgstr ""
+
+#: src/WordPress/Settings.php:144
+msgid "Authors from Tribune Desk"
+msgstr ""
+
+#: src/WordPress/Settings.php:151
+msgid "Updates"
+msgstr ""
+
+#: src/WordPress/Settings.php:158
+msgid "Automatic updates"
+msgstr ""
+
+#: src/WordPress/Settings.php:166
+msgid "Tribune Desk API"
+msgstr ""
+
+#: src/WordPress/Settings.php:173
+msgid "Tribune Desk API address"
+msgstr ""
+
+#: src/WordPress/Settings.php:181
+msgid "CMS API token"
+msgstr ""
+
+#: src/WordPress/Settings.php:189
+msgid "Theme fields"
+msgstr ""
+
+#: src/WordPress/Settings.php:196
+msgid "Meta description field"
+msgstr ""
+
+#: src/WordPress/Settings.php:204
+msgid "Facebook title field"
+msgstr ""
+
+#: src/WordPress/Settings.php:212
+msgid "Excerpt from Facebook teaser"
+msgstr ""
+
+#: src/WordPress/Settings.php:234
+msgid "Endpoint URL:"
+msgstr ""
+
+#: src/WordPress/Settings.php:240
+msgid "The previous address still works and needs no change:"
+msgstr ""
+
+#: src/WordPress/Settings.php:281
+msgid "The signing secret must start with whsec_ and be copied in full. The previous value was kept."
+msgstr ""
+
+#. translators: %s: last characters of the saved secret
+#: src/WordPress/Settings.php:302
+#, php-format
+msgid "Saved (…%s). Leave the field empty to keep it unchanged."
+msgstr ""
+
+#: src/WordPress/Settings.php:318
+msgid "Remove the saved signing secret (deliveries are checked with the webhook secret again)"
+msgstr ""
+
+#: src/WordPress/Settings.php:321
+msgid "Signing secret of deliveries from Tribune Desk. When set, the plugin accepts only deliveries with a valid signature, and the webhook secret is no longer checked."
+msgstr ""
+
+#: src/WordPress/Settings.php:329
+msgid "— use plugin installer as fallback —"
+msgstr ""
+
+#: src/WordPress/Settings.php:335
+msgid "Author of posts that cannot be matched to a person from Tribune Desk (see the “Authors from Tribune Desk” section)."
+msgstr ""
+
+#: src/WordPress/Settings.php:345
+msgid "The post author is the person who clicked “Send to CMS” in Tribune Desk or, if that person cannot be matched, the article author in Tribune Desk. The plugin matches a WordPress account with the same email address by itself; here you can assign an account manually. When nobody can be matched, the author is the “Default author”. The author of published posts does not change."
+msgstr ""
+
+#: src/WordPress/Settings.php:357
+msgid "The list appears after the first delivery from Tribune Desk that carries an author."
+msgstr ""
+
+#: src/WordPress/Settings.php:366
+msgid "Person in Tribune Desk"
+msgstr ""
+
+#: src/WordPress/Settings.php:366
+msgid "Email"
+msgstr ""
+
+#: src/WordPress/Settings.php:366
+msgid "WordPress account"
+msgstr ""
+
+#: src/WordPress/Settings.php:366
+msgid "Author now set to"
+msgstr ""
+
+#: src/WordPress/Settings.php:378
+msgid "— automatic (by email) —"
+msgstr ""
+
+#: src/WordPress/Settings.php:386
+msgid "Default author (no match)"
+msgstr ""
+
+#: src/WordPress/Settings.php:391
+msgid "assigned manually"
+msgstr ""
+
+#: src/WordPress/Settings.php:392
+msgid "same email"
+msgstr ""
+
+#: src/WordPress/Settings.php:404
+msgid "Publish received articles immediately instead of saving them as drafts."
+msgstr ""
+
+#: src/WordPress/Settings.php:412
+msgid "Installed version:"
+msgstr ""
+
+#: src/WordPress/Settings.php:439
+msgid "Install new plugin versions automatically."
+msgstr ""
+
+#: src/WordPress/Settings.php:444
+msgid "The same setting as \"Enable auto-updates\" for this plugin on the Plugins list. A change in one place shows in the other."
+msgstr ""
+
+#: src/WordPress/Settings.php:469
+msgid "The Tribune Desk API address must start with https:// and include a host name — the previous value was kept."
+msgstr ""
+
+#: src/WordPress/Settings.php:481
+msgid "The address the plugin sends published post URLs back to (return contract). Change it only when Tribune Desk asks you to."
+msgstr ""
+
+#: src/WordPress/Settings.php:494
+msgid "https:// required. Default:"
+msgstr ""
+
+#: src/WordPress/Settings.php:500
+msgid "Token from Tribune Desk for the link back and the media sync. Required permissions: articles:write, settings:read, settings:write, media:read, media:write, backfill:write. Without a token the existing sync keeps working."
+msgstr ""
+
+#: src/WordPress/Settings.php:521
+msgid "Optional: meta keys of theme fields the plugin copies the meta description and Facebook title from Tribune Desk into (next to the Yoast fields). An empty field means no copying. Only an empty post field is filled, so manual edits stay."
+msgstr ""
+
+#: src/WordPress/Settings.php:541
+msgid "Write the Facebook teaser from Tribune Desk into an empty post excerpt."
+msgstr ""
+
+#: src/WordPress/Settings.php:557
+msgid "Published post URLs"
+msgstr ""
+
+#: src/WordPress/Settings.php:558
+msgid "Sends Tribune Desk the URLs of posts published before this version was installed (and of all whose URL did not arrive). In batches of 100 — click again if there are more."
+msgstr ""
+
+#. translators: %d: number of posts
+#: src/WordPress/Settings.php:563
+#, php-format
+msgid "Posts to send: %d"
+msgstr ""
+
+#: src/WordPress/Settings.php:569
+msgid "Send the next 100"
+msgstr ""
+
+#: src/WordPress/Settings.php:570
+msgid "Send published post URLs to Tribune Desk"
+msgstr ""
+
+#. translators: 1: number sent, 2: counts per status, 3: number remaining
+#: src/WordPress/Settings.php:590
+#, php-format
+msgid "Sent %1$d URLs (%2$s). %3$d remaining."
+msgstr ""
+
+#: src/WordPress/Settings.php:592
+msgid "Click again to send the next batch."
+msgstr ""
+
+#. translators: 1: status, 2: details
+#: src/WordPress/Settings.php:600
+#, php-format
+msgid "Sending failed (%1$s): %2$s"
+msgstr ""
+
+#: src/WordPress/Settings.php:611
+msgid "received"
+msgstr ""
+
+#: src/WordPress/Settings.php:612
+msgid "URL sent"
+msgstr ""
+
+#: src/WordPress/Settings.php:613
+msgid "backfill"
+msgstr ""
+
+#: src/WordPress/Settings.php:614
+msgid "backlinks"
+msgstr ""
+
+#: src/WordPress/Settings.php:615
+msgid "Images to media library"
+msgstr ""
+
+#: src/WordPress/Settings.php:626
+msgid "Recent deliveries"
+msgstr ""
+
+#: src/WordPress/Settings.php:628
+msgid "Time"
+msgstr ""
+
+#: src/WordPress/Settings.php:629
+msgid "Type"
+msgstr ""
+
+#: src/WordPress/Settings.php:630
+msgid "Article ID"
+msgstr ""
+
+#: src/WordPress/Settings.php:631
+msgid "Post ID"
+msgstr ""
+
+#: src/WordPress/Settings.php:633
+msgid "Details"
+msgstr ""
+
+#. translators: %s: installed plugin version
+#: src/WordPress/Updater.php:247
+#, php-format
+msgid "HeadlinesForge manifest could not be fetched, so the package could not be verified. The update was aborted, version %s remains installed. Try again later."
+msgstr ""
+
+#. translators: %s: installed plugin version
+#: src/WordPress/Updater.php:261
+#, php-format
+msgid "The HeadlinesForge manifest points to a different package than the one WordPress is trying to download — the update list is stale. Refresh it (Dashboard -> Updates -> \"Check again\") and try again. The update was aborted, version %s remains installed."
+msgstr ""
+
+#. translators: %s: installed plugin version
+#: src/WordPress/Updater.php:292
+#, php-format
+msgid "The checksum of the downloaded HeadlinesForge package does not match the manifest. The update was aborted, version %s remains installed."
+msgstr ""
+
+#: assets/read-more-block.js:18
+msgid "Read more (Tribune Desk)"
+msgstr ""
+
+#: assets/read-more-block.js:19
+msgid "Posts linked to this post by Tribune Desk."
+msgstr ""
+
+#: assets/read-more-block.js:36
+msgid "Settings"
+msgstr ""
+
+#: assets/read-more-block.js:38
+msgid "Title"
+msgstr ""
+
+#: assets/read-more-block.js:43
+msgid "Number of posts"
+msgstr ""

@@ -1,0 +1,37 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# PHP / Composer (jeśli dojdziemy do composera)
+/vendor/
+composer.lock
+
+# Build artefacts
+/build/
+/dist/
+*.zip
+
+# Logs
+*.log
+
+# Local-only test fixtures
+/local/
+
+# Worktrees sesji
+/.worktrees/
+.phpunit.result.cache
+
+# Worktrees harnessu
+/.claude/
+
+# Artefakty subagent-driven development (ledger, briefy, raporty) — scratch per plan
+/.superpowers/
+
+# Lokalny payload do recznych testow (nie jest czescia wtyczki)
+/test-payload.json
+
+# Local secret gate (engram2 githooks install), not part of the plugin
+/.githooks/

@@ -1,0 +1,120 @@
+name: Release
+
+# Tag buduje i wgrywa ARTEFAKT. manifest.json podmienia dopiero publish-manifest.yml,
+# uruchamiany recznie — bo opublikowanie manifestu to deploy na wszystkie instalacje
+# klientow naraz, a wiki projektu mowi: push i deploy to dwie osobne, swiadome decyzje.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  PLUGIN_SLUG: headlinesforge-receiver
+
+jobs:
+  verify:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Bramka spojnosci wersji
+        run: bash bin/check-version.sh "${GITHUB_REF_NAME#v}"
+
+  test:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+      - name: Lint PHP
+        run: find . -path ./vendor -prune -o -name '*.php' -print0 | xargs -0 -n1 -P4 php -l
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24.14.1"
+      - name: Start wp-env
+        run: npx @wordpress/env start
+      - name: Composer install
+        run: npx @wordpress/env run tests-cli --env-cwd=wp-content/plugins/${{ github.event.repository.name }} bash -c "composer install --no-interaction"
+      - name: PHPUnit
+        run: npx @wordpress/env run tests-cli --env-cwd=wp-content/plugins/${{ github.event.repository.name }} ./vendor/bin/phpunit
+
+  build:
+    needs: [verify, test]
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Ustal wersje
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      # Folder w archiwum nazywa sie headlinesforge-receiver/ — koniec z reczna
+      # zmiana nazwy przez klienta. W srodku wylacznie runtime.
+      - name: Zbuduj ZIP
+        run: |
+          set -euo pipefail
+          mkdir -p "build/${PLUGIN_SLUG}"
+          cp headlinesforge-receiver.php uninstall.php readme.txt "build/${PLUGIN_SLUG}/"
+          cp -r src "build/${PLUGIN_SLUG}/"
+          # 1.17.0: editor script of the "Read more" block (no build step).
+          cp -r assets "build/${PLUGIN_SLUG}/"
+          # 2.0.0: translations (tribune-desk text domain, Polish today).
+          cp -r languages "build/${PLUGIN_SLUG}/"
+          if [ -f LICENSE ]; then cp LICENSE "build/${PLUGIN_SLUG}/"; fi
+          cd build
+          zip -r -q "../${PLUGIN_SLUG}-${VERSION}.zip" "${PLUGIN_SLUG}"
+          cd ..
+          unzip -l "${PLUGIN_SLUG}-${VERSION}.zip"
+
+      - name: Policz sha256
+        run: |
+          set -euo pipefail
+          SHA="$(sha256sum "${PLUGIN_SLUG}-${VERSION}.zip" | cut -d' ' -f1)"
+          echo "SHA256=${SHA}" >> "$GITHUB_ENV"
+          echo "sha256 = ${SHA}"
+
+      - name: Zbuduj sidecar manifestu
+        run: |
+          set -euo pipefail
+          PACKAGE="${{ vars.R2_PUBLIC_BASE_URL }}/wp-plugin/${PLUGIN_SLUG}-${VERSION}.zip"
+          php bin/build-manifest.php "${VERSION}" "${SHA256}" "${PACKAGE}" > "${PLUGIN_SLUG}-${VERSION}.json"
+          cat "${PLUGIN_SLUG}-${VERSION}.json"
+
+      - name: Wgraj na R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_PLUGIN_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_PLUGIN_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          # R2 odrzuca dodatkowe sumy kontrolne, ktore AWS CLI v2 wysyla domyslnie.
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+          R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+        run: |
+          set -euo pipefail
+          aws s3 cp "${PLUGIN_SLUG}-${VERSION}.zip" \
+            "s3://${R2_BUCKET_NAME}/wp-plugin/${PLUGIN_SLUG}-${VERSION}.zip" \
+            --endpoint-url "${R2_ENDPOINT_URL}" \
+            --content-type application/zip \
+            --cache-control "public, max-age=31536000, immutable"
+          aws s3 cp "${PLUGIN_SLUG}-${VERSION}.json" \
+            "s3://${R2_BUCKET_NAME}/wp-plugin/${PLUGIN_SLUG}-${VERSION}.json" \
+            --endpoint-url "${R2_ENDPOINT_URL}" \
+            --content-type application/json \
+            --cache-control "public, max-age=300"
+
+      - name: Potwierdz, ze artefakt jest publicznie dostepny
+        run: |
+          set -euo pipefail
+          URL="${{ vars.R2_PUBLIC_BASE_URL }}/wp-plugin/${PLUGIN_SLUG}-${VERSION}.zip"
+          curl -sS -o downloaded.zip -w 'http=%{http_code}\n' "$URL"
+          DOWNLOADED="$(sha256sum downloaded.zip | cut -d' ' -f1)"
+          echo "sha256 pobranego = ${DOWNLOADED}"
+          test "${DOWNLOADED}" = "${SHA256}"
+          echo "Artefakt zgodny. manifest.json NIETKNIETY - opublikuj recznie przez publish-manifest."
