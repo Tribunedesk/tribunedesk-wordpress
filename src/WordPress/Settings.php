@@ -14,9 +14,7 @@ class Settings
     public const PAGE_SLUG = 'headlinesforge-receiver';
 
     // Option name constants live on RestEndpoint (the actual consumer). Aliased
-    // here for backwards compatibility — Settings::OPTION_SECRET still resolves.
-    public const OPTION_SECRET = RestEndpoint::OPTION_SECRET;
-
+    // here for backwards compatibility.
     /** Checkbox name (not an option): removes the stored signing secret on save. */
     public const FIELD_REMOVE_SIGNING_SECRET = 'headlinesforge_remove_signing_secret';
     public const OPTION_DEFAULT_AUTHOR = RestEndpoint::OPTION_DEFAULT_AUTHOR;
@@ -38,12 +36,6 @@ class Settings
 
     public static function register_settings(): void
     {
-        register_setting(self::PAGE_SLUG, self::OPTION_SECRET, [
-            'type'              => 'string',
-            'sanitize_callback' => self::sanitize_secret(self::OPTION_SECRET),
-            'default'           => '',
-        ]);
-
         register_setting(self::PAGE_SLUG, self::OPTION_DEFAULT_AUTHOR, [
             'type'              => 'integer',
             'sanitize_callback' => 'absint',
@@ -105,14 +97,6 @@ class Settings
             __('Webhook settings', 'tribune-desk'),
             '__return_false',
             self::PAGE_SLUG
-        );
-
-        add_settings_field(
-            self::OPTION_SECRET,
-            __('Webhook secret', 'tribune-desk'),
-            [self::class, 'render_secret_field'],
-            self::PAGE_SLUG,
-            'headlinesforge_main'
         );
 
         add_settings_field(
@@ -232,6 +216,7 @@ class Settings
         ?>
         <div class="wrap">
             <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
+            <?php self::render_signing_secret_notice(); ?>
             <?php $result = self::render_backfill_notice(); ?>
             <?php CmsSettingsScreen::render_notice(); ?>
             <?php
@@ -313,9 +298,18 @@ class Settings
         }
     }
 
-    public static function render_secret_field(): void
+    /**
+     * 2.2.0: without a signing secret every delivery is refused (401), and nothing else on the
+     * page would say so — the old shared secret that used to let deliveries in is gone (E7).
+     */
+    public static function render_signing_secret_notice(): void
     {
-        self::render_password_input(self::OPTION_SECRET);
+        if (trim((string) get_option(RestEndpoint::OPTION_SIGNING_SECRET, '')) !== '') {
+            return;
+        }
+        echo '<div class="notice notice-error inline"><p>'
+            . esc_html__('No signing secret: every delivery from Tribune Desk is refused until you paste the signing secret (whsec_…) below.', 'tribune-desk')
+            . '</p></div>';
     }
 
     public static function render_signing_secret_field(): void
@@ -323,10 +317,10 @@ class Settings
         self::render_password_input(RestEndpoint::OPTION_SIGNING_SECRET);
         if ((string) get_option(RestEndpoint::OPTION_SIGNING_SECRET, '') !== '') {
             echo '<p><label><input type="checkbox" name="' . esc_attr(self::FIELD_REMOVE_SIGNING_SECRET) . '" value="1"> '
-                . esc_html__('Remove the saved signing secret (deliveries are checked with the webhook secret again)', 'tribune-desk')
+                . esc_html__('Remove the saved signing secret (every delivery is then refused until a new one is saved)', 'tribune-desk')
                 . '</label></p>';
         }
-        echo '<p class="description">' . esc_html__('Signing secret of deliveries from Tribune Desk. When set, the plugin accepts only deliveries with a valid signature, and the webhook secret is no longer checked.', 'tribune-desk') . '</p>';
+        echo '<p class="description">' . esc_html__('Signing secret of deliveries from Tribune Desk. The plugin accepts only deliveries with a valid signature; without this secret every delivery is refused.', 'tribune-desk') . '</p>';
     }
 
     public static function render_author_field(): void
@@ -456,7 +450,7 @@ class Settings
     }
 
     /**
-     * https-only, because the webhook secret travels in a header to this address. A bad address is not
+     * https-only, because the API token travels in a header to this address. A bad address is not
      * saved — the previous (or default) one stays and a settings error appears.
      *
      * @param mixed $value
@@ -505,7 +499,7 @@ class Settings
     public static function render_cms_token_field(): void
     {
         self::render_password_input(CmsApiClient::OPTION_TOKEN);
-        echo '<p class="description">' . esc_html__('Token from Tribune Desk for the link back and the media sync. Required permissions: articles:write, settings:read, settings:write, media:read, media:write, backfill:write. Without a token the existing sync keeps working.', 'tribune-desk') . '</p>';
+        echo '<p class="description">' . esc_html__('Token from Tribune Desk for the link back and the media sync. Required permissions: articles:write, settings:read, settings:write, media:read, media:write, backfill:write. Without a token the plugin sends no addresses of published posts back to Tribune Desk.', 'tribune-desk') . '</p>';
     }
 
     /**

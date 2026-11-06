@@ -27,3 +27,19 @@ function tribune_desk_tests_load_polish(): void
     load_textdomain('tribune-desk', dirname(__DIR__) . '/languages/tribune-desk-pl_PL.mo');
 }
 tribune_desk_tests_load_polish();
+
+/** Signing secret of the test deliveries (2.2.0: a delivery is accepted only with a valid signature). */
+const TRIBUNE_DESK_TESTS_SIGNING_SECRET = 'whsec_C2FVsBQIhrscChlQIMV+b5sSYspob7oD';
+
+/**
+ * Signs a delivery request the way Tribune Desk does (Standard Webhooks): call it after
+ * set_body(), because the signature covers the body byte for byte.
+ */
+function tribune_desk_tests_sign(WP_REST_Request $req, string $secret = TRIBUNE_DESK_TESTS_SIGNING_SECRET, int $ts = 0): void
+{
+    $ts  = $ts > 0 ? $ts : time();
+    $key = base64_decode(substr($secret, 6));
+    $req->set_header('webhook-id', 'msg_test');
+    $req->set_header('webhook-timestamp', (string) $ts);
+    $req->set_header('webhook-signature', 'v1,' . base64_encode(hash_hmac('sha256', "msg_test.$ts." . $req->get_body(), $key, true)));
+}

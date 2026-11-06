@@ -20,7 +20,6 @@ class Test_Media_Push extends WP_UnitTestCase
         global $wpdb;
         $wpdb->query('DELETE FROM ' . $wpdb->prefix . Activator::TABLE);
 
-        update_option(RestEndpoint::OPTION_SECRET, 'sekret-testowy');
         delete_option(PublishedUrlsClient::OPTION_API_BASE);
         update_option(MediaPush::OPTION_FLOOR, 0);
         $this->requests = [];
@@ -181,7 +180,7 @@ class Test_Media_Push extends WP_UnitTestCase
         $this->assertNull(MediaPush::item($id)['post']);
     }
 
-    public function test_run_bez_tokenu_nic_nie_wysyla_mimo_sekretu(): void
+    public function test_run_bez_tokenu_nic_nie_wysyla(): void
     {
         $id = $this->attachment(['post_parent' => $this->published_parent()]);
         $this->assertContains($id, MediaPush::candidates(50));

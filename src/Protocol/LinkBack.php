@@ -6,12 +6,12 @@ namespace TribuneDesk\Protocol;
 /**
  * Builds and reads the link back: telling Tribune Desk where delivered articles were published.
  *
- * Level: 2 · Routes: POST /v3/cms/articles/published (POST /v2/cms/published-urls, deprecated) · Guide: guide/2-link-back.md
+ * Level: 2 · Route: POST /v3/cms/articles/published · Guide: guide/2-link-back.md
  *
  * One batch holds 1 to 100 items {article_id, url, published_at?, social_queue_exclude?}. Tribune
  * Desk validates article_id as a UUID and rejects the whole batch (422) for one bad id, so items
  * without a UUID or a URL are dropped before sending. The answer has one result per item; a bad
- * item does not fail the others. The deprecated route takes the old body (article_id and url only).
+ * item does not fail the others.
  *
  * social_queue_exclude: true keeps the article out of the social (Facebook) queue, false lets it
  * in; a missing field leaves the stored flag unchanged. A CMS that maps the flag to a field sends
@@ -20,15 +20,8 @@ namespace TribuneDesk\Protocol;
 final class LinkBack
 {
     public const PATH       = '/v3/cms/articles/published';
-    public const PATH_OLD   = '/v2/cms/published-urls';
     public const MAX_ITEMS  = 100;
     public const STATUSES   = ['ok', 'not_found', 'forbidden', 'invalid_url'];
-
-    /**
-     * HTTP codes of the /v3 route after which the same batch goes the old way: a token without
-     * articles:write (401/403, media-only installs) or a backend without the route (404).
-     */
-    public const FALLBACK_CODES = [401, 403, 404];
 
     /** CMS field values (any case, trimmed) that mean "true"; anything else is false. */
     public const TRUTHY = ['1', 'true', 'yes', 'on'];
@@ -94,27 +87,6 @@ final class LinkBack
     public static function body(array $items): array
     {
         return ['items' => $items];
-    }
-
-    /**
-     * The deprecated route knows article_id and url only: published_at and social_queue_exclude
-     * never go this way.
-     *
-     * @param array<int, array<string, mixed>> $items
-     */
-    public static function body_old(array $items): array
-    {
-        return [
-            'articles' => array_map(
-                static fn(array $a): array => ['article_id' => $a['article_id'], 'url' => $a['url']],
-                $items
-            ),
-        ];
-    }
-
-    public static function falls_back(?int $http): bool
-    {
-        return in_array($http, self::FALLBACK_CODES, true);
     }
 
     /**

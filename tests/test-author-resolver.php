@@ -15,7 +15,7 @@ class Test_AuthorResolver extends WP_UnitTestCase
     {
         parent::setUp();
         $this->default_id = self::factory()->user->create(['role' => 'editor']);
-        update_option(RestEndpoint::OPTION_SECRET, 'test-secret');
+        update_option(RestEndpoint::OPTION_SIGNING_SECRET, TRIBUNE_DESK_TESTS_SIGNING_SECRET);
         update_option(RestEndpoint::OPTION_DEFAULT_AUTHOR, $this->default_id);
         update_option(Activator::OPTION_INSTALL_USER, $this->default_id);
         delete_option(AuthorResolver::OPTION_MAP);
@@ -51,12 +51,12 @@ class Test_AuthorResolver extends WP_UnitTestCase
     private function send(array $extra, string $article_id = 'a-autor'): int
     {
         $req = new WP_REST_Request('POST', '/' . RestEndpoint::NAMESPACE . RestEndpoint::ROUTE);
-        $req->set_header('x_webhook_secret', 'test-secret');
         $req->set_header('Content-Type', 'application/json');
         $req->set_body((string) json_encode(array_merge(
             ['article_id' => $article_id, 'topic' => 't', 'html' => '<p>x</p>'],
             $extra
         )));
+        tribune_desk_tests_sign($req);
         $res = rest_do_request($req);
         $this->assertSame(200, $res->get_status());
 

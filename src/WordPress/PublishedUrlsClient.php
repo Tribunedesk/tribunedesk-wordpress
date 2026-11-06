@@ -10,8 +10,8 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * Client of the HeadlinesForge link-back contract: POST {api_base}/v2/cms/published-urls
- * (spec HF 2026-09-04 D10). The only place in the plugin that knows the shape of the request
+ * Client of the Tribune Desk link back: POST {api_base}/v3/cms/articles/published with the
+ * tdcms_ API token (level 2, guide/2-link-back.md). The only place in the plugin that knows the shape of the request
  * and response. It knows nothing of posts, hooks or the log: it takes a list of article_id/url pairs,
  * and returns the result as an array with fixed keys. The timeout is an argument, because the
  * publish hook (5 s, the editor is waiting) and the backfill (10 s, batch of 100) have different budgets.
@@ -23,8 +23,6 @@ class PublishedUrlsClient
     // api., not apeks: apeks is Cloudflare Pages and answers 404 or HTML
     // (lesson split-domain-callbacks).
     public const DEFAULT_API_BASE = 'https://api.headlinesforge.com';
-    public const PATH             = '/v2/cms/published-urls';
-    public const PATH_V3          = LinkBack::PATH;
     public const MAX_ITEMS        = 100;
 
     public const STATUS_SENT            = 'sent';
@@ -46,11 +44,6 @@ class PublishedUrlsClient
         $configured = rtrim((string) get_option(self::OPTION_API_BASE, ''), '/');
 
         return $configured !== '' ? $configured : self::DEFAULT_API_BASE;
-    }
-
-    public static function endpoint(): string
-    {
-        return self::api_base() . self::PATH;
     }
 
     /**
@@ -76,45 +69,14 @@ class PublishedUrlsClient
             ), $counts, [], false, null, 0);
         }
 
-        $secret = (string) get_option(RestEndpoint::OPTION_SECRET, '');
-
-        // 1.17.0: with a tdcms_ token the link back goes through /v3 (spec D5). A token without
-        // articles:write (media-only installs) answers 401/403: the same batch then goes the old
-        // way, so updating the plugin never loses the link back (plan E4a, Ruling 3).
-        if (CmsApiClient::has_token()) {
-            $v3 = self::send_v3($articles, $timeout, $counts, $n);
-            // 404: a backend without the /v3 route (older version, or api_base pointing at one).
-            if (!LinkBack::falls_back($v3['http'])) {
-                return $v3;
-            }
-            $why = match ($v3['http']) {
-                404     => __('Tribune Desk has no /v3/cms/articles/published route', 'tribune-desk'),
-                401     => __('Tribune Desk rejected the token (revoked or invalid)', 'tribune-desk'),
-                default => __('Tribune Desk token lacks the articles:write permission', 'tribune-desk'),
-            };
-            if ($secret === '') {
-                return self::result(self::STATUS_UNAUTHORIZED, $v3['http'], sprintf(
-                    /* translators: %s: reason the /v3 route was not used */
-                    __('%s, and no webhook secret for the old route', 'tribune-desk'),
-                    $why
-                ), $counts, [], false, null, $n, 'v3');
-            }
-            $v2 = self::send_v2($articles, $secret, $timeout, $counts, $n);
-            $v2['notice'] = sprintf(
-                /* translators: %s: reason the /v3 route was not used */
-                __('%s — sent via the old route (/v2)', 'tribune-desk'),
-                $why
-            );
-
-            return $v2;
+        // 2.2.0: the link back goes only through /v3 with the token. Tribune Desk removed the old
+        // /v2 route and its shared secret (E7, 2026-11-06), so without a token there is nowhere to send.
+        if (!CmsApiClient::has_token()) {
+            // Separate text from a refusal by Tribune Desk: here the plugin's configuration is at fault.
+            return self::result(self::STATUS_UNAUTHORIZED, null, __('no Tribune Desk API token: the link back needs a token with the articles:write permission', 'tribune-desk'), $counts, [], false, null, 0);
         }
 
-        if ($secret === '') {
-            // Separate text from the 401 from HF: here the plugin's configuration is at fault, not HF.
-            return self::result(self::STATUS_UNAUTHORIZED, null, __('no webhook secret in the plugin settings', 'tribune-desk'), $counts, [], false, null, 0);
-        }
-
-        return self::send_v2($articles, $secret, $timeout, $counts, $n);
+        return self::post($articles, $timeout, $counts, $n);
     }
 
     /**
@@ -124,7 +86,7 @@ class PublishedUrlsClient
      * @param array<string, int> $counts
      * @return array<string, mixed>
      */
-    private static function send_v3(array $articles, int $timeout, array $counts, int $n): array
+    private static function post(array $articles, int $timeout, array $counts, int $n): array
     {
         $response = wp_remote_post(self::api_base() . LinkBack::PATH, [
             'timeout'     => $timeout,
@@ -137,28 +99,7 @@ class PublishedUrlsClient
             'body'        => wp_json_encode(LinkBack::body($articles), JSON_UNESCAPED_SLASHES),
         ]);
 
-        return self::read_response($response, $counts, $n, 'v3');
-    }
-
-    /**
-     * @param array<int, array{article_id: string, url: string, published_at?: string}> $articles
-     * @param array<string, int> $counts
-     * @return array<string, mixed>
-     */
-    private static function send_v2(array $articles, string $secret, int $timeout, array $counts, int $n): array
-    {
-        $response = wp_remote_post(self::endpoint(), [
-            'timeout'     => $timeout,
-            // Do not follow redirects: the header with the secret must not go to another host.
-            'redirection' => 0,
-            'headers'     => [
-                'Content-Type'     => 'application/json',
-                'X-Webhook-Secret' => $secret,
-            ],
-            'body'        => wp_json_encode(LinkBack::body_old($articles), JSON_UNESCAPED_SLASHES),
-        ]);
-
-        return self::read_response($response, $counts, $n, 'v2');
+        return self::read_response($response, $counts, $n);
     }
 
     /**
@@ -166,56 +107,61 @@ class PublishedUrlsClient
      * @param array<string, int> $counts
      * @return array<string, mixed>
      */
-    private static function read_response($response, array $counts, int $n, string $route): array
+    private static function read_response($response, array $counts, int $n): array
     {
         if (is_wp_error($response)) {
-            return self::result(self::STATUS_ERROR, null, $response->get_error_message(), $counts, [], true, null, $n, $route);
+            return self::result(self::STATUS_ERROR, null, $response->get_error_message(), $counts, [], true, null, $n);
         }
 
         $code = (int) wp_remote_retrieve_response_code($response);
         $body = (string) wp_remote_retrieve_body($response);
 
-        if ($code === 401 || ($route === 'v3' && $code === 403)) {
-            $why = $route === 'v3'
-                ? __('Tribune Desk token rejected', 'tribune-desk')
-                : __('the secret matches no newsroom in HeadlinesForge', 'tribune-desk');
+        if ($code === 401 || $code === 403) {
+            // 401: revoked or invalid token; 403: a token without articles:write (media-only install).
+            $why = $code === 401
+                ? __('Tribune Desk rejected the token (revoked or invalid)', 'tribune-desk')
+                : __('Tribune Desk token lacks the articles:write permission', 'tribune-desk');
 
-            return self::result(self::STATUS_UNAUTHORIZED, $code, $why, $counts, [], false, null, $n, $route);
+            return self::result(self::STATUS_UNAUTHORIZED, $code, $why, $counts, [], false, null, $n);
+        }
+        if ($code === 404) {
+            // A backend without the route (an older version, or api_base pointing at one).
+            return self::result(self::STATUS_REJECTED, $code, __('Tribune Desk has no /v3/cms/articles/published route', 'tribune-desk'), $counts, [], false, null, $n);
         }
         if ($code === 429) {
             // HF does not send Retry-After today; if it starts to, the caller gets a number of seconds.
             $retry_after = (int) wp_remote_retrieve_header($response, 'retry-after');
 
-            return self::result(self::STATUS_RATE_LIMITED, $code, __('HeadlinesForge request limit', 'tribune-desk'), $counts, [], true, $retry_after > 0 ? $retry_after : null, $n, $route);
+            return self::result(self::STATUS_RATE_LIMITED, $code, __('HeadlinesForge request limit', 'tribune-desk'), $counts, [], true, $retry_after > 0 ? $retry_after : null, $n);
         }
         if ($code >= 500) {
-            return self::result(self::STATUS_ERROR, $code, "http $code", $counts, [], true, null, $n, $route);
+            return self::result(self::STATUS_ERROR, $code, "http $code", $counts, [], true, null, $n);
         }
         if ($code < 200 || $code >= 300) {
-            return self::result(self::STATUS_REJECTED, $code, "http $code: " . self::excerpt($body), $counts, [], false, null, $n, $route);
+            return self::result(self::STATUS_REJECTED, $code, "http $code: " . self::excerpt($body), $counts, [], false, null, $n);
         }
 
         $results = LinkBack::results($body);
         if ($results === null) {
-            return self::result(self::STATUS_REJECTED, $code, __('response without a results field', 'tribune-desk'), $counts, [], false, null, $n, $route);
+            return self::result(self::STATUS_REJECTED, $code, __('response without a results field', 'tribune-desk'), $counts, [], false, null, $n);
         }
         foreach ($results as $status) {
             $counts[$status]++;
         }
 
-        return self::result(self::STATUS_SENT, $code, null, $counts, $results, false, null, $n, $route);
+        return self::result(self::STATUS_SENT, $code, null, $counts, $results, false, null, $n);
     }
 
     /**
      * Text for the log row for the status of a single item. Every status has its own text
-     * (lesson komunikaty-diagnostyczne): forbidden = the secret belongs to a DIFFERENT newsroom,
+     * (lesson komunikaty-diagnostyczne): forbidden = the token belongs to a DIFFERENT newsroom,
      * not_found = HF does not know the ID — two different diagnoses.
      */
     public static function describe(string $item_status, string $url): ?string
     {
         return match ($item_status) {
             'ok'          => null,
-            'forbidden'   => __('the article exists, but not in this secret\'s newsroom', 'tribune-desk'),
+            'forbidden'   => __('the article exists, but not in this token\'s newsroom', 'tribune-desk'),
             'not_found'   => __('Tribune Desk does not know this article_id', 'tribune-desk'),
             'invalid_url' => sprintf(
                 /* translators: %s: URL */
@@ -261,13 +207,9 @@ class PublishedUrlsClient
         array $results,
         bool $retryable,
         ?int $retry_after,
-        int $items_sent,
-        string $route = 'v2'
+        int $items_sent
     ): array {
-        // `notice`: set by send() when the batch went the old way after /v3 refused the token.
-        $notice = null;
-
-        return compact('status', 'http', 'error', 'counts', 'results', 'retryable', 'retry_after', 'items_sent', 'route', 'notice');
+        return compact('status', 'http', 'error', 'counts', 'results', 'retryable', 'retry_after', 'items_sent');
     }
 
     /**

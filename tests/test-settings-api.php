@@ -215,4 +215,35 @@ class Test_Settings_Api extends WP_UnitTestCase
 
         $this->assertStringContainsString('Zdjęcia do biblioteki', $this->render_page());
     }
+
+    /**
+     * 2.2.0: without a signing secret every delivery is refused (the shared secret is gone, E7),
+     * and the page says so above the form.
+     */
+    public function test_without_signing_secret_the_page_warns_that_deliveries_are_refused(): void
+    {
+        delete_option(\TribuneDesk\WordPress\RestEndpoint::OPTION_SIGNING_SECRET);
+        $html = $this->render_page();
+        $this->assertStringContainsString('notice-error', $html);
+        $this->assertStringContainsString('każda dostawa z Tribune Desk jest odrzucana', $html);
+
+        update_option(\TribuneDesk\WordPress\RestEndpoint::OPTION_SIGNING_SECRET, TRIBUNE_DESK_TESTS_SIGNING_SECRET);
+        $this->assertStringNotContainsString('każda dostawa z Tribune Desk jest odrzucana', $this->render_page());
+    }
+
+    /**
+     * Update from 2.1.0 with the old shared secret saved: the field is gone from the page, the
+     * setting is no longer registered, and the stored value stays untouched (going back to 2.1.0
+     * still works; uninstall removes it).
+     */
+    public function test_saved_shared_secret_from_2_1_0_stays_but_is_not_on_the_page(): void
+    {
+        update_option('headlinesforge_webhook_secret', 'old-shared-secret');
+        Settings::register_settings();
+
+        $html = $this->render_page();
+        $this->assertStringNotContainsString('name="headlinesforge_webhook_secret"', $html);
+        $this->assertArrayNotHasKey('headlinesforge_webhook_secret', get_registered_settings());
+        $this->assertSame('old-shared-secret', get_option('headlinesforge_webhook_secret'));
+    }
 }

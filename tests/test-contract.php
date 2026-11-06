@@ -18,7 +18,7 @@ class Test_Contract extends WP_UnitTestCase
     {
         parent::set_up();
         Activator::activate();
-        update_option(RestEndpoint::OPTION_SECRET, 'contract-secret');
+        update_option(RestEndpoint::OPTION_SIGNING_SECRET, TRIBUNE_DESK_TESTS_SIGNING_SECRET);
         update_option(RestEndpoint::OPTION_DEFAULT_AUTHOR, (int) self::factory()->user->create(['role' => 'editor']));
         do_action('rest_api_init');
         add_filter('pre_http_request', [$this, 'fake_http'], 10, 3);
@@ -61,10 +61,10 @@ class Test_Contract extends WP_UnitTestCase
         // Level 1: the post excerpt is `excerpt`, with the teaser option off (the default).
         $payload = self::json('article-delivered.json');
         $req     = new WP_REST_Request('POST', '/' . RestEndpoint::NAMESPACE . RestEndpoint::ROUTE);
-        $req->set_header('x_webhook_secret', 'contract-secret');
         $req->set_header('Content-Type', 'application/json');
         $req->set_body((string) wp_json_encode($payload));
 
+        tribune_desk_tests_sign($req);
         $res = rest_do_request($req);
 
         $this->assertSame(200, $res->get_status(), (string) wp_json_encode($res->get_data()));

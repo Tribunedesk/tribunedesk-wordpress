@@ -108,10 +108,6 @@ class Backfill
             PublishedUrlsClient::STATUS_RATE_LIMITED    => __('HeadlinesForge request limit hit again after the retry — try again in a minute', 'tribune-desk'),
             default                                     => $result['error'],
         };
-        if (!empty($result['notice'])) {
-            $detail = trim((string) $detail . ' (' . (string) $result['notice'] . ')');
-        }
-
         DeliveriesLog::record(
             'batch:' . (int) $result['items_sent'],
             null,

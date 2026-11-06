@@ -18,7 +18,7 @@ class Test_Backlinks_Rows extends WP_UnitTestCase
     {
         parent::set_up();
         $author_id = self::factory()->user->create(['role' => 'editor']);
-        update_option(RestEndpoint::OPTION_SECRET, 'test-secret');
+        update_option(RestEndpoint::OPTION_SIGNING_SECRET, TRIBUNE_DESK_TESTS_SIGNING_SECRET);
         update_option(RestEndpoint::OPTION_DEFAULT_AUTHOR, $author_id);
         update_option(Activator::OPTION_INSTALL_USER, $author_id);
         Activator::activate();
@@ -196,7 +196,6 @@ class Test_Backlinks_Rows extends WP_UnitTestCase
         update_option(RestEndpoint::OPTION_PUBLISH, '1');
         $s1  = $this->hf_post(self::UUID_S1, 'publish');
         $req = new WP_REST_Request('POST', '/' . RestEndpoint::NAMESPACE . RestEndpoint::ROUTE);
-        $req->set_header('x_webhook_secret', 'test-secret');
         $req->set_header('Content-Type', 'application/json');
         $req->set_body(json_encode([
             'article_id'       => self::UUID_T,
@@ -205,6 +204,7 @@ class Test_Backlinks_Rows extends WP_UnitTestCase
             'html'             => '<p>x</p>',
             'backlink_sources' => [['article_id' => self::UUID_S1, 'distance' => 0.2]],
         ]));
+        tribune_desk_tests_sign($req);
         $res = rest_do_request($req);
         $this->assertSame(200, $res->get_status());
         $post_id = (int) $res->get_data()['post_id'];

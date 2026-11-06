@@ -27,7 +27,6 @@ class Test_Cms_Sync extends WP_UnitTestCase
         require_once ABSPATH . 'wp-admin/includes/template.php';
         update_option(CmsApiClient::OPTION_TOKEN, self::TOKEN);
         update_option(PublishedUrlsClient::OPTION_API_BASE, 'https://api.example.test');
-        update_option(RestEndpoint::OPTION_SECRET, 'sekret-testowy');
         update_option(MediaPush::OPTION_FLOOR, PHP_INT_MAX);
         wp_clear_scheduled_hook(CmsSync::HOOK_SEND);
         $this->requests = [];

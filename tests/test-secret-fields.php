@@ -25,26 +25,22 @@ class Test_SecretFields extends WP_UnitTestCase
     /** @return array<int, string> */
     private function secret_options(): array
     {
-        return [RestEndpoint::OPTION_SECRET, RestEndpoint::OPTION_SIGNING_SECRET, CmsApiClient::OPTION_TOKEN];
+        return [RestEndpoint::OPTION_SIGNING_SECRET, CmsApiClient::OPTION_TOKEN];
     }
 
     public function test_empty_submit_keeps_each_stored_secret(): void
     {
-        update_option(RestEndpoint::OPTION_SECRET, 'old-shared-secret');
         update_option(RestEndpoint::OPTION_SIGNING_SECRET, self::SIGNING);
         update_option(CmsApiClient::OPTION_TOKEN, 'tdcms_oldtoken1234');
 
-        $this->assertSame('old-shared-secret', sanitize_option(RestEndpoint::OPTION_SECRET, ''));
         $this->assertSame(self::SIGNING, sanitize_option(RestEndpoint::OPTION_SIGNING_SECRET, ''));
         $this->assertSame('tdcms_oldtoken1234', sanitize_option(CmsApiClient::OPTION_TOKEN, '  '));
     }
 
     public function test_new_value_replaces_the_stored_secret(): void
     {
-        update_option(RestEndpoint::OPTION_SECRET, 'old-shared-secret');
         update_option(CmsApiClient::OPTION_TOKEN, 'tdcms_oldtoken1234');
 
-        $this->assertSame('new-shared-secret', sanitize_option(RestEndpoint::OPTION_SECRET, ' new-shared-secret '));
         $this->assertSame('tdcms_newtoken5678', sanitize_option(CmsApiClient::OPTION_TOKEN, 'tdcms_newtoken5678'));
         $this->assertSame(self::SIGNING, sanitize_option(RestEndpoint::OPTION_SIGNING_SECRET, self::SIGNING));
     }
@@ -60,12 +56,10 @@ class Test_SecretFields extends WP_UnitTestCase
 
     public function test_fields_are_password_inputs_without_the_stored_value(): void
     {
-        update_option(RestEndpoint::OPTION_SECRET, 'shared-secret-ABCD');
         update_option(RestEndpoint::OPTION_SIGNING_SECRET, self::SIGNING);
         update_option(CmsApiClient::OPTION_TOKEN, 'tdcms_token-WXYZ');
 
         $renderers = [
-            RestEndpoint::OPTION_SECRET         => ['render_secret_field', 'shared-secret-ABCD', 'ABCD'],
             RestEndpoint::OPTION_SIGNING_SECRET => ['render_signing_secret_field', self::SIGNING, '7oD'],
             CmsApiClient::OPTION_TOKEN          => ['render_cms_token_field', 'tdcms_token-WXYZ', 'WXYZ'],
         ];

@@ -23,9 +23,8 @@ class Test_Backfill extends WP_UnitTestCase
     {
         parent::set_up();
         Activator::activate();
-        update_option(RestEndpoint::OPTION_SECRET, 'sekret-testowy');
         delete_option(Backfill::OPTION_CURSOR);
-        delete_option(\TribuneDesk\WordPress\CmsApiClient::OPTION_TOKEN);
+        update_option(\TribuneDesk\WordPress\CmsApiClient::OPTION_TOKEN, 'tdcms_testtoken');
         $this->requests = [];
         $this->queue    = [];
         $this->pauses   = [];
@@ -57,7 +56,7 @@ class Test_Backfill extends WP_UnitTestCase
         }
         $body    = json_decode((string) ($args['body'] ?? ''), true);
         $results = [];
-        foreach (($body['articles'] ?? $body['items'] ?? []) as $article) {
+        foreach (($body['items'] ?? []) as $article) {
             $results[] = ['article_id' => $article['article_id'], 'status' => 'ok'];
         }
 
@@ -101,7 +100,7 @@ class Test_Backfill extends WP_UnitTestCase
 
     private function articles_in(int $request_index): array
     {
-        return json_decode((string) $this->requests[$request_index]['args']['body'], true)['articles'];
+        return json_decode((string) $this->requests[$request_index]['args']['body'], true)['items'];
     }
 
     public function test_with_token_batch_goes_through_v3_with_published_at(): void
@@ -217,7 +216,7 @@ class Test_Backfill extends WP_UnitTestCase
         $this->assertSame(0, Backfill::cursor());
         $this->assertSame(3, $result['remaining']);
         $this->assertSame(PublishedUrlsClient::STATUS_UNAUTHORIZED, DeliveriesLog::recent()[0]['status']);
-        $this->assertStringNotContainsString('sekret-testowy', (string) DeliveriesLog::recent()[0]['error_msg']);
+        $this->assertStringNotContainsString('tdcms_testtoken', (string) DeliveriesLog::recent()[0]['error_msg']);
     }
 
     public function test_brak_wpisow_nie_robi_zadania_ani_wiersza_logu(): void

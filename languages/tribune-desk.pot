@@ -2,21 +2,21 @@
 # This file is distributed under the MIT.
 msgid ""
 msgstr ""
-"Project-Id-Version: Tribune Desk 2.1.0\n"
+"Project-Id-Version: Tribune Desk 2.2.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/tribune-desk\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-06T11:50:42+00:00\n"
+"POT-Creation-Date: 2026-11-06T16:49:53+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: tribune-desk\n"
 
 #. Plugin Name of the plugin
 #: headlinesforge-receiver.php
-#: src/WordPress/Settings.php:31
+#: src/WordPress/Settings.php:29
 msgid "Tribune Desk"
 msgstr ""
 
@@ -53,7 +53,7 @@ msgstr ""
 msgid "HeadlinesForge request limit hit again after the retry — try again in a minute"
 msgstr ""
 
-#: src/WordPress/Backfill.php:136
+#: src/WordPress/Backfill.php:132
 #: src/WordPress/CmsSettingsScreen.php:215
 msgid "Insufficient permissions."
 msgstr ""
@@ -554,7 +554,7 @@ msgid "Number of changes"
 msgstr ""
 
 #: src/WordPress/CmsSettingsScreen.php:656
-#: src/WordPress/Settings.php:649
+#: src/WordPress/Settings.php:643
 msgid "Status"
 msgstr ""
 
@@ -652,76 +652,56 @@ msgstr ""
 msgid "image skipped: host not in the Tribune Desk image_hosts list or address without https: %s"
 msgstr ""
 
-#: src/WordPress/PublishedUrlsClient.php:69
+#: src/WordPress/PublishedUrlsClient.php:62
 msgid "no posts with a UUID to send"
 msgstr ""
 
 #. translators: %d: maximum number of items in one batch
-#: src/WordPress/PublishedUrlsClient.php:74
+#: src/WordPress/PublishedUrlsClient.php:67
 #, php-format
 msgid "batch larger than %d items"
 msgstr ""
 
-#: src/WordPress/PublishedUrlsClient.php:91
-msgid "Tribune Desk has no /v3/cms/articles/published route"
+#: src/WordPress/PublishedUrlsClient.php:76
+msgid "no Tribune Desk API token: the link back needs a token with the articles:write permission"
 msgstr ""
 
-#: src/WordPress/PublishedUrlsClient.php:92
+#: src/WordPress/PublishedUrlsClient.php:122
 msgid "Tribune Desk rejected the token (revoked or invalid)"
 msgstr ""
 
-#: src/WordPress/PublishedUrlsClient.php:93
+#: src/WordPress/PublishedUrlsClient.php:123
 msgid "Tribune Desk token lacks the articles:write permission"
 msgstr ""
 
-#. translators: %s: reason the /v3 route was not used
-#: src/WordPress/PublishedUrlsClient.php:98
-#, php-format
-msgid "%s, and no webhook secret for the old route"
+#: src/WordPress/PublishedUrlsClient.php:129
+msgid "Tribune Desk has no /v3/cms/articles/published route"
 msgstr ""
 
-#. translators: %s: reason the /v3 route was not used
-#: src/WordPress/PublishedUrlsClient.php:105
-#, php-format
-msgid "%s — sent via the old route (/v2)"
-msgstr ""
-
-#: src/WordPress/PublishedUrlsClient.php:114
-msgid "no webhook secret in the plugin settings"
-msgstr ""
-
-#: src/WordPress/PublishedUrlsClient.php:180
-msgid "Tribune Desk token rejected"
-msgstr ""
-
-#: src/WordPress/PublishedUrlsClient.php:181
-msgid "the secret matches no newsroom in HeadlinesForge"
-msgstr ""
-
-#: src/WordPress/PublishedUrlsClient.php:189
+#: src/WordPress/PublishedUrlsClient.php:135
 msgid "HeadlinesForge request limit"
 msgstr ""
 
-#: src/WordPress/PublishedUrlsClient.php:200
+#: src/WordPress/PublishedUrlsClient.php:146
 msgid "response without a results field"
 msgstr ""
 
-#: src/WordPress/PublishedUrlsClient.php:218
-msgid "the article exists, but not in this secret's newsroom"
+#: src/WordPress/PublishedUrlsClient.php:164
+msgid "the article exists, but not in this token's newsroom"
 msgstr ""
 
-#: src/WordPress/PublishedUrlsClient.php:219
+#: src/WordPress/PublishedUrlsClient.php:165
 msgid "Tribune Desk does not know this article_id"
 msgstr ""
 
 #. translators: %s: URL
-#: src/WordPress/PublishedUrlsClient.php:222
+#: src/WordPress/PublishedUrlsClient.php:168
 #, php-format
 msgid "HeadlinesForge rejected the address: %s"
 msgstr ""
 
 #. translators: %s: item status
-#: src/WordPress/PublishedUrlsClient.php:227
+#: src/WordPress/PublishedUrlsClient.php:173
 #, php-format
 msgid "unknown item status: %s"
 msgstr ""
@@ -730,11 +710,11 @@ msgstr ""
 msgid "HeadlinesForge did not return a status for this item"
 msgstr ""
 
-#: src/WordPress/PublishNotifier.php:155
+#: src/WordPress/PublishNotifier.php:151
 msgid "retry"
 msgstr ""
 
-#: src/WordPress/PublishNotifier.php:159
+#: src/WordPress/PublishNotifier.php:155
 msgid "retry in 5 min"
 msgstr ""
 
@@ -742,267 +722,267 @@ msgstr ""
 msgid "Read more"
 msgstr ""
 
-#: src/WordPress/Settings.php:105
+#: src/WordPress/Settings.php:97
 msgid "Webhook settings"
 msgstr ""
 
-#: src/WordPress/Settings.php:112
-msgid "Webhook secret"
-msgstr ""
-
-#: src/WordPress/Settings.php:120
+#: src/WordPress/Settings.php:104
 msgid "Signing secret (whsec_…)"
 msgstr ""
 
-#: src/WordPress/Settings.php:128
+#: src/WordPress/Settings.php:112
 msgid "Default author"
 msgstr ""
 
-#: src/WordPress/Settings.php:136
+#: src/WordPress/Settings.php:120
 msgid "Publish immediately"
 msgstr ""
 
-#: src/WordPress/Settings.php:144
+#: src/WordPress/Settings.php:128
 msgid "Authors from Tribune Desk"
 msgstr ""
 
-#: src/WordPress/Settings.php:151
+#: src/WordPress/Settings.php:135
 msgid "Updates"
 msgstr ""
 
-#: src/WordPress/Settings.php:158
+#: src/WordPress/Settings.php:142
 msgid "Automatic updates"
 msgstr ""
 
-#: src/WordPress/Settings.php:166
+#: src/WordPress/Settings.php:150
 msgid "Tribune Desk API"
 msgstr ""
 
-#: src/WordPress/Settings.php:173
+#: src/WordPress/Settings.php:157
 msgid "Tribune Desk API address"
 msgstr ""
 
-#: src/WordPress/Settings.php:181
+#: src/WordPress/Settings.php:165
 msgid "CMS API token"
 msgstr ""
 
-#: src/WordPress/Settings.php:189
+#: src/WordPress/Settings.php:173
 msgid "Theme fields"
 msgstr ""
 
-#: src/WordPress/Settings.php:196
+#: src/WordPress/Settings.php:180
 msgid "Meta description field"
 msgstr ""
 
-#: src/WordPress/Settings.php:204
+#: src/WordPress/Settings.php:188
 msgid "Facebook title field"
 msgstr ""
 
-#: src/WordPress/Settings.php:212
+#: src/WordPress/Settings.php:196
 msgid "Excerpt from Facebook teaser"
 msgstr ""
 
-#: src/WordPress/Settings.php:220
+#: src/WordPress/Settings.php:204
 msgid "CMS field: do not publish on Facebook"
 msgstr ""
 
-#: src/WordPress/Settings.php:242
+#: src/WordPress/Settings.php:227
 msgid "Endpoint URL:"
 msgstr ""
 
-#: src/WordPress/Settings.php:248
+#: src/WordPress/Settings.php:233
 msgid "The previous address still works and needs no change:"
 msgstr ""
 
-#: src/WordPress/Settings.php:289
+#: src/WordPress/Settings.php:274
 msgid "The signing secret must start with whsec_ and be copied in full. The previous value was kept."
 msgstr ""
 
 #. translators: %s: last characters of the saved secret
-#: src/WordPress/Settings.php:310
+#: src/WordPress/Settings.php:295
 #, php-format
 msgid "Saved (…%s). Leave the field empty to keep it unchanged."
 msgstr ""
 
-#: src/WordPress/Settings.php:326
-msgid "Remove the saved signing secret (deliveries are checked with the webhook secret again)"
+#: src/WordPress/Settings.php:311
+msgid "No signing secret: every delivery from Tribune Desk is refused until you paste the signing secret (whsec_…) below."
 msgstr ""
 
-#: src/WordPress/Settings.php:329
-msgid "Signing secret of deliveries from Tribune Desk. When set, the plugin accepts only deliveries with a valid signature, and the webhook secret is no longer checked."
+#: src/WordPress/Settings.php:320
+msgid "Remove the saved signing secret (every delivery is then refused until a new one is saved)"
 msgstr ""
 
-#: src/WordPress/Settings.php:337
+#: src/WordPress/Settings.php:323
+msgid "Signing secret of deliveries from Tribune Desk. The plugin accepts only deliveries with a valid signature; without this secret every delivery is refused."
+msgstr ""
+
+#: src/WordPress/Settings.php:331
 msgid "— use plugin installer as fallback —"
 msgstr ""
 
-#: src/WordPress/Settings.php:343
+#: src/WordPress/Settings.php:337
 msgid "Author of posts that cannot be matched to a person from Tribune Desk (see the “Authors from Tribune Desk” section)."
 msgstr ""
 
-#: src/WordPress/Settings.php:353
+#: src/WordPress/Settings.php:347
 msgid "The post author is the person who clicked “Send to CMS” in Tribune Desk or, if that person cannot be matched, the article author in Tribune Desk. The plugin matches a WordPress account with the same email address by itself; here you can assign an account manually. When nobody can be matched, the author is the “Default author”. The author of published posts does not change."
 msgstr ""
 
-#: src/WordPress/Settings.php:365
+#: src/WordPress/Settings.php:359
 msgid "The list appears after the first delivery from Tribune Desk that carries an author."
 msgstr ""
 
-#: src/WordPress/Settings.php:374
+#: src/WordPress/Settings.php:368
 msgid "Person in Tribune Desk"
 msgstr ""
 
-#: src/WordPress/Settings.php:374
+#: src/WordPress/Settings.php:368
 msgid "Email"
 msgstr ""
 
-#: src/WordPress/Settings.php:374
+#: src/WordPress/Settings.php:368
 msgid "WordPress account"
 msgstr ""
 
-#: src/WordPress/Settings.php:374
+#: src/WordPress/Settings.php:368
 msgid "Author now set to"
 msgstr ""
 
-#: src/WordPress/Settings.php:386
+#: src/WordPress/Settings.php:380
 msgid "— automatic (by email) —"
 msgstr ""
 
-#: src/WordPress/Settings.php:394
+#: src/WordPress/Settings.php:388
 msgid "Default author (no match)"
 msgstr ""
 
-#: src/WordPress/Settings.php:399
+#: src/WordPress/Settings.php:393
 msgid "assigned manually"
 msgstr ""
 
-#: src/WordPress/Settings.php:400
+#: src/WordPress/Settings.php:394
 msgid "same email"
 msgstr ""
 
-#: src/WordPress/Settings.php:412
+#: src/WordPress/Settings.php:406
 msgid "Publish received articles immediately instead of saving them as drafts."
 msgstr ""
 
-#: src/WordPress/Settings.php:420
+#: src/WordPress/Settings.php:414
 msgid "Installed version:"
 msgstr ""
 
-#: src/WordPress/Settings.php:447
+#: src/WordPress/Settings.php:441
 msgid "Install new plugin versions automatically."
 msgstr ""
 
-#: src/WordPress/Settings.php:452
+#: src/WordPress/Settings.php:446
 msgid "The same setting as \"Enable auto-updates\" for this plugin on the Plugins list. A change in one place shows in the other."
 msgstr ""
 
-#: src/WordPress/Settings.php:477
+#: src/WordPress/Settings.php:471
 msgid "The Tribune Desk API address must start with https:// and include a host name — the previous value was kept."
 msgstr ""
 
-#: src/WordPress/Settings.php:489
+#: src/WordPress/Settings.php:483
 msgid "The address the plugin sends published post URLs back to (return contract). Change it only when Tribune Desk asks you to."
 msgstr ""
 
-#: src/WordPress/Settings.php:502
+#: src/WordPress/Settings.php:496
 msgid "https:// required. Default:"
 msgstr ""
 
-#: src/WordPress/Settings.php:508
-msgid "Token from Tribune Desk for the link back and the media sync. Required permissions: articles:write, settings:read, settings:write, media:read, media:write, backfill:write. Without a token the existing sync keeps working."
+#: src/WordPress/Settings.php:502
+msgid "Token from Tribune Desk for the link back and the media sync. Required permissions: articles:write, settings:read, settings:write, media:read, media:write, backfill:write. Without a token the plugin sends no addresses of published posts back to Tribune Desk."
 msgstr ""
 
-#: src/WordPress/Settings.php:529
+#: src/WordPress/Settings.php:523
 msgid "Optional: meta keys of theme fields the plugin copies the meta description and Facebook title from Tribune Desk into (next to the Yoast fields). An empty field means no copying. Only an empty post field is filled, so manual edits stay."
 msgstr ""
 
-#: src/WordPress/Settings.php:549
+#: src/WordPress/Settings.php:543
 msgid "Write the Facebook teaser from Tribune Desk into an empty post excerpt."
 msgstr ""
 
-#: src/WordPress/Settings.php:556
+#: src/WordPress/Settings.php:550
 msgid "Meta key of the post field that says \"do not publish on Facebook\". When set, every report of a published post tells Tribune Desk whether to keep the article out of its Facebook queue: 1, true, yes or on mean yes, any other value or no value means no. A change of the field on a published post is reported again. Empty: nothing is sent."
 msgstr ""
 
-#: src/WordPress/Settings.php:574
+#: src/WordPress/Settings.php:568
 msgid "Published post URLs"
 msgstr ""
 
-#: src/WordPress/Settings.php:575
+#: src/WordPress/Settings.php:569
 msgid "Sends Tribune Desk the URLs of posts published before this version was installed (and of all whose URL did not arrive). In batches of 100 — click again if there are more."
 msgstr ""
 
 #. translators: %d: number of posts
-#: src/WordPress/Settings.php:580
+#: src/WordPress/Settings.php:574
 #, php-format
 msgid "Posts to send: %d"
 msgstr ""
 
-#: src/WordPress/Settings.php:586
+#: src/WordPress/Settings.php:580
 msgid "Send the next 100"
 msgstr ""
 
-#: src/WordPress/Settings.php:587
+#: src/WordPress/Settings.php:581
 msgid "Send published post URLs to Tribune Desk"
 msgstr ""
 
 #. translators: 1: number sent, 2: counts per status, 3: number remaining
-#: src/WordPress/Settings.php:607
+#: src/WordPress/Settings.php:601
 #, php-format
 msgid "Sent %1$d URLs (%2$s). %3$d remaining."
 msgstr ""
 
-#: src/WordPress/Settings.php:609
+#: src/WordPress/Settings.php:603
 msgid "Click again to send the next batch."
 msgstr ""
 
 #. translators: 1: status, 2: details
-#: src/WordPress/Settings.php:617
+#: src/WordPress/Settings.php:611
 #, php-format
 msgid "Sending failed (%1$s): %2$s"
 msgstr ""
 
-#: src/WordPress/Settings.php:628
+#: src/WordPress/Settings.php:622
 msgid "received"
 msgstr ""
 
-#: src/WordPress/Settings.php:629
+#: src/WordPress/Settings.php:623
 msgid "URL sent"
 msgstr ""
 
-#: src/WordPress/Settings.php:630
+#: src/WordPress/Settings.php:624
 msgid "backfill"
 msgstr ""
 
-#: src/WordPress/Settings.php:631
+#: src/WordPress/Settings.php:625
 msgid "backlinks"
 msgstr ""
 
-#: src/WordPress/Settings.php:632
+#: src/WordPress/Settings.php:626
 msgid "Images to media library"
 msgstr ""
 
-#: src/WordPress/Settings.php:643
+#: src/WordPress/Settings.php:637
 msgid "Recent deliveries"
 msgstr ""
 
-#: src/WordPress/Settings.php:645
+#: src/WordPress/Settings.php:639
 msgid "Time"
 msgstr ""
 
-#: src/WordPress/Settings.php:646
+#: src/WordPress/Settings.php:640
 msgid "Type"
 msgstr ""
 
-#: src/WordPress/Settings.php:647
+#: src/WordPress/Settings.php:641
 msgid "Article ID"
 msgstr ""
 
-#: src/WordPress/Settings.php:648
+#: src/WordPress/Settings.php:642
 msgid "Post ID"
 msgstr ""
 
-#: src/WordPress/Settings.php:650
+#: src/WordPress/Settings.php:644
 msgid "Details"
 msgstr ""
 

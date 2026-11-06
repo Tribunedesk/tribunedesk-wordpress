@@ -29,7 +29,6 @@ class Test_Social_Queue_Flag extends WP_UnitTestCase
     {
         parent::set_up();
         Activator::activate();
-        update_option(RestEndpoint::OPTION_SECRET, 'test-secret');
         update_option(CmsApiClient::OPTION_TOKEN, 'tdcms_testtoken');
         update_option(SocialQueueFlag::OPTION, self::KEY);
         SocialQueueFlag::reset();
@@ -57,7 +56,7 @@ class Test_Social_Queue_Flag extends WP_UnitTestCase
         }
         $body    = json_decode((string) ($args['body'] ?? ''), true);
         $results = [];
-        foreach (($body['articles'] ?? $body['items'] ?? []) as $article) {
+        foreach (($body['items'] ?? []) as $article) {
             $results[] = ['article_id' => $article['article_id'], 'status' => 'ok'];
         }
 
@@ -336,41 +335,15 @@ class Test_Social_Queue_Flag extends WP_UnitTestCase
         $this->assertTrue($this->sent_item()['social_queue_exclude']);
     }
 
-    public function test_the_deprecated_v2_route_never_gets_the_field(): void
+    public function test_without_token_nothing_is_sent(): void
     {
+        // 2.2.0: the /v2 route that once carried a flagless link back is gone (E7).
         delete_option(CmsApiClient::OPTION_TOKEN);
         $id = $this->make_post('draft', [self::KEY => '1']);
 
         wp_publish_post($id);
 
-        $this->assertCount(1, $this->requests);
-        $this->assertStringEndsWith('/v2/cms/published-urls', $this->requests[0]['url']);
-        $this->assertSame(['article_id', 'url'], array_keys($this->sent_item()));
-    }
-
-    public function test_fallback_to_v2_after_a_refused_token_drops_the_field(): void
-    {
-        $id = $this->make_post('draft', [self::KEY => '1']);
-        $this->next_response = [
-            'headers'  => [],
-            'body'     => '{"detail":"x"}',
-            'response' => ['code' => 403, 'message' => 'Forbidden'],
-            'cookies'  => [],
-            'filename' => null,
-        ];
-        add_filter('pre_http_request', function ($pre, array $args, string $url) {
-            if (str_contains($url, '/v2/')) {
-                $this->next_response = null;
-            }
-
-            return $pre;
-        }, 5, 3);
-
-        wp_publish_post($id);
-
-        $this->assertCount(2, $this->requests);
-        $this->assertTrue($this->sent_item(0)['social_queue_exclude']);
-        $this->assertSame(['article_id', 'url'], array_keys($this->sent_item(1)));
+        $this->assertSame([], $this->requests);
     }
 
     public function test_backfill_sends_the_field_too(): void

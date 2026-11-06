@@ -147,10 +147,6 @@ class PublishNotifier
             }
         }
 
-        if (!empty($result['notice'])) {
-            $detail = trim((string) $detail . ' (' . (string) $result['notice'] . ')');
-        }
-
         if ($is_retry) {
             $retry_label = __('retry', 'tribune-desk');
             $detail = trim($retry_label . ': ' . (string) $detail, ': ');

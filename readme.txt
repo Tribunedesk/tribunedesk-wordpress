@@ -4,14 +4,14 @@ Tags: webhook, automation, content
 Requires at least: 5.6
 Tested up to: 7.1
 Requires PHP: 8.3
-Stable tag: 2.1.0
+Stable tag: 2.2.0
 License: MIT
 
 Receives finished articles from Tribune Desk (ArticleWriter) and creates them as drafts in WordPress.
 
 == Description ==
 
-This plugin exposes one REST endpoint under two paths — `POST /wp-json/tribunedesk/v1/receive` and, unchanged, `POST /wp-json/headlinesforge/v1/receive` — that accepts a JSON payload from Tribune Desk / ArticleWriter and creates the article as a draft post. Authentication is via a shared secret in the `X-Webhook-Secret` header.
+This plugin exposes one REST endpoint under two paths — `POST /wp-json/tribunedesk/v1/receive` and, unchanged, `POST /wp-json/headlinesforge/v1/receive` — that accepts a JSON payload from Tribune Desk / ArticleWriter and creates the article as a draft post. Every delivery must carry a valid Standard Webhooks signature made with the newsroom's signing secret (`whsec_…`).
 
 Features:
 
@@ -21,7 +21,7 @@ Features:
 * Post author taken from Tribune Desk: the person who clicked "Send to CMS", then the article author — matched by e-mail or assigned by hand; the configurable default author covers everyone else
 * Last 20 deliveries visible in the admin settings page, each tagged as received / URL sent / backfill
 * Yoast SEO fields (`_yoast_wpseo_title`, `_yoast_wpseo_metadesc`, `_yoast_wpseo_focuskw`) filled from the payload — never overwriting a value an editor already set
-* Sends the permalink of every published article back to Tribune Desk (`permalink` in the webhook response and `POST /v2/cms/published-urls` on publish), so later articles link to it with the real URL
+* Sends the permalink of every published article back to Tribune Desk (`permalink` in the webhook response and, with a CMS API token, `POST /v3/cms/articles/published` on publish), so later articles link to it with the real URL
 * Replaces Tribune Desk internal-link placeholders with permalinks of articles already published on this site
 * One-click backfill of URLs for articles published before this version
 * With a CMS API token, exchanges media with the Tribune Desk library through `/v3/cms`: new images, field edits and deletions; without a token no media is sent
@@ -30,9 +30,15 @@ Features:
 
 1. Upload the plugin folder to `wp-content/plugins/`.
 2. Activate the plugin in `Wtyczki`.
-3. Go to `Ustawienia → Tribune Desk`, set the Webhook Secret, pick the default author, and copy the Webhook URL into ArticleWriter Settings → Integracje.
+3. Go to `Ustawienia → Tribune Desk`, paste the signing secret (`whsec_…`) and the CMS API token you got from Tribune Desk, pick the default author, and copy the Webhook URL into Tribune Desk Settings → Integracje.
 
 == Changelog ==
+
+= 2.2.0 =
+* Deliveries are accepted only with a valid signature. Tribune Desk stopped sending the shared secret (`X-Webhook-Secret`) on 2026-11-06, so the plugin no longer checks it and the "Webhook secret" field is gone from the settings.
+* Without a signing secret every delivery is refused (401), and a red notice at the top of Settings → Tribune Desk says so until the secret is saved. The checkbox that removes the signing secret now says the same.
+* The link back goes only through `/v3/cms/articles/published` with the CMS API token. The old `/v2/cms/published-urls` route, which Tribune Desk removed on 2026-11-06, is no longer called, not even after a refused token. Without a token nothing is sent and the deliveries log says a token with `articles:write` is needed; a post published at once still returns its `permalink` in the delivery answer.
+* A shared secret saved by an earlier version stays in the database untouched, so going back to 2.1.0 still works; uninstalling removes it.
 
 = 2.1.0 =
 * New setting "CMS field: do not publish on Facebook" (Theme fields): the meta key of the post field that keeps an article off Facebook. When set, every report of a published post carries `social_queue_exclude` (true for 1, true, yes or on; false otherwise, also when the field is empty or deleted), so Tribune Desk keeps the article out of its Facebook queue. Empty setting: nothing changes and the field is never sent.

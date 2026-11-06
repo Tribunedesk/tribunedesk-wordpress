@@ -14,7 +14,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
     {
         parent::setUp();
         $this->author_id = self::factory()->user->create(['role' => 'editor']);
-        update_option(RestEndpoint::OPTION_SECRET, 'test-secret');
+        update_option(RestEndpoint::OPTION_SIGNING_SECRET, TRIBUNE_DESK_TESTS_SIGNING_SECRET);
         update_option(RestEndpoint::OPTION_DEFAULT_AUTHOR, $this->author_id);
         update_option(Activator::OPTION_INSTALL_USER, $this->author_id);
         // Activator runs DB migration normally on activate; do it manually for tests.
@@ -53,7 +53,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
         ];
     }
 
-    private function send(array $body, ?string $secret = 'test-secret'): WP_REST_Response
+    private function send(array $body, ?string $secret = TRIBUNE_DESK_TESTS_SIGNING_SECRET): WP_REST_Response
     {
         return $this->send_to(RestEndpoint::NAMESPACE, $body, $secret);
     }
@@ -61,18 +61,19 @@ class Test_RestEndpoint extends WP_UnitTestCase
     private function send_to(
         string $namespace,
         array $body,
-        ?string $secret = 'test-secret'
+        ?string $secret = TRIBUNE_DESK_TESTS_SIGNING_SECRET
     ): WP_REST_Response {
         $req = new WP_REST_Request('POST', '/' . $namespace . RestEndpoint::ROUTE);
-        if ($secret !== null) {
-            $req->set_header('x_webhook_secret', $secret);
-        }
         $req->set_body(json_encode($body));
         $req->set_header('Content-Type', 'application/json');
+        if ($secret !== null) {
+            tribune_desk_tests_sign($req, $secret);
+        }
         return rest_do_request($req);
     }
 
     private const SIGNING_SECRET = 'whsec_C2FVsBQIhrscChlQIMV+b5sSYspob7oD';
+    private const OTHER_SECRET = 'whsec_eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHg=';
 
     /**
      * Signed delivery (spec D4). The body goes byte for byte as Tribune Desk sends it:
@@ -111,8 +112,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
     public function test_bad_signature_gives_401_even_with_old_secret(): void
     {
         update_option(RestEndpoint::OPTION_SIGNING_SECRET, self::SIGNING_SECRET);
-        $other = 'whsec_' . base64_encode(str_repeat('x', 32));
-        $res   = $this->send_signed($this->signed_body(), $other, 'test-secret');
+        $res = $this->send_signed($this->signed_body(), self::OTHER_SECRET, 'test-secret');
         $this->assertSame(401, $res->get_status());
     }
 
@@ -123,11 +123,28 @@ class Test_RestEndpoint extends WP_UnitTestCase
         $this->assertSame(401, $res->get_status());
     }
 
-    public function test_old_secret_still_works_without_signing_secret(): void
+    /**
+     * 2.2.0: the shared secret (X-Webhook-Secret) is gone. Tribune Desk stopped sending it (E7),
+     * and an install that still has the old option saved must not accept it as a way in.
+     */
+    public function test_old_shared_secret_is_never_accepted(): void
+    {
+        update_option('headlinesforge_webhook_secret', 'test-secret');
+        foreach (['', TRIBUNE_DESK_TESTS_SIGNING_SECRET] as $signing) {
+            update_option(RestEndpoint::OPTION_SIGNING_SECRET, $signing);
+            $req = new WP_REST_Request('POST', '/' . RestEndpoint::NAMESPACE . RestEndpoint::ROUTE);
+            $req->set_header('x_webhook_secret', 'test-secret');
+            $req->set_header('Content-Type', 'application/json');
+            $req->set_body($this->signed_body());
+            $this->assertSame(401, rest_do_request($req)->get_status(), "signing secret '$signing'");
+        }
+    }
+
+    public function test_without_signing_secret_even_a_signed_delivery_gives_401(): void
     {
         delete_option(RestEndpoint::OPTION_SIGNING_SECRET);
-        $res = $this->send(['article_id' => '0b8f1c2a-3d4e-4f5a-8b6c-7d8e9f0a1b2d', 'topic' => 't', 'html' => '<p>x</p>']);
-        $this->assertSame(200, $res->get_status());
+        $res = $this->send_signed($this->signed_body(), self::SIGNING_SECRET);
+        $this->assertSame(401, $res->get_status());
     }
 
     public function test_response_has_cms_post_id_next_to_post_id(): void
@@ -161,7 +178,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
 
     public function test_rejects_wrong_secret(): void
     {
-        $res = $this->send(['article_id' => 'a1', 'topic' => 't', 'html' => '<p>x</p>'], 'wrong');
+        $res = $this->send(['article_id' => 'a1', 'topic' => 't', 'html' => '<p>x</p>'], self::OTHER_SECRET);
         $this->assertSame(401, $res->get_status());
     }
 
@@ -210,7 +227,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
         $res = $this->send_to(
             RestEndpoint::NAMESPACE_BRAND,
             ['article_id' => 'a1', 'topic' => 't', 'html' => '<p>x</p>'],
-            'wrong'
+            self::OTHER_SECRET
         );
         $this->assertSame(401, $res->get_status());
     }

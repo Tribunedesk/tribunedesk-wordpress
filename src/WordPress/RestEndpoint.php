@@ -28,14 +28,14 @@ class RestEndpoint
     public const NAMESPACE_BRAND = 'tribunedesk/v1';
 
     public const ROUTE = '/receive';
-    public const OPTION_SECRET = 'headlinesforge_webhook_secret';
     public const OPTION_DEFAULT_AUTHOR = 'headlinesforge_default_author_id';
     public const OPTION_PUBLISH = 'headlinesforge_publish_immediately';
 
     /**
-     * Standard Webhooks signing secret (whsec_...). When set, every delivery must carry a valid
-     * signature and X-Webhook-Secret is ignored; when empty, the old shared-secret check stays
-     * (spec 2026-11-03 open CMS API, D4 "transition").
+     * Standard Webhooks signing secret (whsec_...). Every delivery must carry a valid signature;
+     * without this secret every delivery is refused (2.2.0: Tribune Desk stopped sending the old
+     * shared-secret header, E7). The old option `headlinesforge_webhook_secret` stays in
+     * the database untouched, so going back to 2.1.0 still works; uninstall removes it.
      */
     public const OPTION_SIGNING_SECRET = 'headlinesforge_signing_secret';
 
@@ -52,21 +52,13 @@ class RestEndpoint
         }
     }
 
-    /**
-     * Signature when a signing secret is set (the old secret is then ignored, so it cannot be a
-     * way around the signature); otherwise the old X-Webhook-Secret comparison.
-     */
+    /** A valid Standard Webhooks signature; no signing secret means no delivery gets in. */
     private static function authorized(\WP_REST_Request $request): bool
     {
         $signing_secret = trim((string) get_option(self::OPTION_SIGNING_SECRET, ''));
-        if ($signing_secret !== '') {
-            return WebhookSignature::verify($signing_secret, $request->get_headers(), $request->get_body());
-        }
 
-        $stored_secret   = (string) get_option(self::OPTION_SECRET, '');
-        $received_secret = (string) $request->get_header('x_webhook_secret');
-
-        return $stored_secret !== '' && hash_equals($stored_secret, $received_secret);
+        return $signing_secret !== ''
+            && WebhookSignature::verify($signing_secret, $request->get_headers(), $request->get_body());
     }
 
     public static function handle(\WP_REST_Request $request): \WP_REST_Response

@@ -26,12 +26,11 @@ class Test_Publish_Notifier extends WP_UnitTestCase
     {
         parent::set_up();
         Activator::activate();
-        update_option(RestEndpoint::OPTION_SECRET, 'sekret-testowy');
+        update_option(\TribuneDesk\WordPress\CmsApiClient::OPTION_TOKEN, 'tdcms_testtoken');
         $this->requests      = [];
         $this->next_response = null;
         $this->item_status   = 'ok';
         $this->v3_status     = 200;
-        delete_option(\TribuneDesk\WordPress\CmsApiClient::OPTION_TOKEN);
         _set_cron_array([]);
         add_filter('pre_http_request', [$this, 'fake_http'], 10, 3);
     }
@@ -55,7 +54,7 @@ class Test_Publish_Notifier extends WP_UnitTestCase
         if (str_contains($url, '/v3/') && $this->v3_status !== 200) {
             return $this->http_error($this->v3_status);
         }
-        foreach (($body['articles'] ?? $body['items'] ?? []) as $article) {
+        foreach (($body['items'] ?? []) as $article) {
             $results[] = ['article_id' => $article['article_id'], 'status' => $this->item_status];
         }
 
@@ -116,19 +115,34 @@ class Test_Publish_Notifier extends WP_UnitTestCase
         $this->assertSame('ok', $this->last_row()['status']);
     }
 
-    public function test_token_without_articles_write_falls_back_and_says_so_in_the_log(): void
+    public function test_token_without_articles_write_says_so_in_the_log_without_a_second_request(): void
     {
+        // 2.2.0: no fallback to the removed /v2 route.
         update_option(\TribuneDesk\WordPress\CmsApiClient::OPTION_TOKEN, 'tdcms_mediaonly');
         $this->v3_status = 403;
         $id = $this->make_post(self::UUID_A);
 
         wp_publish_post($id);
 
-        $this->assertCount(2, $this->requests);
-        $this->assertStringEndsWith('/v2/cms/published-urls', $this->requests[1]['url']);
+        $this->assertCount(1, $this->requests);
         $row = $this->last_row();
-        $this->assertSame('ok', $row['status']);
+        $this->assertSame(PublishedUrlsClient::STATUS_UNAUTHORIZED, $row['status']);
         $this->assertStringContainsString('articles:write', (string) $row['error_msg']);
+        $this->assertFalse(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id]));
+    }
+
+    public function test_without_token_nothing_is_sent_and_the_log_says_why(): void
+    {
+        delete_option(\TribuneDesk\WordPress\CmsApiClient::OPTION_TOKEN);
+        $id = $this->make_post(self::UUID_A);
+
+        wp_publish_post($id);
+
+        $this->assertSame([], $this->requests);
+        $row = $this->last_row();
+        $this->assertSame(PublishedUrlsClient::STATUS_UNAUTHORIZED, $row['status']);
+        $this->assertStringContainsString('articles:write', (string) $row['error_msg']);
+        $this->assertFalse(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id]));
     }
 
     public function test_publikacja_wysyla_jedno_zadanie_i_loguje_ok(): void
@@ -139,7 +153,9 @@ class Test_Publish_Notifier extends WP_UnitTestCase
 
         $this->assertCount(1, $this->requests);
         $body = json_decode((string) $this->requests[0]['args']['body'], true);
-        $this->assertSame([['article_id' => self::UUID_A, 'url' => get_permalink($id)]], $body['articles']);
+        $this->assertCount(1, $body['items']);
+        $this->assertSame(self::UUID_A, $body['items'][0]['article_id']);
+        $this->assertSame(get_permalink($id), $body['items'][0]['url']);
         $this->assertSame(PublishNotifier::TIMEOUT, $this->requests[0]['args']['timeout']);
 
         $row = $this->last_row();
@@ -210,7 +226,7 @@ class Test_Publish_Notifier extends WP_UnitTestCase
         $this->assertSame(PublishedUrlsClient::STATUS_RATE_LIMITED, $this->last_row()['status']);
     }
 
-    public function test_401_nie_planuje_retry_i_nie_loguje_sekretu(): void
+    public function test_401_nie_planuje_retry_i_nie_loguje_tokenu(): void
     {
         $this->next_response = $this->http_error(401);
         $id = $this->make_post(self::UUID_A);
@@ -219,8 +235,8 @@ class Test_Publish_Notifier extends WP_UnitTestCase
 
         $row = $this->last_row();
         $this->assertSame(PublishedUrlsClient::STATUS_UNAUTHORIZED, $row['status']);
-        $this->assertStringContainsString('sekret nie pasuje', (string) $row['error_msg']);
-        $this->assertStringNotContainsString('sekret-testowy', (string) $row['error_msg']);
+        $this->assertStringContainsString('odrzucił token', (string) $row['error_msg']);
+        $this->assertStringNotContainsString('tdcms_testtoken', (string) $row['error_msg']);
         $this->assertFalse(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id]));
     }
 
@@ -300,7 +316,7 @@ class Test_Publish_Notifier extends WP_UnitTestCase
 
         $this->assertCount(1, $this->requests);
         $body = json_decode((string) $this->requests[0]['args']['body'], true);
-        $this->assertSame($uuid_b, $body['articles'][0]['article_id']);
+        $this->assertSame($uuid_b, $body['items'][0]['article_id']);
         $this->assertStringContainsString(get_permalink($b), get_post($a)->post_content);
     }
 

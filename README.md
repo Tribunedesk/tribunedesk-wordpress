@@ -2,9 +2,11 @@
 
 A WordPress plugin that receives finished articles from [Tribune Desk](https://headlinesforge.com) (a newsroom tool) and creates them as drafts in wp-admin. It implements the public Tribune Desk CMS API at levels 1-4: article delivery, link back, full content and the media library.
 
-**Version:** v2.1.0
+**Version:** v2.2.0
 
-**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.1.0.zip**
+**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.2.0.zip**
+
+> Version 2.2.0 accepts deliveries only with a valid signature and reports published posts only through `/v3` with the CMS token. Tribune Desk stopped sending the shared secret (`X-Webhook-Secret`) and removed the `/v2/cms/published-urls` route on 2026-11-06, so the plugin no longer has the "Webhook secret" field or the old route. Without a signing secret every delivery is refused (`401`) and the settings page says so; without a CMS token with `articles:write` no address of a published post goes back (a post published at once still returns its `permalink` in the delivery answer). A secret saved by an earlier version stays in the database untouched; uninstalling removes it.
 
 > Version 2.1.0 adds the setting "CMS field: do not publish on Facebook": with a post meta key set, every publish report carries `social_queue_exclude`, and a change of the field on a published post is reported again. The report goes after the post is saved (`wp_after_insert_post`), so WordPress 5.6 or newer is now required. `PublishNotifier::on_transition` (`transition_post_status`) is replaced by `PublishNotifier::on_after_insert` (`wp_after_insert_post`); site code that calls or unhooks the old method must switch to the new one.
 
@@ -41,8 +43,8 @@ The public guide is at https://github.com/Tribunedesk/tribunedesk-cms-api (chapt
 
 | Level | What the plugin does | Main classes |
 |---|---|---|
-| 1. Article delivery | Receives the webhook (Standard Webhooks signature, or the older `X-Webhook-Secret`), creates or updates the draft, takes the featured image only from Tribune Desk's image hosts, logs every delivery, and answers with `cms_post_id`, `status` and `edit_url`. | `src/Protocol/WebhookSignature`, `DraftRules`, `DeliveryAnswer`, `ImageHostRule`; `src/WordPress/RestEndpoint`, `PostWriter`, `MediaHandler`, `ImageHosts`, `DeliveriesLog` |
-| 2. Link back | Reports the public URL and date of published articles (`permalink` in the answer, `POST /v3/cms/articles/published`, the deprecated `/v2` route as a fallback), also in batches for older posts. | `src/Protocol/LinkBack`; `src/WordPress/PublishNotifier`, `PublishedUrlsClient`, `Backfill` |
+| 1. Article delivery | Receives the webhook (Standard Webhooks signature), creates or updates the draft, takes the featured image only from Tribune Desk's image hosts, logs every delivery, and answers with `cms_post_id`, `status` and `edit_url`. | `src/Protocol/WebhookSignature`, `DraftRules`, `DeliveryAnswer`, `ImageHostRule`; `src/WordPress/RestEndpoint`, `PostWriter`, `MediaHandler`, `ImageHosts`, `DeliveriesLog` |
+| 2. Link back | Reports the public URL and date of published articles (`permalink` in the answer, `POST /v3/cms/articles/published`), also in batches for older posts. | `src/Protocol/LinkBack`; `src/WordPress/PublishNotifier`, `PublishedUrlsClient`, `Backfill` |
 | 3. Full content | Resolves internal-link placeholders, keeps the "Read more" links from `backlink_sources`, stores SEO fields, author and language, and puts the AI label in `<head>`. | `src/Protocol/PlaceholderLinks`, `BacklinkSources`, `AuthorOrder`; `src/WordPress/LinkResolver`, `Backlinks`, `ReadMore`, `AuthorResolver`, `SeoMeta`, `Language`, `ProvenanceMeta` |
 | 4. Media library | With a CMS token, syncs the media library both ways through `/v3/cms`: change feed, new files, field changes, deletions, resync, held batches, historical import. | `src/Protocol/ChangesFeed`, `Resync`, `ApiErrors`; `src/WordPress/CmsApiClient`, `CmsSync`, `CmsResync`, `CmsDeletions`, `CmsBackfill`, `CmsSettingsScreen`, `MediaPush`, `MediaMetaSync` |
 
@@ -55,14 +57,15 @@ A step-by-step guide for someone who has never installed a plugin by hand. Every
 ### What you need
 
 - **Access to wp-admin** of your WordPress (`https://your-site.com/wp-admin`) with an administrator account.
-- **A made-up "secret"**: any long string (for example `Ftq8-2nm9-pPLx-RR4k-fwn3`). You make it up once, now. Store it safely (for example in a password manager); you need it in two places.
+- **The signing secret** `whsec_…` of your newsroom. A Tribune Desk administrator generates it and gives it to you (it is shown once). Without it every delivery is refused.
+- **A CMS API token** `tdcms_…` with the `articles:write` permission, from the same administrator, if your editors publish drafts by hand: without it the addresses of those posts do not reach Tribune Desk.
 - **5 minutes.**
 
 ### Step 1: Download the plugin as a ZIP
 
 Download **one file** from our server. You do not need a GitHub account and you **do not rename the folder**; the archive is already packed correctly:
 
-**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.1.0.zip**
+**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.2.0.zip**
 
 **Do not unpack it.** WordPress does that itself.
 
@@ -76,25 +79,24 @@ Download **one file** from our server. You do not need a GitHub account and you 
 
 This is the only manual install. From now on the plugin updates itself (see "Automatic updates").
 
-### Step 3: Set the webhook secret and author in wp-admin
+### Step 3: Set the signing secret and author in wp-admin
 
 1. In the left menu click **Settings → Tribune Desk**.
 2. Fill in the form (all fields are described under "Settings"). In short:
    - **Endpoint URL** (grey box at the top): do **not** change it. Copy it; you paste it into Tribune Desk in Step 4. It looks like `https://your-site.com/wp-json/tribunedesk/v1/receive`. If you already have an integration on `.../wp-json/headlinesforge/v1/receive`, leave it alone: the old address still works.
-   - **Webhook secret**: enter your made-up secret and copy it to the clipboard too.
+   - **Signing secret (whsec_…)**: paste the signing secret. Until it is saved, a red notice at the top of the page says every delivery is refused.
+   - **CMS API token** (section "Tribune Desk API"): paste the token, if you have one.
    - **Default author**: pick the account that all received articles get.
 3. Click **Save changes** at the bottom.
 4. If you already have published Tribune Desk articles, click **Send URLs of published posts to Tribune Desk** (see "Link back"). Posts published from now on report themselves.
 
-### Step 4: Paste the same data into Tribune Desk
+### Step 4: Paste the Endpoint URL into Tribune Desk
 
 1. Open Tribune Desk: **https://headlinesforge.com/app** (or wherever your UI is hosted).
 2. Log in as the newsroom admin.
 3. Click **Settings** in the top right corner.
 4. In the left menu choose **Integrations**.
-5. Fill in two fields:
-   - **Webhook URL**: paste the Endpoint URL from Step 3 (for example `https://your-site.com/wp-json/tribunedesk/v1/receive`).
-   - **Webhook Secret**: paste the same secret you set in wp-admin.
+5. **Webhook URL**: paste the Endpoint URL from Step 3 (for example `https://your-site.com/wp-json/tribunedesk/v1/receive`).
 6. Click **Save**.
 
 ### Step 5: Test, send the first article
@@ -104,7 +106,7 @@ This is the only manual install. From now on the plugin updates itself (see "Aut
 3. Click **Send**.
 4. A status appears under the buttons:
    - **"Sent just now"**: success, go to Step 6.
-   - **"Error: http 401"**: the secrets differ. Check that both fields hold identical text.
+   - **"Error: http 401"**: the signature does not match. Check that the signing secret in wp-admin is the one Tribune Desk gave you for this newsroom.
    - **"Error: http 404"** or **"timeout"**: the URL is wrong or WordPress is unreachable.
 
 ### Step 6: Check the draft in WordPress
@@ -129,27 +131,26 @@ This is the only manual install. From now on the plugin updates itself (see "Aut
 `Settings → Tribune Desk`.
 
 - **Endpoint URL**: read-only. `https://your-site.com/wp-json/tribunedesk/v1/receive`. The 1.x address `.../wp-json/headlinesforge/v1/receive` (REST alias `headlinesforge/v1`) keeps working.
-- **Webhook secret**: shared secret checked in the `X-Webhook-Secret` header. Not checked when a signing secret is set.
-- **Signing secret** (since 1.17.0): see "Delivery signature".
+- **Signing secret** (since 1.17.0; required since 2.2.0): see "Delivery signature". Without it a red notice at the top of the page says every delivery is refused.
 - **Default author**: the WordPress account that gets all received articles. The list shows only Administrator and Editor accounts.
 - **Publish immediately** (Polish UI: "Publikuj od razu"): when ticked, articles are published at once instead of landing in drafts.
 - **Tribune Desk API base** (section "Tribune Desk API"): do **not** change. Default `https://api.headlinesforge.com`. The plugin reports the URLs of published posts there, so Tribune Desk can link to them in later articles.
-- **CMS token** (`tdcms_…`): token for `/v3/cms` (published-URL callback, media library, settings and image hosts). Without it the media library sync does not run.
+- **CMS token** (`tdcms_…`): token for `/v3/cms` (published-URL callback, media library, settings and image hosts). Without it the media library sync does not run and, since 2.2.0, no address of a post published by hand goes back to Tribune Desk.
 - **Author mapping**: maps authors from Tribune Desk to WordPress accounts; articles of a mapped author go to that account instead of the default author.
 - **Theme fields**: extra fields the active theme needs; they are filled from the delivery.
 - **CMS field: do not publish on Facebook** (in Theme fields, since 2.1.0): meta key of the post field that keeps an article off Facebook (e.g. `exclude_facebook_rss`). Empty = off. When set, every report of a published post sends `social_queue_exclude` (`1`, `true`, `yes`, `on` in any case = true; anything else, an empty or deleted field included = false), read at the moment of sending, also in the retry. A change of the field on a published Tribune Desk post is reported again, once per post and request; an ordinary edit sends nothing.
 - **Send URLs of published posts to Tribune Desk** (button below the form): click once after installing 0.8.0 or newer if you already have published Tribune Desk articles. It sends their URLs in batches of 100; with more posts click again until the message shows "0 remaining".
 - **Updates** section: installed version and the auto-update switch (see "Automatic updates").
 
-Secret fields (webhook secret, signing secret, CMS token) are password fields: the saved value is not in the page source, its last characters are shown under the field, and saving with an empty field leaves it unchanged.
+Secret fields (signing secret, CMS token) are password fields: the saved value is not in the page source, its last characters are shown under the field, and saving with an empty field leaves it unchanged.
 
 ---
 
-## Delivery signature (since 1.17.0)
+## Delivery signature (since 1.17.0, required since 2.2.0)
 
-A Tribune Desk superadmin generates a signing secret `whsec_…` for the newsroom (shown once). Paste it into **Settings → Tribune Desk → Signing secret**. From then on the plugin accepts only deliveries with a valid Standard Webhooks signature (`webhook-id`, `webhook-timestamp`, `webhook-signature`) and a timestamp within 5 minutes of the server clock; a bad signature is a `401`. The webhook secret is not checked then. Without a signing secret the plugin works as before (`X-Webhook-Secret`).
+A Tribune Desk superadmin generates a signing secret `whsec_…` for the newsroom (shown once). Paste it into **Settings → Tribune Desk → Signing secret**. From then on the plugin accepts only deliveries with a valid Standard Webhooks signature (`webhook-id`, `webhook-timestamp`, `webhook-signature`) and a timestamp within 5 minutes of the server clock; a bad signature is a `401`. Without a signing secret every delivery is a `401`: since 2.2.0 there is no shared secret (`X-Webhook-Secret`) to fall back on, because Tribune Desk stopped sending it.
 
-To remove the signing secret, tick **"Remove saved signing secret"** under the field (deliveries are then checked with the webhook secret again). For the other fields: `wp option delete headlinesforge_webhook_secret` or `headlinesforge_cms_token`.
+To remove the signing secret, tick **"Remove saved signing secret"** under the field (every delivery is then refused until a new one is saved). For the token: `wp option delete headlinesforge_cms_token`. The option `headlinesforge_webhook_secret` saved by an earlier version is no longer read; it stays in the database so going back to 2.1.0 still works, and uninstalling removes it.
 
 ---
 
@@ -183,13 +184,13 @@ The plugin does not insert the box itself, because the theme may already draw it
 
 ---
 
-## Link back (`published-urls` contract)
+## Link back
 
 For integrators and other CMSes. Tribune Desk learns the URL of a published article in two ways. This plugin implements both and is the **reference implementation** for any other CMS (`src/Protocol/LinkBack`, `src/WordPress/PublishedUrlsClient`, `src/WordPress/PublishNotifier`).
 
 **1. The `permalink` field in the webhook answer.** If the CMS publishes the article at once, return `"permalink": "https://…"` in the JSON answer (2xx, `Content-Type: application/json`, at most 64 KB). The editor URL (`edit_url`) is **not** a permalink.
 
-**2. Callback after publishing (since 1.17.0: via `/v3` with the CMS token).** When the article is published later (draft → published) and the settings hold a `tdcms_…` token with the `articles:write` permission:
+**2. Callback after publishing (via `/v3` with the CMS token).** When the article is published later (draft → published) and the settings hold a `tdcms_…` token with the `articles:write` permission:
 
 ```bash
 curl -sS -X POST https://api.tribunedesk.com/v3/cms/articles/published \
@@ -200,20 +201,9 @@ curl -sS -X POST https://api.tribunedesk.com/v3/cms/articles/published \
 
 With the setting "CMS field: do not publish on Facebook" each item also carries `"social_queue_exclude": true|false` (since 2.1.0). A missing field means "no change" to Tribune Desk, so the plugin sends `false` explicitly when the field is cleared. The report goes from `wp_after_insert_post`, after the theme stored its meta boxes in `save_post`; the first publication is told by the status before the save, cron publication of scheduled posts included.
 
-The answer has the same shape (`results` with statuses `ok|not_found|forbidden|invalid_url`). Full description: the Tribune Desk CMS API guide, chapter "Level 2 – Link back". When the token lacks `articles:write` (`401`/`403`), or the `/v3` route answers `404` (a backend without it), the plugin sends the same batch the old way below and records why in the deliveries log. Without a token only the old way works.
+Full description: the Tribune Desk CMS API guide, chapter "Level 2 – Link back". When the token is rejected (`401`), lacks `articles:write` (`403`), or the route answers `404`, the plugin records why in the deliveries log and sends nothing else. Without a token nothing is sent (since 2.2.0: the old `/v2/cms/published-urls` route and its `X-Webhook-Secret` header are gone).
 
-**Old route (deprecated; works until all installations have moved):**
-
-```bash
-curl -sS -X POST https://api.headlinesforge.com/v2/cms/published-urls \
-  -H "Content-Type: application/json" \
-  -H "X-Webhook-Secret: ${HF_WEBHOOK_SECRET}" \
-  -d '{"articles":[{"article_id":"514e9e08-c003-42b7-81e8-79f5167ec833","url":"https://your-site.com/article-title/"}]}'
-```
-
-- The host is **`api.headlinesforge.com`** (not `headlinesforge.com`).
-- `X-Webhook-Secret` is the same secret Tribune Desk uses to sign webhooks to you.
-- `article_id` is the `article_id` field of the webhook payload (UUID). `articles` has 1-100 items; one shape handles both a single publication and a backfill.
+- `article_id` is the `article_id` field of the webhook payload (UUID). `items` has 1-100 items; one shape handles both a single publication and a backfill.
 - `url` is the public address of the article (http or https). The last write wins (if the slug changes after publishing, send again).
 
 `200` answer:
@@ -226,11 +216,12 @@ curl -sS -X POST https://api.headlinesforge.com/v2/cms/published-urls \
 |---|---|---|
 | `200`, `ok` | URL saved | nothing |
 | `200`, `not_found` | Tribune Desk does not know this `article_id` | check you send the `article_id` from the payload, not your own ID |
-| `200`, `forbidden` | the article exists but belongs to another newsroom than the one the secret matches | do not retry |
+| `200`, `forbidden` | the article exists but belongs to another newsroom than the token's | do not retry |
 | `200`, `invalid_url` | URL rejected (private host, no scheme, > 2048 characters) | fix the URL |
-| `401` | missing header, or the secret matches no newsroom | fix the secret; do not retry automatically |
+| `401` | missing, revoked or invalid token | fix the token; do not retry automatically |
+| `403` | the token lacks `articles:write` | ask for a token with that permission |
 | `422` | bad body: empty list, > 100 items, `article_id` not a UUID (**the whole batch fails**) | filter the items before sending |
-| `429` | limit of 30 requests/min per secret | wait and retry |
+| `429` | request limit | wait and retry |
 | `5xx` | Tribune Desk failure | retry later |
 
 The plugin: on publishing, one item with a 5 s timeout and one retry after 5 min for a network error / `429` / `5xx`; backfill in batches of 100 with a 10 s timeout. The result of every call is in the "Recent deliveries" table (kind `URL sent` or `backfill`).
@@ -289,7 +280,7 @@ Each filter has a new `tribune_desk_*` name; the old `headlinesforge_*` name sti
 Our ZIP is small (about 50 KB), so this is unlikely. If it happens, ask your hosting provider about `upload_max_filesize` in PHP (usually 2 MB by default, which is plenty).
 
 **"The Send button is there, but clicking it gives HTTP 401"**
-The secrets differ. Copy the secret from wp-admin again (select it in the "Webhook secret" field, Ctrl+C) and paste it into Tribune Desk. Trailing whitespace counts too. If a signing secret is set, the signature must match instead.
+The signature does not match, or no signing secret is saved (the settings page then shows a red notice). Paste the signing secret `whsec_…` that Tribune Desk gave you for this newsroom again, in full.
 
 **"HTTP 404 after clicking Send"**
 The URL is wrong. In wp-admin `Settings → Tribune Desk` copy the "Endpoint URL" again; it must be exactly the same as in Tribune Desk.
@@ -301,10 +292,10 @@ WordPress crashed on our request. Open `Settings → Tribune Desk` → "Recent d
 The Webhook URL must be on HTTPS (not HTTP). If your site runs on `http://`, install an SSL certificate first (Let's Encrypt is free). Tribune Desk also rejects non-https URLs.
 
 **"In Recent deliveries the row 'URL sent' has status unauthorized"**
-The secret in wp-admin does not match the one in Tribune Desk → Integrations. The post URL did not arrive; after fixing the secret click "Send URLs of published posts to Tribune Desk".
+No CMS API token is saved, Tribune Desk rejected it, or it lacks `articles:write`; the row says which. The post URL did not arrive; after fixing the token click "Send URLs of published posts to Tribune Desk".
 
 **"…status forbidden"**
-The secret is correct, but the article belongs to another newsroom in Tribune Desk (for example a post moved over from a demo installation). This is not a plugin error; that post will not be reported.
+The token is correct, but the article belongs to another newsroom in Tribune Desk (for example a post moved over from a demo installation). This is not a plugin error; that post will not be reported.
 
 **"…status error with the text 'retry in 5 min'"**
 Tribune Desk did not answer within 5 s or answered 5xx. The plugin tries once more after five minutes (WP-Cron, so on a site with no traffic it may take longer). If the second row also has an error, use the backfill button.
@@ -353,7 +344,7 @@ Always possible and safe:
 3. WordPress shows a comparison screen; click **"Replace current with uploaded"**.
 
 > **WARNING: NEVER click "Delete".** WordPress then runs `uninstall.php`, which
-> **deletes the webhook secret, the chosen author and the whole deliveries history table**.
+> **deletes the secrets, the chosen author and the whole deliveries history table**.
 > An earlier version of this guide promised that "settings survive"; that
 > was untrue and cost one newsroom its secret (2026-08-05).
 > An update, automatic or manual, **never** does this; only the "Delete" button does.
@@ -362,7 +353,7 @@ Always possible and safe:
 
 Check that the plugin folder is named exactly `headlinesforge-receiver`. Did you install from our ZIP (Step 1)? The name is correct. Did you once install a ZIP downloaded straight from GitHub and rename the folder following the old guide? Also correct. Did you install a ZIP from GitHub and NOT rename it? It is probably wrong. If in doubt, do not guess; ask us.
 
-A wrong name does not show at once: the automatic update installs the new version under the name `headlinesforge-receiver`, and WordPress, because the active-plugin entry still points to the old folder, then shows it as **inactive** in the "Plugins" list, and articles stop arriving. Fix: `Plugins → Installed Plugins` → click **"Activate"** at Tribune Desk Receiver. The webhook secret, the chosen author and the deliveries history are in the database and survived; nothing needs to be entered again. Report this case to us so we can verify it.
+A wrong name does not show at once: the automatic update installs the new version under the name `headlinesforge-receiver`, and WordPress, because the active-plugin entry still points to the old folder, then shows it as **inactive** in the "Plugins" list, and articles stop arriving. Fix: `Plugins → Installed Plugins` → click **"Activate"** at Tribune Desk Receiver. The secrets, the chosen author and the deliveries history are in the database and survived; nothing needs to be entered again. Report this case to us so we can verify it.
 
 ### Rolling back a faulty version (our side)
 

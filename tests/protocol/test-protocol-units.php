@@ -82,12 +82,6 @@ class Test_Protocol_Units extends TestCase
         ]);
         $this->assertSame(2, $dropped);
         $this->assertSame(['items' => $ready], LinkBack::body($ready));
-        $this->assertSame(['articles' => [['article_id' => self::UUID, 'url' => 'https://example.com/a/']]], LinkBack::body_old($ready));
-        foreach ([401, 403, 404] as $code) {
-            $this->assertTrue(LinkBack::falls_back($code));
-        }
-        $this->assertFalse(LinkBack::falls_back(429));
-        $this->assertFalse(LinkBack::falls_back(null));
         $this->assertSame([self::UUID => 'ok'], LinkBack::results('{"results":[{"article_id":"' . strtoupper(self::UUID) . '","status":"ok"},{"article_id":"x","status":"weird"}]}'));
         $this->assertNull(LinkBack::results('{"detail":"x"}'));
         $this->assertSame('2026-11-04T09:30:00+00:00', LinkBack::iso_date('2026-11-04 09:30:00'));
@@ -106,10 +100,6 @@ class Test_Protocol_Units extends TestCase
         $this->assertTrue($ready[1]['social_queue_exclude']);
         $this->assertArrayNotHasKey('social_queue_exclude', $ready[2], 'only a boolean is passed on');
         $this->assertArrayNotHasKey('social_queue_exclude', $ready[3]);
-        foreach (LinkBack::body_old($ready)['articles'] as $article) {
-            $this->assertSame(['article_id', 'url'], array_keys($article), 'the deprecated route never gets the flag');
-        }
-
         foreach (['1', 'true', 'TRUE', ' Yes ', 'on', 1, true] as $value) {
             $this->assertTrue(LinkBack::is_truthy($value), var_export($value, true));
         }
