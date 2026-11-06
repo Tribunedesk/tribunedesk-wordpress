@@ -4,7 +4,7 @@
  * Plugin URI:  https://github.com/Tribunedesk/tribunedesk-wordpress
  * Update URI: https://updates.headlinesforge.com/wp-plugin/manifest.json
  * Description: Receives finished articles from Tribune Desk (ArticleWriter) and creates them as drafts or publishes them immediately.
- * Version:           2.0.2
+ * Version:           2.0.3
  * Requires at least: 5.3
  * Requires PHP: 8.3
  * Author:      Dominik Czarnota
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('HEADLINESFORGE_VERSION', '2.0.2');
+define('HEADLINESFORGE_VERSION', '2.0.3');
 define('HEADLINESFORGE_PLUGIN_FILE', __FILE__);
 define('HEADLINESFORGE_PLUGIN_DIR', plugin_dir_path(__FILE__));
 

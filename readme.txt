@@ -4,7 +4,7 @@ Tags: webhook, automation, content
 Requires at least: 5.3
 Tested up to: 7.1
 Requires PHP: 8.3
-Stable tag: 2.0.2
+Stable tag: 2.0.3
 License: MIT
 
 Receives finished articles from Tribune Desk (ArticleWriter) and creates them as drafts in WordPress.
@@ -33,6 +33,9 @@ Features:
 3. Go to `Ustawienia → Tribune Desk`, set the Webhook Secret, pick the default author, and copy the Webhook URL into ArticleWriter Settings → Integracje.
 
 == Changelog ==
+
+= 2.0.3 =
+* A delivery answer now always carries `edit_url`, so Tribune Desk can show "Edit in CMS". Before, the plugin built it with `get_edit_post_link()`, which returns nothing for a request without a logged-in editor, and every delivery is one.
 
 = 2.0.2 =
 * Settings and the "forbidden" message list `articles:write` among the token's required permissions (the link back has needed it since 1.17.0).

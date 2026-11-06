@@ -455,6 +455,17 @@ class Test_RestEndpoint extends WP_UnitTestCase
         $this->assertStringNotContainsString('wp-admin', $data['permalink']);
     }
 
+    public function test_edit_url_bez_zalogowanego_uzytkownika(): void
+    {
+        // Delivery is authenticated by the signature header, never by a WordPress login:
+        // the request runs as user 0, who may not edit posts. The edit link must still come back.
+        wp_set_current_user(0);
+
+        $data = $this->send(['article_id' => '66666666-6666-4666-8666-666666666666', 'topic' => 't', 'html' => '<p>x</p>'])->get_data();
+
+        $this->assertSame(admin_url('post.php?post=' . $data['post_id'] . '&action=edit'), $data['edit_url']);
+    }
+
     public function test_permalink_przy_skipped_already_published(): void
     {
         $first = $this->send(['article_id' => '55555555-5555-4555-8555-555555555555', 'topic' => 't', 'html' => '<p>x</p>'])->get_data();

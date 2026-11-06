@@ -111,11 +111,13 @@ class RestEndpoint
                     }
                 }
             }
-            $edit_url = get_edit_post_link($result['post_id'], 'raw');
+            // Not get_edit_post_link(): it returns null unless the current user may edit the post,
+            // and a delivery runs as user 0 (signature auth, no login) — the link never came back.
+            $edit_url = admin_url('post.php?post=' . (int) $result['post_id'] . '&action=edit');
             $response = DeliveryAnswer::build(
                 $result['post_id'],
                 $result['status']->value,
-                is_string($edit_url) ? $edit_url : null,
+                $edit_url,
                 // Only a public post has a permalink; never the wp-admin edit URL (spec HF D11).
                 get_post_status($result['post_id']) === 'publish' ? (string) get_permalink($result['post_id']) : null,
                 $featured
