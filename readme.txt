@@ -4,7 +4,7 @@ Tags: webhook, automation, content
 Requires at least: 5.6
 Tested up to: 7.1
 Requires PHP: 8.3
-Stable tag: 2.2.0
+Stable tag: 2.2.1
 License: MIT
 
 Receives finished articles from Tribune Desk (ArticleWriter) and creates them as drafts in WordPress.
@@ -33,6 +33,9 @@ Features:
 3. Go to `Ustawienia → Tribune Desk`, paste the signing secret (`whsec_…`) and the CMS API token you got from Tribune Desk, pick the default author, and copy the Webhook URL into Tribune Desk Settings → Integracje.
 
 == Changelog ==
+
+= 2.2.1 =
+* New versions reach a site within about 13 hours instead of up to about 24: the plugin keeps the update manifest for 1 hour (before: 12), while WordPress itself checks for updates every 12 hours.
 
 = 2.2.0 =
 * Deliveries are accepted only with a valid signature. Tribune Desk stopped sending the shared secret (`X-Webhook-Secret`) on 2026-11-06, so the plugin no longer checks it and the "Webhook secret" field is gone from the settings.

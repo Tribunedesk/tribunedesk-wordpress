@@ -61,6 +61,22 @@ class Test_Update_Manifest extends WP_UnitTestCase
         ], $overrides);
     }
 
+    /**
+     * 2.2.1: a good manifest is cached for 1 h, so with WordPress's 12-hourly check a new version
+     * reaches an install within ~13 h, not ~24 h.
+     */
+    public function test_good_manifest_is_cached_for_one_hour(): void
+    {
+        $this->serve($this->valid_manifest());
+        $before = time();
+        UpdateManifest::get();
+
+        $this->assertSame(HOUR_IN_SECONDS, UpdateManifest::TTL_OK);
+        $expires = (int) get_option('_site_transient_timeout_' . UpdateManifest::TRANSIENT);
+        $this->assertGreaterThanOrEqual($before + HOUR_IN_SECONDS, $expires);
+        $this->assertLessThanOrEqual(time() + HOUR_IN_SECONDS, $expires);
+    }
+
     public function test_poprawny_manifest_wraca_jako_tablica(): void
     {
         $this->serve($this->valid_manifest());

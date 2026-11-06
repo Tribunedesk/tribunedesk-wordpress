@@ -18,7 +18,9 @@ class UpdateManifest
     public const MANIFEST_URL = 'https://updates.headlinesforge.com/wp-plugin/manifest.json';
     public const TRANSIENT    = 'headlinesforge_manifest';
 
-    private const TTL_OK    = 12 * HOUR_IN_SECONDS;
+    // 2.2.1: 1 h, not 12 h. WordPress checks for updates every 12 h; with a 12 h cache on top a
+    // new version reached installs up to ~24 h late (Chronicle and politicsonline, 2026-11-06).
+    public const TTL_OK     = HOUR_IN_SECONDS;
     private const TTL_ERROR = HOUR_IN_SECONDS;
 
     /**

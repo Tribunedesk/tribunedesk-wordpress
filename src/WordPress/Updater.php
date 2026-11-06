@@ -36,7 +36,7 @@ class Updater
         add_action('admin_init', [self::class, 'bootstrap_auto_update']);
         // Priority 1: core's wp_update_plugins() hangs on the same hook with
         // priority 10 and builds the transient ANEW, but does not touch our manifest
-        // cache (12h) — we must flush BEFORE it, so that inject_update() (which
+        // cache (1 h) — we must flush BEFORE it, so that inject_update() (which
         // fires from inside it) gets to fetch a fresh manifest, not a stale one.
         add_action('load-update-core.php', [self::class, 'flush_manifest_on_force_check'], 1);
     }
@@ -45,7 +45,7 @@ class Updater
      * "Check again" on the Dashboard -> Updates screen is the only place in
      * which the README promises the customer a fresh result "on demand". Core refreshes
      * ITS OWN transient after ?force-check=1, but inject_update() still reads our
-     * OWN manifest cache (up to 12h) — without this flush the button would lie.
+     * OWN manifest cache (up to 1 h) — without this flush the button would lie.
      *
      * No nonce is deliberate: flushing the cache is harmless (at most one
      * extra request to R2), and core itself acts on the same parameter without

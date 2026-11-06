@@ -2,9 +2,11 @@
 
 A WordPress plugin that receives finished articles from [Tribune Desk](https://headlinesforge.com) (a newsroom tool) and creates them as drafts in wp-admin. It implements the public Tribune Desk CMS API at levels 1-4: article delivery, link back, full content and the media library.
 
-**Version:** v2.2.0
+**Version:** v2.2.1
 
-**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.2.0.zip**
+**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.2.1.zip**
+
+> Version 2.2.1 keeps the update manifest for 1 hour instead of 12, so a new version reaches a site within about 13 hours (WordPress checks every 12 hours) instead of up to about 24.
 
 > Version 2.2.0 accepts deliveries only with a valid signature and reports published posts only through `/v3` with the CMS token. Tribune Desk stopped sending the shared secret (`X-Webhook-Secret`) and removed the `/v2/cms/published-urls` route on 2026-11-06, so the plugin no longer has the "Webhook secret" field or the old route. Without a signing secret every delivery is refused (`401`) and the settings page says so; without a CMS token with `articles:write` no address of a published post goes back (a post published at once still returns its `permalink` in the delivery answer). A secret saved by an earlier version stays in the database untouched; uninstalling removes it.
 
@@ -65,7 +67,7 @@ A step-by-step guide for someone who has never installed a plugin by hand. Every
 
 Download **one file** from our server. You do not need a GitHub account and you **do not rename the folder**; the archive is already packed correctly:
 
-**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.2.0.zip**
+**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.2.1.zip**
 
 **Do not unpack it.** WordPress does that itself.
 
