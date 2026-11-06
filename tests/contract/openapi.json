@@ -2166,6 +2166,18 @@
             "description": "When the post was published, ISO 8601 with a time zone. Optional.",
             "title": "Published At"
           },
+          "social_queue_exclude": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional. `true`: the post must not go to Facebook, so Tribune Desk does not add the article to its Facebook queue and takes it off every queue it waits in; posts already published stay. `false`: the post may go to Facebook again; an article that never reached the queue and was published at most 48 hours ago joins it as a new article. Leave the field out to keep the stored value; send it every time if your CMS has such a setting, also as `false`.",
+            "title": "Social Queue Exclude"
+          },
           "url": {
             "description": "The public `http(s)` address of the post. Other schemes give `invalid_url`.",
             "maxLength": 2048,
@@ -2857,13 +2869,13 @@
   "info": {
     "description": "Contract between a CMS and Tribune Desk. The CMS is the client: it polls changes with a cursor (`GET /changes`) and sends its own.\n\n**Authentication:** `Authorization: Bearer tdcms_...`. A super admin issues the token for one organization with scopes `media:read`, `media:write`, `settings:read`, `settings:write`, `backfill:write`, `articles:read`, `articles:write`.\n\n**Limits:** 600 requests per minute per token (`429` with `Retry-After`).\n\n**Errors:** every error of every route has the body `ApiError` (`code`, `message`, `retry_after`).\n\nOperations marked `x-status: planned` require their scope but answer `501 not_implemented`.",
     "title": "Tribune Desk CMS API",
-    "version": "3.2.0-draft"
+    "version": "3.3.0-draft"
   },
   "openapi": "3.1.0",
   "paths": {
     "/v3/cms/articles/published": {
       "post": {
-        "description": "Level 2 (link back): tell Tribune Desk the public address of posts made from delivered articles, 1 to 100 per request. Tribune Desk shows the link to the editor and uses the article as a target of internal links. Each item gets its own status; a bad item does not fail the others. Repeating an item with the same address changes nothing. Replaces the deprecated `POST /v2/cms/published-urls`.",
+        "description": "Level 2 (link back): tell Tribune Desk the public address of posts made from delivered articles, 1 to 100 per request. Tribune Desk shows the link to the editor and uses the article as a target of internal links. Each item gets its own status; a bad item does not fail the others. Repeating an item with the same address changes nothing.",
         "operationId": "reportPublishedArticles",
         "requestBody": {
           "content": {
@@ -3079,7 +3091,7 @@
     },
     "/v3/cms/articles/{article_id}/result": {
       "post": {
-        "description": "Read mode: the body your webhook would answer with (`ArticleDeliveryResult`). Tribune Desk stores `cms_post_id`, `edit_url` and `permalink` and marks the send as delivered. Unlike a webhook answer, this request is validated: a field of the wrong type gives `422 validation_error`; an `edit_url` that is not `http(s)` is ignored. Repeating the result is safe. `404 not_found`: no such article in the organization.",
+        "description": "Read mode: the body your webhook would answer with (`ArticleDeliveryResult`). Tribune Desk stores `cms_post_id`, `edit_url` and `permalink` and marks the send as delivered. Unlike a webhook answer, this request is validated: a field of the wrong type gives `422 validation_error`; an `edit_url` that is not `http(s)` is ignored. Repeating the result is safe. `404 not_found`: no such article in the organization. `409 conflict`: the article was never sent to the CMS; nothing is stored.",
         "operationId": "reportArticleResult",
         "parameters": [
           {
@@ -4724,7 +4736,7 @@
   "webhooks": {
     "article.delivered": {
       "post": {
-        "description": "Sent when an editor clicks \"Send to CMS\" (or a newsroom widget sends the article). Tribune Desk makes a `POST` with a JSON body to the webhook address set for the organization.\n\n**Signature:** when your organization has a signing secret (`whsec_...`), every request carries `webhook-id`, `webhook-timestamp` and `webhook-signature` as defined by Standard Webhooks: HMAC-SHA256 of `{webhook-id}.{webhook-timestamp}.{body}`, keyed with the base64-decoded secret, as `v1,<base64>`. Two active secrets give two space-separated signatures; any match is valid. Reject a timestamp more than 5 minutes from your clock. `webhook-id` is the same for every attempt of one send.\n\n**Headers:** `X-Webhook-Secret` is deprecated: the shared secret, sent only when your organization has a secret set (compare it with yours and answer `401` when it differs or is missing); `X-Delivery-Id` stays the same for every attempt of one send, so you can drop duplicates; `X-Delivery-Attempt` is the attempt number, starting at 1.\n\n**Your answer:** any `2xx` means delivered. Answer within 30 seconds.\n\n**Retries:** after a network error, a timeout, `5xx` or `408, 425, 429`, Tribune Desk tries again after 2, 10, 30, 120, 360, 840 minutes. Any other status (another `4xx`, or a `3xx`: redirects are not followed) ends the send at once.\n\n**Idempotency:** the same article comes again with the same `article_id` when it is resent or edited: update the post you created the first time, do not create a second one.",
+        "description": "Sent when an editor clicks \"Send to CMS\" (or a newsroom widget sends the article). Tribune Desk makes a `POST` with a JSON body to the webhook address set for the organization.\n\n**Signature:** when your organization has a signing secret (`whsec_...`), every request carries `webhook-id`, `webhook-timestamp` and `webhook-signature` as defined by Standard Webhooks: HMAC-SHA256 of `{webhook-id}.{webhook-timestamp}.{body}`, keyed with the base64-decoded secret, as `v1,<base64>`. Two active secrets give two space-separated signatures; any match is valid. Reject a timestamp more than 5 minutes from your clock. `webhook-id` is the same for every attempt of one send. The signature is the only proof that a request comes from Tribune Desk: ask for a signing secret before you go live.\n\n**Headers:** `X-Delivery-Id` stays the same for every attempt of one send, so you can drop duplicates; `X-Delivery-Attempt` is the attempt number, starting at 1.\n\n**Your answer:** any `2xx` means delivered. Answer within 30 seconds.\n\n**Retries:** after a network error, a timeout, `5xx` or `408, 425, 429`, Tribune Desk tries again after 2, 10, 30, 120, 360, 840 minutes. Any other status (another `4xx`, or a `3xx`: redirects are not followed) ends the send at once.\n\n**Idempotency:** the same article comes again with the same `article_id` when it is resent or edited: update the post you created the first time, do not create a second one.",
         "operationId": "articleDelivered",
         "requestBody": {
           "content": {
