@@ -94,6 +94,30 @@ class Test_Protocol_Units extends TestCase
         $this->assertNull(LinkBack::iso_date('0000-00-00 00:00:00'));
     }
 
+    public function test_link_back_social_queue_exclude(): void
+    {
+        [$ready] = LinkBack::prepare([
+            ['article_id' => self::UUID, 'url' => 'https://example.com/a/', 'social_queue_exclude' => false],
+            ['article_id' => self::UUID, 'url' => 'https://example.com/b/', 'social_queue_exclude' => true],
+            ['article_id' => self::UUID, 'url' => 'https://example.com/c/', 'social_queue_exclude' => '1'],
+            ['article_id' => self::UUID, 'url' => 'https://example.com/d/'],
+        ]);
+        $this->assertFalse($ready[0]['social_queue_exclude']);
+        $this->assertTrue($ready[1]['social_queue_exclude']);
+        $this->assertArrayNotHasKey('social_queue_exclude', $ready[2], 'only a boolean is passed on');
+        $this->assertArrayNotHasKey('social_queue_exclude', $ready[3]);
+        foreach (LinkBack::body_old($ready)['articles'] as $article) {
+            $this->assertSame(['article_id', 'url'], array_keys($article), 'the deprecated route never gets the flag');
+        }
+
+        foreach (['1', 'true', 'TRUE', ' Yes ', 'on', 1, true] as $value) {
+            $this->assertTrue(LinkBack::is_truthy($value), var_export($value, true));
+        }
+        foreach (['0', '', 'false', 'no', 'off', 'y', '2', 0, false, null, ['1']] as $value) {
+            $this->assertFalse(LinkBack::is_truthy($value), var_export($value, true));
+        }
+    }
+
     public function test_image_host_rule(): void
     {
         $this->assertTrue(ImageHostRule::allows('https://media.example.com/a.png', ['media.example.com']));

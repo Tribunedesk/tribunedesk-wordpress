@@ -28,6 +28,7 @@ delete_option('headlinesforge_image_hosts');
 delete_option('headlinesforge_meta_desc_key');
 delete_option('headlinesforge_fb_title_key');
 delete_option('headlinesforge_excerpt_from_fb_teaser');
+delete_option('headlinesforge_social_exclude_key');
 delete_option('headlinesforge_author_map');
 delete_option('headlinesforge_seen_authors');
 delete_option('headlinesforge_media_push_floor');

@@ -306,7 +306,9 @@ class Test_Publish_Notifier extends WP_UnitTestCase
 
     public function test_haki_sa_zarejestrowane(): void
     {
-        $this->assertSame(20, has_action('transition_post_status', ['TribuneDesk\WordPress\PublishNotifier', 'on_transition']));
+        // 2.1.0: after the save, not on the status transition (meta from save_post must be stored).
+        $this->assertSame(20, has_action('wp_after_insert_post', ['TribuneDesk\WordPress\PublishNotifier', 'on_after_insert']));
+        $this->assertFalse(has_action('transition_post_status', ['TribuneDesk\WordPress\PublishNotifier', 'on_transition']));
         $this->assertNotFalse(has_action(PublishNotifier::RETRY_HOOK, ['TribuneDesk\WordPress\PublishNotifier', 'retry']));
     }
 

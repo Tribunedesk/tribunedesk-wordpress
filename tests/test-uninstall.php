@@ -13,6 +13,7 @@ class Test_Uninstall extends WP_UnitTestCase
         update_option('headlinesforge_signing_secret', 'whsec_C2FVsBQIhrscChlQIMV+b5sSYspob7oD');
         update_option('headlinesforge_placeholder_path', '/app/a/');
         update_option('headlinesforge_image_hosts', ['hosts' => ['example.com'], 'fetched_at' => 1]);
+        update_option('headlinesforge_social_exclude_key', 'exclude_facebook_rss');
 
         if (!defined('WP_UNINSTALL_PLUGIN')) {
             define('WP_UNINSTALL_PLUGIN', true);
@@ -22,6 +23,7 @@ class Test_Uninstall extends WP_UnitTestCase
         $this->assertFalse(get_option('headlinesforge_signing_secret'));
         $this->assertFalse(get_option('headlinesforge_placeholder_path'));
         $this->assertFalse(get_option('headlinesforge_image_hosts'));
+        $this->assertFalse(get_option('headlinesforge_social_exclude_key'));
     }
 
     public function test_uninstall_kasuje_nowe_opcje_i_zaplanowane_ponowienia(): void

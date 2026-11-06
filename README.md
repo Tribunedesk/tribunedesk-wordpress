@@ -2,9 +2,11 @@
 
 A WordPress plugin that receives finished articles from [Tribune Desk](https://headlinesforge.com) (a newsroom tool) and creates them as drafts in wp-admin. It implements the public Tribune Desk CMS API at levels 1-4: article delivery, link back, full content and the media library.
 
-**Version:** v2.0.3
+**Version:** v2.1.0
 
-**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.0.3.zip**
+**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.1.0.zip**
+
+> Version 2.1.0 adds the setting "CMS field: do not publish on Facebook": with a post meta key set, every publish report carries `social_queue_exclude`, and a change of the field on a published post is reported again. The report goes after the post is saved (`wp_after_insert_post`), so WordPress 5.6 or newer is required.
 
 > Version 2.0.3 always returns `edit_url` in the delivery answer, so Tribune Desk can link to the post's edit screen (before, the link was empty for every delivery).
 
@@ -60,7 +62,7 @@ A step-by-step guide for someone who has never installed a plugin by hand. Every
 
 Download **one file** from our server. You do not need a GitHub account and you **do not rename the folder**; the archive is already packed correctly:
 
-**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.0.3.zip**
+**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.1.0.zip**
 
 **Do not unpack it.** WordPress does that itself.
 
@@ -135,6 +137,7 @@ This is the only manual install. From now on the plugin updates itself (see "Aut
 - **CMS token** (`tdcms_…`): token for `/v3/cms` (published-URL callback, media library, settings and image hosts). Without it the media library sync does not run.
 - **Author mapping**: maps authors from Tribune Desk to WordPress accounts; articles of a mapped author go to that account instead of the default author.
 - **Theme fields**: extra fields the active theme needs; they are filled from the delivery.
+- **CMS field: do not publish on Facebook** (in Theme fields, since 2.1.0): meta key of the post field that keeps an article off Facebook (e.g. `exclude_facebook_rss`). Empty = off. When set, every report of a published post sends `social_queue_exclude` (`1`, `true`, `yes`, `on` in any case = true; anything else, an empty or deleted field included = false), read at the moment of sending, also in the retry. A change of the field on a published Tribune Desk post is reported again, once per post and request; an ordinary edit sends nothing.
 - **Send URLs of published posts to Tribune Desk** (button below the form): click once after installing 0.8.0 or newer if you already have published Tribune Desk articles. It sends their URLs in batches of 100; with more posts click again until the message shows "0 remaining".
 - **Updates** section: installed version and the auto-update switch (see "Automatic updates").
 
@@ -194,6 +197,8 @@ curl -sS -X POST https://api.tribunedesk.com/v3/cms/articles/published \
   -H "Authorization: Bearer ${TD_CMS_TOKEN}" \
   -d '{"items":[{"article_id":"514e9e08-c003-42b7-81e8-79f5167ec833","url":"https://your-site.com/article-title/","published_at":"2026-11-04T09:30:00+00:00"}]}'
 ```
+
+With the setting "CMS field: do not publish on Facebook" each item also carries `"social_queue_exclude": true|false` (since 2.1.0). A missing field means "no change" to Tribune Desk, so the plugin sends `false` explicitly when the field is cleared. The report goes from `wp_after_insert_post`, after the theme stored its meta boxes in `save_post`; the first publication is told by the status before the save, cron publication of scheduled posts included.
 
 The answer has the same shape (`results` with statuses `ok|not_found|forbidden|invalid_url`). Full description: the Tribune Desk CMS API guide, chapter "Level 2 – Link back". When the token lacks `articles:write` (`401`/`403`), or the `/v3` route answers `404` (a backend without it), the plugin sends the same batch the old way below and records why in the deliveries log. Without a token only the old way works.
 

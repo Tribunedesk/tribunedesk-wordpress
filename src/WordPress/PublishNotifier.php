@@ -10,13 +10,18 @@ if (!defined('ABSPATH')) {
 /**
  * Callback to HeadlinesForge when a post from HF is published (spec 0.8.0 D5/D6, spec HF D12).
  *
- * A synchronous send of one item (5 s timeout) in the transition_post_status hook,
- * one row in the deliveries log, and on a network error / 429 / 5xx ONE deferred retry
- * through WP-Cron (+5 min). The retry handler schedules nothing further: the second mechanism
- * is the backfill from settings. An error never blocks publishing — every HTTP result is
- * the client's return value, not an exception. On bulk publishing (Bulk edit) the send
- * is deferred to cron, so that N selected posts do not fire N blocking requests in
- * one request.
+ * A synchronous send of one item (5 s timeout) in the wp_after_insert_post hook, one row in the
+ * deliveries log, and on a network error / 429 / 5xx ONE deferred retry through WP-Cron (+5 min).
+ * The retry handler schedules nothing further: the second mechanism is the backfill from
+ * settings. An error never blocks publishing — every HTTP result is the client's return value,
+ * not an exception. On bulk publishing (Bulk edit) the send is deferred to cron, so that N
+ * selected posts do not fire N blocking requests in one request.
+ *
+ * 2.1.0: wp_after_insert_post (WordPress 5.6), not transition_post_status, because the second one
+ * fires before save_post, where themes store their meta boxes — the "do not publish on Facebook"
+ * field (SocialQueueFlag) would not be saved yet. The first publication is told by $post_before.
+ * A change of that field on a published post is reported once more, once per post and request:
+ * here when the change came with a post save, otherwise at shutdown (REST, WP-CLI, other code).
  */
 class PublishNotifier
 {
@@ -25,15 +30,58 @@ class PublishNotifier
     public const TIMEOUT     = 5;
     public const BULK_DELAY  = 30;
 
-    public static function on_transition(string $new_status, string $old_status, \WP_Post $post): void
+    /**
+     * wp_after_insert_post: fires after save_post and after the REST API stored meta and terms,
+     * also for wp_publish_post() (scheduled posts published by cron).
+     *
+     * @param int|string $post_id
+     * @param mixed      $post
+     * @param mixed      $update
+     * @param mixed      $post_before null for a new post
+     */
+    public static function on_after_insert($post_id, $post, $update, $post_before): void
     {
-        if ($new_status !== 'publish' || $old_status === 'publish') {
+        if (!$post instanceof \WP_Post || $post->post_status !== 'publish') {
+            return;
+        }
+        $first = !$post_before instanceof \WP_Post || $post_before->post_status !== 'publish';
+        if (!$first && !SocialQueueFlag::changed($post->ID)) {
             return;
         }
         $article_id = PostWriter::article_id_of($post);
         if ($article_id === null) {
             return;
         }
+        self::dispatch($post, $article_id);
+    }
+
+    /**
+     * shutdown: a field change that did not come with a post save (REST meta update, WP-CLI,
+     * code calling update_post_meta) is reported here, once per post.
+     */
+    public static function flush_pending(): void
+    {
+        foreach (SocialQueueFlag::touched() as $post_id) {
+            if (!SocialQueueFlag::changed($post_id)) {
+                continue;
+            }
+            $post = get_post($post_id);
+            if (!$post instanceof \WP_Post || $post->post_status !== 'publish') {
+                continue;
+            }
+            $article_id = PostWriter::article_id_of($post);
+            if ($article_id === null) {
+                continue;
+            }
+            self::dispatch($post, $article_id);
+        }
+    }
+
+    private static function dispatch(\WP_Post $post, string $article_id): void
+    {
+        // Whatever happens next, this request has reported the post: the value read at sending
+        // is the new base for a later change.
+        SocialQueueFlag::reported($post->ID);
 
         // Bulk publishing (Bulk edit -> Status: Published) goes through this hook ONCE PER POST
         // in a single HTTP request. Fifteen drafts means fifteen consecutive calls of 5 s each, i.e.
@@ -79,6 +127,8 @@ class PublishNotifier
         if ($published_at !== null) {
             $item['published_at'] = $published_at;
         }
+        // Read now, not when the send was planned: a cron retry carries the current value.
+        $item   = SocialQueueFlag::add_to($item, $post->ID);
         $result = PublishedUrlsClient::send([$item], self::TIMEOUT);
 
         $status = (string) $result['status'];

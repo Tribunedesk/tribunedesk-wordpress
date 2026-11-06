@@ -92,7 +92,7 @@ class Settings
             'default'           => '',
         ]);
 
-        foreach ([SeoMeta::OPTION_DESC_KEY, SeoMeta::OPTION_FB_TITLE_KEY] as $option) {
+        foreach ([SeoMeta::OPTION_DESC_KEY, SeoMeta::OPTION_FB_TITLE_KEY, SocialQueueFlag::OPTION] as $option) {
             register_setting(self::PAGE_SLUG, $option, [
                 'type'              => 'string',
                 'sanitize_callback' => [self::class, 'sanitize_meta_key'],
@@ -211,6 +211,14 @@ class Settings
             PostWriter::OPTION_EXCERPT_FROM_TEASER,
             __('Excerpt from Facebook teaser', 'tribune-desk'),
             [self::class, 'render_excerpt_from_teaser_field'],
+            self::PAGE_SLUG,
+            'headlinesforge_theme_fields'
+        );
+
+        add_settings_field(
+            SocialQueueFlag::OPTION,
+            __('CMS field: do not publish on Facebook', 'tribune-desk'),
+            [self::class, 'render_social_exclude_key_field'],
             self::PAGE_SLUG,
             'headlinesforge_theme_fields'
         );
@@ -540,6 +548,15 @@ class Settings
         echo '<label><input type="checkbox" name="' . esc_attr(PostWriter::OPTION_EXCERPT_FROM_TEASER) . '" value="1" ' . checked($checked, true, false) . '> ';
         echo esc_html__('Write the Facebook teaser from Tribune Desk into an empty post excerpt.', 'tribune-desk');
         echo '</label>';
+    }
+
+    public static function render_social_exclude_key_field(): void
+    {
+        self::render_meta_key_input(SocialQueueFlag::OPTION);
+        echo '<p class="description">' . esc_html__(
+            'Meta key of the post field that says "do not publish on Facebook". When set, every report of a published post tells Tribune Desk whether to keep the article out of its Facebook queue: 1, true, yes or on mean yes, any other value or no value means no. A change of the field on a published post is reported again. Empty: nothing is sent.',
+            'tribune-desk'
+        ) . '</p>';
     }
 
     private static function render_meta_key_input(string $option): void

@@ -1,10 +1,10 @@
 === Tribune Desk ===
 Contributors: dczarnota
 Tags: webhook, automation, content
-Requires at least: 5.3
+Requires at least: 5.6
 Tested up to: 7.1
 Requires PHP: 8.3
-Stable tag: 2.0.3
+Stable tag: 2.1.0
 License: MIT
 
 Receives finished articles from Tribune Desk (ArticleWriter) and creates them as drafts in WordPress.
@@ -33,6 +33,12 @@ Features:
 3. Go to `Ustawienia → Tribune Desk`, set the Webhook Secret, pick the default author, and copy the Webhook URL into ArticleWriter Settings → Integracje.
 
 == Changelog ==
+
+= 2.1.0 =
+* New setting "CMS field: do not publish on Facebook" (Theme fields): the meta key of the post field that keeps an article off Facebook. When set, every report of a published post carries `social_queue_exclude` (true for 1, true, yes or on; false otherwise, also when the field is empty or deleted), so Tribune Desk keeps the article out of its Facebook queue. Empty setting: nothing changes and the field is never sent.
+* A change of that field on a published post from Tribune Desk is reported again, once per post and request. An ordinary edit sends nothing.
+* The publish report now goes after the post is saved (`wp_after_insert_post`), so fields the theme stores on save are already there. WordPress 5.6 or newer is required.
+* The old `/v2/cms/published-urls` route never gets the new field.
 
 = 2.0.3 =
 * A delivery answer now always carries `edit_url`, so Tribune Desk can show "Edit in CMS". Before, the plugin built it with `get_edit_post_link()`, which returns nothing for a request without a logged-in editor, and every delivery is one.

@@ -4,8 +4,8 @@
  * Plugin URI:  https://github.com/Tribunedesk/tribunedesk-wordpress
  * Update URI: https://updates.headlinesforge.com/wp-plugin/manifest.json
  * Description: Receives finished articles from Tribune Desk (ArticleWriter) and creates them as drafts or publishes them immediately.
- * Version:           2.0.3
- * Requires at least: 5.3
+ * Version:           2.1.0
+ * Requires at least: 5.6
  * Requires PHP: 8.3
  * Author:      Dominik Czarnota
  * License:     MIT
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('HEADLINESFORGE_VERSION', '2.0.3');
+define('HEADLINESFORGE_VERSION', '2.1.0');
 define('HEADLINESFORGE_PLUGIN_FILE', __FILE__);
 define('HEADLINESFORGE_PLUGIN_DIR', plugin_dir_path(__FILE__));
 
@@ -46,11 +46,20 @@ add_action('admin_menu', [\TribuneDesk\WordPress\Settings::class, 'register_menu
 add_action('admin_init', [\TribuneDesk\WordPress\Settings::class, 'register_settings']);
 
 add_filter('wp_insert_post_data', [\TribuneDesk\WordPress\LinkResolver::class, 'filter_post_data'], 10, 2);
-// Priority 10 = before PublishNotifier (20): content first, then the callback to HF.
+// Content first, then the callback to HF (PublishNotifier, wp_after_insert_post).
 add_action('transition_post_status', [\TribuneDesk\WordPress\LinkResolver::class, 'on_transition'], 10, 3);
-// Local write of link rows (15) before the 5-second HTTP callback from PublishNotifier (20).
+// Local write of link rows before the 5-second HTTP callback from PublishNotifier.
 add_action('transition_post_status', [\TribuneDesk\WordPress\Backlinks::class, 'on_transition'], 15, 3);
-add_action('transition_post_status', [\TribuneDesk\WordPress\PublishNotifier::class, 'on_transition'], 20, 3);
+// 2.1.0: the callback goes after the save (wp_after_insert_post), when meta from save_post is stored.
+add_action('wp_after_insert_post', [\TribuneDesk\WordPress\PublishNotifier::class, 'on_after_insert'], 20, 4);
+// "Do not publish on Facebook" field: meta hooks only note a change; the report goes once per post.
+add_action('add_post_meta', [\TribuneDesk\WordPress\SocialQueueFlag::class, 'before_add'], 10, 2);
+add_action('update_post_meta', [\TribuneDesk\WordPress\SocialQueueFlag::class, 'before_change'], 10, 3);
+add_action('delete_post_meta', [\TribuneDesk\WordPress\SocialQueueFlag::class, 'before_change'], 10, 3);
+add_action('added_post_meta', [\TribuneDesk\WordPress\SocialQueueFlag::class, 'after_change'], 10, 3);
+add_action('updated_post_meta', [\TribuneDesk\WordPress\SocialQueueFlag::class, 'after_change'], 10, 3);
+add_action('deleted_post_meta', [\TribuneDesk\WordPress\SocialQueueFlag::class, 'after_change'], 10, 3);
+add_action('shutdown', [\TribuneDesk\WordPress\PublishNotifier::class, 'flush_pending']);
 add_action(\TribuneDesk\WordPress\PublishNotifier::RETRY_HOOK, [\TribuneDesk\WordPress\PublishNotifier::class, 'retry']);
 add_action('admin_post_' . \TribuneDesk\WordPress\Backfill::ACTION, [\TribuneDesk\WordPress\Backfill::class, 'handle_admin_post']);
 

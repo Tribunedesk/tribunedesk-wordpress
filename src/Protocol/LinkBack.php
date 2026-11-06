@@ -8,10 +8,14 @@ namespace TribuneDesk\Protocol;
  *
  * Level: 2 · Routes: POST /v3/cms/articles/published (POST /v2/cms/published-urls, deprecated) · Guide: guide/2-link-back.md
  *
- * One batch holds 1 to 100 items {article_id, url, published_at?}. Tribune Desk validates
- * article_id as a UUID and rejects the whole batch (422) for one bad id, so items without a UUID
- * or a URL are dropped before sending. The answer has one result per item; a bad item does not
- * fail the others. The deprecated route takes the old body (article_id and url only).
+ * One batch holds 1 to 100 items {article_id, url, published_at?, social_queue_exclude?}. Tribune
+ * Desk validates article_id as a UUID and rejects the whole batch (422) for one bad id, so items
+ * without a UUID or a URL are dropped before sending. The answer has one result per item; a bad
+ * item does not fail the others. The deprecated route takes the old body (article_id and url only).
+ *
+ * social_queue_exclude: true keeps the article out of the social (Facebook) queue, false lets it
+ * in; a missing field leaves the stored flag unchanged. A CMS that maps the flag to a field sends
+ * it on every report, false included, or clearing the field would never reach Tribune Desk.
  */
 final class LinkBack
 {
@@ -26,6 +30,9 @@ final class LinkBack
      */
     public const FALLBACK_CODES = [401, 403, 404];
 
+    /** CMS field values (any case, trimmed) that mean "true"; anything else is false. */
+    public const TRUTHY = ['1', 'true', 'yes', 'on'];
+
     private const UUID_RE = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i';
 
     public static function is_uuid(string $value): bool
@@ -34,11 +41,29 @@ final class LinkBack
     }
 
     /**
-     * Items ready to send (lower-case UUID, non-empty url, published_at when given) and the
-     * number of items dropped.
+     * A CMS field value as a boolean flag: 1/true/yes/on (any case) are true; anything else,
+     * an empty or missing value included, is false.
+     *
+     * @param mixed $value
+     */
+    public static function is_truthy($value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+        if (!is_scalar($value)) {
+            return false;
+        }
+
+        return in_array(strtolower(trim((string) $value)), self::TRUTHY, true);
+    }
+
+    /**
+     * Items ready to send (lower-case UUID, non-empty url, published_at when given,
+     * social_queue_exclude when given as a boolean) and the number of items dropped.
      *
      * @param array<int, array<string, mixed>> $items
-     * @return array{0: array<int, array{article_id: string, url: string, published_at?: string}>, 1: int}
+     * @return array{0: array<int, array{article_id: string, url: string, published_at?: string, social_queue_exclude?: bool}>, 1: int}
      */
     public static function prepare(array $items): array
     {
@@ -56,19 +81,27 @@ final class LinkBack
             if ($published_at !== '') {
                 $article['published_at'] = $published_at;
             }
+            if (is_bool($item['social_queue_exclude'] ?? null)) {
+                $article['social_queue_exclude'] = $item['social_queue_exclude'];
+            }
             $ready[] = $article;
         }
 
         return [$ready, $dropped];
     }
 
-    /** @param array<int, array<string, string>> $items */
+    /** @param array<int, array<string, mixed>> $items */
     public static function body(array $items): array
     {
         return ['items' => $items];
     }
 
-    /** @param array<int, array<string, string>> $items */
+    /**
+     * The deprecated route knows article_id and url only: published_at and social_queue_exclude
+     * never go this way.
+     *
+     * @param array<int, array<string, mixed>> $items
+     */
     public static function body_old(array $items): array
     {
         return [

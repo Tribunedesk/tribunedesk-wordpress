@@ -80,7 +80,7 @@ class Backfill
             if ($published_at !== null) {
                 $item['published_at'] = $published_at;
             }
-            $items[] = $item;
+            $items[] = SocialQueueFlag::add_to($item, (int) $row['ID']);
         }
 
         $result = PublishedUrlsClient::send($items, self::TIMEOUT);
