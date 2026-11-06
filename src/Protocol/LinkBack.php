@@ -6,7 +6,7 @@ namespace TribuneDesk\Protocol;
 /**
  * Builds and reads the link back: telling Tribune Desk where delivered articles were published.
  *
- * Level: 2 · Route: POST /v3/cms/articles/published · Guide: guide/2-link-back.md
+ * Level: 2 · Routes: POST /v3/cms/articles/published · Guide: guide/2-link-back.md
  *
  * One batch holds 1 to 100 items {article_id, url, published_at?, social_queue_exclude?}. Tribune
  * Desk validates article_id as a UUID and rejects the whole batch (422) for one bad id, so items
