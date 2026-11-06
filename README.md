@@ -6,7 +6,7 @@ A WordPress plugin that receives finished articles from [Tribune Desk](https://h
 
 **https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.1.0.zip**
 
-> Version 2.1.0 adds the setting "CMS field: do not publish on Facebook": with a post meta key set, every publish report carries `social_queue_exclude`, and a change of the field on a published post is reported again. The report goes after the post is saved (`wp_after_insert_post`), so WordPress 5.6 or newer is required.
+> Version 2.1.0 adds the setting "CMS field: do not publish on Facebook": with a post meta key set, every publish report carries `social_queue_exclude`, and a change of the field on a published post is reported again. The report goes after the post is saved (`wp_after_insert_post`), so WordPress 5.6 or newer is now required. `PublishNotifier::on_transition` (`transition_post_status`) is replaced by `PublishNotifier::on_after_insert` (`wp_after_insert_post`); site code that calls or unhooks the old method must switch to the new one.
 
 > Version 2.0.3 always returns `edit_url` in the delivery answer, so Tribune Desk can link to the post's edit screen (before, the link was empty for every delivery).
 

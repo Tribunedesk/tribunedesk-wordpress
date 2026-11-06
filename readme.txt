@@ -37,7 +37,9 @@ Features:
 = 2.1.0 =
 * New setting "CMS field: do not publish on Facebook" (Theme fields): the meta key of the post field that keeps an article off Facebook. When set, every report of a published post carries `social_queue_exclude` (true for 1, true, yes or on; false otherwise, also when the field is empty or deleted), so Tribune Desk keeps the article out of its Facebook queue. Empty setting: nothing changes and the field is never sent.
 * A change of that field on a published post from Tribune Desk is reported again, once per post and request. An ordinary edit sends nothing.
-* The publish report now goes after the post is saved (`wp_after_insert_post`), so fields the theme stores on save are already there. WordPress 5.6 or newer is required.
+* The publish report now goes after the post is saved (`wp_after_insert_post`), so fields the theme stores on save are already there.
+* WordPress 5.6 or newer is now required (before: 5.3).
+* `PublishNotifier::on_transition` (hooked to `transition_post_status`) is replaced by `PublishNotifier::on_after_insert` (hooked to `wp_after_insert_post`). Site code that calls or unhooks the old method must switch to the new one.
 * The old `/v2/cms/published-urls` route never gets the new field.
 
 = 2.0.3 =
