@@ -223,14 +223,16 @@ class LinkResolver
         // wp_update_post expects data with slashes.
         self::$resolving[$post->ID] = true;
         try {
-            wp_update_post([
+            // A save from cron or by an Author runs without unfiltered_html: allow embeds the same
+            // way the delivery did, or resolving a placeholder would drop them (2.2.2).
+            PostWriter::with_embeds(static fn () => wp_update_post([
                 'ID'            => $post->ID,
                 'post_content'  => wp_slash($resolved),
                 // Without an explicit date core recomputes the status from post_date: a published post with a date
                 // in the future (import, wrong time zone) would be silently unpublished.
                 'post_date'     => $post->post_date,
                 'post_date_gmt' => $post->post_date_gmt,
-            ]);
+            ]));
         } finally {
             unset(self::$resolving[$post->ID]);
         }

@@ -116,7 +116,7 @@ class CmsSync
     public static function acquire_lock(string $option = self::OPTION_LOCK): bool
     {
         global $wpdb;
-        // "<expiry>:<owner>": CAST(... AS UNSIGNED) still reads the expiry, and the owner part lets
+        // "<expiry>:<owner>": the takeover reads the expiry before the colon, and the owner part lets
         // release_lock() remove only the lock this request took (2.2.2). A run that outlived its
         // 5 minutes no longer deletes the lock a newer run took over.
         $value = (time() + self::LOCK_TTL) . ':' . wp_generate_password(12, false);
@@ -126,7 +126,7 @@ class CmsSync
             $value
         )) === 1
             || (int) $wpdb->query($wpdb->prepare(
-                "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND CAST(option_value AS UNSIGNED) < %d",
+                "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND CAST(SUBSTRING_INDEX(option_value, ':', 1) AS UNSIGNED) < %d",
                 $value,
                 $option,
                 time()

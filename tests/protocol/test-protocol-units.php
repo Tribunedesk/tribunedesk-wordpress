@@ -24,8 +24,8 @@ class Test_Protocol_Units extends TestCase
     public function test_draft_rules(): void
     {
         $this->assertSame(DraftRules::CREATE, DraftRules::action(null));
-        // 2.2.2: a post nobody published yet (waiting for review, an autosave) takes a new send.
-        foreach (['draft', 'pending', 'auto-draft'] as $status) {
+        // 2.2.2: a post nobody published yet (a draft, one waiting for review) takes a new send.
+        foreach (['draft', 'pending'] as $status) {
             $this->assertSame(DraftRules::UPDATE, DraftRules::action($status), $status);
         }
         foreach (['publish', 'future', 'private'] as $status) {

@@ -35,8 +35,8 @@ Features:
 == Changelog ==
 
 = 2.2.2 =
-* Embeds (`iframe` from YouTube, Vimeo and the other allowed hosts) survive the save: WordPress filtered post content once more as the anonymous delivery user and dropped them.
-* A post waiting for review (`pending`) or an autosave is updated by a new send like a draft; only a published, scheduled or private post is left alone.
+* Embeds (`iframe` from YouTube, Vimeo and the other allowed hosts) survive the save, also when a link placeholder is resolved later: WordPress filtered post content once more as the anonymous delivery user and dropped them.
+* A post waiting for review (`pending`) is updated by a new send like a draft; only a published, scheduled or private post is left alone.
 * The featured image is downloaded within 15 seconds, so the answer to Tribune Desk comes in time; a slower image is attached a minute later in the background.
 * The link back is sent only to an `https://` API address, like every other call with the token. The default API address is `https://api.tribunedesk.com`; a saved address stays.
 * A post published at once reports the "do not publish on Facebook" field in the delivery answer, so a flagged post never enters the Tribune Desk Facebook queue (contract 3.4.0).
