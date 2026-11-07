@@ -20,6 +20,9 @@ final class DraftRules
     public const UPDATE = 'updated';
     public const SKIP   = 'skipped_already_published';
 
+    /** Statuses of a post that a new send of the article updates. */
+    public const UPDATABLE = ['draft', 'pending'];
+
     /** @param string|null $existing_status status of the post with this article_id, null = none */
     public static function action(?string $existing_status): string
     {
@@ -27,7 +30,9 @@ final class DraftRules
             return self::CREATE;
         }
 
-        return $existing_status === 'draft' ? self::UPDATE : self::SKIP;
+        // A post nobody published yet (a draft or one waiting for review) takes the
+        // new send; a published, scheduled or private one is left alone.
+        return in_array($existing_status, self::UPDATABLE, true) ? self::UPDATE : self::SKIP;
     }
 
     /**

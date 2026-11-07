@@ -580,4 +580,119 @@ class Test_RestEndpoint extends WP_UnitTestCase
         $this->assertNotSame(0, (int) get_post_thumbnail_id($data['post_id']));
         $this->assertArrayNotHasKey('featured_image', $data);
     }
+
+    // --- 2.2.2 ----------------------------------------------------------------------------
+
+    public function test_youtube_embed_survives_the_save_as_user_0(): void
+    {
+        wp_set_current_user(0);
+        $embed = '<iframe src="https://www.youtube.com/embed/abc123" width="560" height="315" allowfullscreen></iframe>';
+        $data = $this->send([
+            'article_id' => 'art-2221',
+            'topic'      => 't',
+            'html'       => '<p>Przed</p>' . $embed . '<p>Po</p>',
+        ])->get_data();
+
+        $content = get_post($data['post_id'])->post_content;
+        $this->assertStringContainsString('<iframe', $content);
+        $this->assertStringContainsString('https://www.youtube.com/embed/abc123', $content);
+        // The filter lives only for the write: ordinary post content is filtered as before.
+        $this->assertArrayNotHasKey('iframe', wp_kses_allowed_html('post'));
+    }
+
+    public function test_embed_from_a_host_off_the_list_is_still_dropped(): void
+    {
+        wp_set_current_user(0);
+        $data = $this->send([
+            'article_id' => 'art-2222',
+            'topic'      => 't',
+            'html'       => '<p>x</p><iframe src="https://evil.example.com/x"></iframe>',
+        ])->get_data();
+
+        $this->assertStringNotContainsString('<iframe', get_post($data['post_id'])->post_content);
+    }
+
+    public function test_pending_post_is_updated_like_a_draft(): void
+    {
+        $first = $this->send(['article_id' => 'art-2223', 'topic' => 't', 'html' => '<p>v1</p>'])->get_data();
+        wp_update_post(['ID' => $first['post_id'], 'post_status' => 'pending']);
+
+        $second = $this->send(['article_id' => 'art-2223', 'topic' => 't', 'html' => '<p>v2</p>'])->get_data();
+
+        $this->assertSame('updated', $second['status']);
+        $post = get_post($first['post_id']);
+        $this->assertSame('pending', $post->post_status);
+        $this->assertStringContainsString('v2', $post->post_content);
+    }
+
+    public function test_scheduled_post_is_left_alone(): void
+    {
+        $first = $this->send(['article_id' => 'art-2224', 'topic' => 't', 'html' => '<p>v1</p>'])->get_data();
+        $when = gmdate('Y-m-d H:i:s', time() + DAY_IN_SECONDS);
+        wp_update_post([
+            'ID'            => $first['post_id'],
+            'post_status'   => 'future',
+            'post_date'     => get_date_from_gmt($when),
+            'post_date_gmt' => $when,
+        ]);
+
+        $second = $this->send(['article_id' => 'art-2224', 'topic' => 't', 'html' => '<p>v2</p>'])->get_data();
+
+        $this->assertSame('skipped_already_published', $second['status']);
+        $this->assertStringContainsString('v1', get_post($first['post_id'])->post_content);
+    }
+
+    public function test_post_published_at_once_reports_the_facebook_flag_with_the_permalink(): void
+    {
+        update_option(RestEndpoint::OPTION_PUBLISH, '1');
+        update_option(\TribuneDesk\WordPress\SocialQueueFlag::OPTION, '_td_no_facebook');
+
+        $data = $this->send(['article_id' => 'art-2225', 'topic' => 't', 'html' => '<p>x</p>'])->get_data();
+
+        $this->assertArrayHasKey('permalink', $data);
+        $this->assertFalse($data['social_queue_exclude']);
+    }
+
+    public function test_draft_answer_has_no_facebook_flag(): void
+    {
+        update_option(\TribuneDesk\WordPress\SocialQueueFlag::OPTION, '_td_no_facebook');
+
+        $data = $this->send(['article_id' => 'art-2226', 'topic' => 't', 'html' => '<p>x</p>'])->get_data();
+
+        $this->assertArrayNotHasKey('permalink', $data);
+        $this->assertArrayNotHasKey('social_queue_exclude', $data);
+    }
+
+    public function test_slow_featured_image_leaves_the_post_and_schedules_one_retry(): void
+    {
+        $timeouts = [];
+        $slow = static function ($preempt, array $args, string $url) use (&$timeouts) {
+            if (str_contains($url, 'img.example.com')) {
+                $timeouts[] = (int) $args['timeout'];
+
+                return new WP_Error('http_request_failed', 'Operation timed out');
+            }
+
+            return $preempt;
+        };
+        add_filter('pre_http_request', $slow, 5, 3);
+        _set_cron_array([]);
+
+        $data = $this->send([
+            'article_id'       => 'art-2227',
+            'topic'            => 't',
+            'html'             => '<p>x</p>',
+            'generated_images' => [['label' => 'main', 'url' => 'https://img.example.com/a.jpg']],
+        ])->get_data();
+        remove_filter('pre_http_request', $slow, 5);
+
+        $this->assertSame(200, $this->send(['article_id' => 'art-2228', 'topic' => 't', 'html' => '<p>y</p>'])->get_status());
+        $this->assertSame([\TribuneDesk\WordPress\MediaHandler::DELIVERY_TIMEOUT], $timeouts);
+        $this->assertSame(0, (int) get_post_thumbnail_id($data['post_id']));
+        $this->assertArrayNotHasKey('featured_image', $data);
+        $this->assertNotFalse(wp_next_scheduled(
+            \TribuneDesk\WordPress\MediaHandler::RETRY_HOOK,
+            [$data['post_id'], ['label' => 'main', 'url' => 'https://img.example.com/a.jpg'], '']
+        ));
+    }
 }

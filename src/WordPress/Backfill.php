@@ -58,7 +58,7 @@ class Backfill
             update_option(self::OPTION_CURSOR, 0);
             $detail = $cursor > 0
                 ? __('all posts sent; the next click starts from the beginning', 'tribune-desk')
-                : __('no published posts from HeadlinesForge', 'tribune-desk');
+                : __('no published posts from Tribune Desk', 'tribune-desk');
 
             // No log row: there was no job, and the message on the page is enough.
             return ['status' => PublishedUrlsClient::STATUS_NOTHING_TO_SEND, 'sent' => 0, 'remaining' => 0, 'detail' => $detail, 'counts' => []];
@@ -105,7 +105,7 @@ class Backfill
                 __('skipped %d posts without a UUID', 'tribune-desk'),
                 (int) $result['counts']['skipped_non_uuid']
             ),
-            PublishedUrlsClient::STATUS_RATE_LIMITED    => __('HeadlinesForge request limit hit again after the retry — try again in a minute', 'tribune-desk'),
+            PublishedUrlsClient::STATUS_RATE_LIMITED    => __('Tribune Desk request limit hit again after the retry — try again in a minute', 'tribune-desk'),
             default                                     => $result['error'],
         };
         DeliveriesLog::record(
@@ -174,8 +174,8 @@ class Backfill
     }
 
     /**
-     * HF does not send Retry-After today (limiter 30/min per secret); if it did, we honor it
-     * up to PAUSE_MAX seconds. The filter exists for tests (0 s) — sleep() in the suite is 5 s wasted.
+     * Tribune Desk answers 429 with `Retry-After` (600 requests per minute per token, contract
+     * 3.4.0); we honor it up to PAUSE_MAX seconds. The filter exists for tests (0 s) — sleep() in the suite is 5 s wasted.
      */
     private static function pause(?int $retry_after): void
     {

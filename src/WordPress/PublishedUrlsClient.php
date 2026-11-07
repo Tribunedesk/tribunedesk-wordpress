@@ -22,7 +22,9 @@ class PublishedUrlsClient
 
     // api., not apeks: apeks is Cloudflare Pages and answers 404 or HTML
     // (lesson split-domain-callbacks).
-    public const DEFAULT_API_BASE = 'https://api.headlinesforge.com';
+    // 2.2.2: api.tribunedesk.com, the address of the public contract. A value saved in the
+    // settings stays as it is (api.headlinesforge.com reaches the same API).
+    public const DEFAULT_API_BASE = 'https://api.tribunedesk.com';
     public const MAX_ITEMS        = 100;
 
     public const STATUS_SENT            = 'sent';
@@ -74,6 +76,10 @@ class PublishedUrlsClient
         if (!CmsApiClient::has_token()) {
             // Separate text from a refusal by Tribune Desk: here the plugin's configuration is at fault.
             return self::result(self::STATUS_UNAUTHORIZED, null, __('no Tribune Desk API token: the link back needs a token with the articles:write permission', 'tribune-desk'), $counts, [], false, null, 0);
+        }
+        // The token goes only over https, the same rule as CmsApiClient (2.2.2).
+        if (!CmsApiClient::is_secure_base(self::api_base())) {
+            return self::result(self::STATUS_REJECTED, null, CmsApiClient::message(CmsApiClient::ERROR_INSECURE_BASE), $counts, [], false, null, 0);
         }
 
         return self::post($articles, $timeout, $counts, $n);
@@ -129,10 +135,14 @@ class PublishedUrlsClient
             return self::result(self::STATUS_REJECTED, $code, __('Tribune Desk has no /v3/cms/articles/published route', 'tribune-desk'), $counts, [], false, null, $n);
         }
         if ($code === 429) {
-            // HF does not send Retry-After today; if it starts to, the caller gets a number of seconds.
+            // The contract sends Retry-After and `retry_after` in the body; the caller waits that long.
             $retry_after = (int) wp_remote_retrieve_header($response, 'retry-after');
+            if ($retry_after <= 0) {
+                $error = json_decode((string) wp_remote_retrieve_body($response), true);
+                $retry_after = is_array($error) ? (int) ($error['retry_after'] ?? 0) : 0;
+            }
 
-            return self::result(self::STATUS_RATE_LIMITED, $code, __('HeadlinesForge request limit', 'tribune-desk'), $counts, [], true, $retry_after > 0 ? $retry_after : null, $n);
+            return self::result(self::STATUS_RATE_LIMITED, $code, __('Tribune Desk request limit', 'tribune-desk'), $counts, [], true, $retry_after > 0 ? $retry_after : null, $n);
         }
         if ($code >= 500) {
             return self::result(self::STATUS_ERROR, $code, "http $code", $counts, [], true, null, $n);
@@ -165,7 +175,7 @@ class PublishedUrlsClient
             'not_found'   => __('Tribune Desk does not know this article_id', 'tribune-desk'),
             'invalid_url' => sprintf(
                 /* translators: %s: URL */
-                __('HeadlinesForge rejected the address: %s', 'tribune-desk'),
+                __('Tribune Desk rejected the address: %s', 'tribune-desk'),
                 $url
             ),
             default       => sprintf(

@@ -15,12 +15,22 @@ class MediaHandler
     public const META_FROM_TD = '_hf_from_td';
 
     /**
+     * Seconds for the featured image download inside a delivery. Tribune Desk waits 30 s for
+     * the whole answer; a slower download leaves the post without the image and the image
+     * comes a minute later from `RETRY_HOOK` (see PostWriter).
+     */
+    public const DELIVERY_TIMEOUT = 15;
+    /** Seconds for a download outside a delivery (cron). */
+    public const BACKGROUND_TIMEOUT = 60;
+    public const RETRY_HOOK = 'tribunedesk_featured_image_retry';
+
+    /**
      * Returns attachment ID or null on failure. Idempotent per post via post_meta flag.
      * 
      * @param array<string, string> $metadata Optional metadata (filename, caption, description, alt)
      * @param array<string, mixed>  $hints    Optional: asset_id (string), cms_attachment_id (int)
      */
-    public static function set_featured_from_url(int $post_id, string $image_url, string $title = '', array $metadata = [], array $hints = []): ?int
+    public static function set_featured_from_url(int $post_id, string $image_url, string $title = '', array $metadata = [], array $hints = [], int $timeout = self::BACKGROUND_TIMEOUT): ?int
     {
         if (get_post_meta($post_id, self::META_THUMBNAIL_SET, true)) {
             return null;
@@ -51,7 +61,9 @@ class MediaHandler
             $image_url,
             self::file_name($metadata['filename'] ?? '', $title, $image_url),
             $post_id,
-            $title !== '' ? $title : null
+            $title !== '' ? $title : null,
+            null,
+            $timeout
         );
         if ($attachment_id === null) {
             return null;
@@ -78,7 +90,7 @@ class MediaHandler
      *
      * @param callable(string): bool|null $verify
      */
-    public static function sideload_from_url(string $url, string $name, int $post_id = 0, ?string $title = null, ?callable $verify = null): ?int
+    public static function sideload_from_url(string $url, string $name, int $post_id = 0, ?string $title = null, ?callable $verify = null, int $timeout = self::BACKGROUND_TIMEOUT): ?int
     {
         require_once ABSPATH . 'wp-admin/includes/media.php';
         require_once ABSPATH . 'wp-admin/includes/file.php';
@@ -103,7 +115,7 @@ class MediaHandler
             return null;
         }
 
-        $tmp = download_url($url, 60);
+        $tmp = download_url($url, $timeout);
         if (is_wp_error($tmp)) {
             return null;
         }

@@ -4,7 +4,7 @@ Tags: webhook, automation, content
 Requires at least: 5.6
 Tested up to: 7.1
 Requires PHP: 8.3
-Stable tag: 2.2.1
+Stable tag: 2.2.2
 License: MIT
 
 Receives finished articles from Tribune Desk (ArticleWriter) and creates them as drafts in WordPress.
@@ -33,6 +33,17 @@ Features:
 3. Go to `Ustawienia → Tribune Desk`, paste the signing secret (`whsec_…`) and the CMS API token you got from Tribune Desk, pick the default author, and copy the Webhook URL into Tribune Desk Settings → Integracje.
 
 == Changelog ==
+
+= 2.2.2 =
+* Embeds (`iframe` from YouTube, Vimeo and the other allowed hosts) survive the save, also when a link placeholder is resolved later: WordPress filtered post content once more as the anonymous delivery user and dropped them.
+* A post waiting for review (`pending`) is updated by a new send like a draft; only a published, scheduled or private post is left alone.
+* The featured image is downloaded within 15 seconds, so the answer to Tribune Desk comes in time; a slower image is attached a minute later in the background.
+* The link back is sent only to an `https://` API address, like every other call with the token. The default API address is `https://api.tribunedesk.com`; a saved address stays.
+* A post published at once reports the "do not publish on Facebook" field in the delivery answer, so a flagged post never enters the Tribune Desk Facebook queue (contract 3.4.0).
+* The delivery answer gives the featured image id also as `cms_media_id` (contract 3.4.0).
+* Publishing a post with internal-link placeholders reports its address once, not twice.
+* A sync run that outlived its lock no longer removes the lock of a newer run.
+* Messages in the admin say Tribune Desk instead of HeadlinesForge. Deactivating clears pending retries; uninstalling also removes the resync state, the auto-update setting, the update manifest cache and the resync cron.
 
 = 2.2.1 =
 * New versions reach a site within about 13 hours instead of up to about 24: the plugin keeps the update manifest for 1 hour (before: 12), while WordPress itself checks for updates every 12 hours.

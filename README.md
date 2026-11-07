@@ -1,12 +1,12 @@
 # Tribune Desk for WordPress
 
-A WordPress plugin that receives finished articles from [Tribune Desk](https://headlinesforge.com) (a newsroom tool) and creates them as drafts in wp-admin. It implements the public Tribune Desk CMS API at levels 1-4: article delivery, link back, full content and the media library.
+A WordPress plugin that receives finished articles from [Tribune Desk](https://tribunedesk.com) (a newsroom tool) and creates them in wp-admin, as drafts or, with **Publish immediately**, as published posts. It implements the public Tribune Desk CMS API at levels 1-4: article delivery, link back, full content and the media library.
 
-**Version:** v2.2.1
+**Version:** v2.2.2
 
-**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.2.1.zip**
+**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.2.2.zip**
 
-> Version 2.2.1 keeps the update manifest for 1 hour instead of 12, so a new version reaches a site within about 13 hours (WordPress checks every 12 hours) instead of up to about 24.
+> Version 2.2.2 keeps embeds in delivered posts, updates posts waiting for review, answers Tribune Desk in time when the featured image is slow, and sends the link back only over https. It follows contract 3.4.0-draft; see the changelog in `readme.txt`.
 
 > Version 2.2.0 accepts deliveries only with a valid signature and reports published posts only through `/v3` with the CMS token. Tribune Desk stopped sending the shared secret (`X-Webhook-Secret`) and removed the `/v2/cms/published-urls` route on 2026-11-06, so the plugin no longer has the "Webhook secret" field or the old route. Without a signing secret every delivery is refused (`401`) and the settings page says so; without a CMS token with `articles:write` no address of a published post goes back (a post published at once still returns its `permalink` in the delivery answer). A secret saved by an earlier version stays in the database untouched; uninstalling removes it.
 
@@ -26,8 +26,8 @@ A WordPress plugin that receives finished articles from [Tribune Desk](https://h
 
 This plugin is the reference integration of the public **Tribune Desk CMS API**. If you are connecting another CMS, start with the API, not with this code:
 
-- Guide: https://github.com/Tribunedesk/tribunedesk-cms-api/tree/v3.2.0-draft/guide (levels 1-4)
-- Contract (OpenAPI, with webhooks): https://github.com/Tribunedesk/tribunedesk-cms-api/blob/v3.2.0-draft/openapi.json
+- Guide: https://github.com/Tribunedesk/tribunedesk-cms-api/tree/v3.4.0-draft/guide (levels 1-4)
+- Contract (OpenAPI, with webhooks): https://github.com/Tribunedesk/tribunedesk-cms-api/blob/v3.4.0-draft/openapi.json
 
 The plugin pins the contract version in `tests/contract/VERSION`; CI checks that the copies in `tests/contract/` match that tag byte for byte, and the contract tests run the sample delivery through the real endpoint.
 
@@ -67,7 +67,7 @@ A step-by-step guide for someone who has never installed a plugin by hand. Every
 
 Download **one file** from our server. You do not need a GitHub account and you **do not rename the folder**; the archive is already packed correctly:
 
-**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.2.1.zip**
+**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.2.2.zip**
 
 **Do not unpack it.** WordPress does that itself.
 
@@ -94,7 +94,7 @@ This is the only manual install. From now on the plugin updates itself (see "Aut
 
 ### Step 4: Paste the Endpoint URL into Tribune Desk
 
-1. Open Tribune Desk: **https://headlinesforge.com/app** (or wherever your UI is hosted).
+1. Open Tribune Desk: **https://tribunedesk.com/app** (or wherever your UI is hosted).
 2. Log in as the newsroom admin.
 3. Click **Settings** in the top right corner.
 4. In the left menu choose **Integrations**.
@@ -136,12 +136,12 @@ This is the only manual install. From now on the plugin updates itself (see "Aut
 - **Signing secret** (since 1.17.0; required since 2.2.0): see "Delivery signature". Without it a red notice at the top of the page says every delivery is refused.
 - **Default author**: the WordPress account that gets all received articles. The list shows only Administrator and Editor accounts.
 - **Publish immediately** (Polish UI: "Publikuj od razu"): when ticked, articles are published at once instead of landing in drafts.
-- **Tribune Desk API base** (section "Tribune Desk API"): do **not** change. Default `https://api.headlinesforge.com`. The plugin reports the URLs of published posts there, so Tribune Desk can link to them in later articles.
+- **Tribune Desk API base** (section "Tribune Desk API"): do **not** change. Default `https://api.tribunedesk.com` (an address saved by an earlier version, `https://api.headlinesforge.com`, reaches the same API and stays). Only an `https://` address is used: with any other the plugin does not send the token. The plugin reports the URLs of published posts there, so Tribune Desk can link to them in later articles.
 - **CMS token** (`tdcms_…`): token for `/v3/cms` (published-URL callback, media library, settings and image hosts). Without it the media library sync does not run and, since 2.2.0, no address of a post published by hand goes back to Tribune Desk.
 - **Author mapping**: maps authors from Tribune Desk to WordPress accounts; articles of a mapped author go to that account instead of the default author.
 - **Theme fields**: extra fields the active theme needs; they are filled from the delivery.
 - **CMS field: do not publish on Facebook** (in Theme fields, since 2.1.0): meta key of the post field that keeps an article off Facebook (e.g. `exclude_facebook_rss`). Empty = off. When set, every report of a published post sends `social_queue_exclude` (`1`, `true`, `yes`, `on` in any case = true; anything else, an empty or deleted field included = false), read at the moment of sending, also in the retry. A change of the field on a published Tribune Desk post is reported again, once per post and request; an ordinary edit sends nothing.
-- **Send URLs of published posts to Tribune Desk** (button below the form): click once after installing 0.8.0 or newer if you already have published Tribune Desk articles. It sends their URLs in batches of 100; with more posts click again until the message shows "0 remaining".
+- **Send published post URLs to Tribune Desk** (button below the form; **Send the next 100** while a run is in progress): click once after installing 0.8.0 or newer if you already have published Tribune Desk articles. It sends their URLs in batches of 100; with more posts click again until the message shows "0 remaining".
 - **Updates** section: installed version and the auto-update switch (see "Automatic updates").
 
 Secret fields (signing secret, CMS token) are password fields: the saved value is not in the page source, its last characters are shown under the field, and saving with an empty field leaves it unchanged.
@@ -288,7 +288,7 @@ The signature does not match, or no signing secret is saved (the settings page t
 The URL is wrong. In wp-admin `Settings → Tribune Desk` copy the "Endpoint URL" again; it must be exactly the same as in Tribune Desk.
 
 **"HTTP 500 — Internal Server Error"**
-WordPress crashed on our request. Open `Settings → Tribune Desk` → "Recent deliveries" shows the error details in the "Error" column. Report it to the plugin author.
+WordPress crashed on our request. Open `Settings → Tribune Desk` → "Recent deliveries" shows the error details in the "Details" column. Report it to the plugin author.
 
 **"HTTPS required" or mixed content**
 The Webhook URL must be on HTTPS (not HTTP). If your site runs on `http://`, install an SSL certificate first (Let's Encrypt is free). Tribune Desk also rejects non-https URLs.
@@ -296,13 +296,13 @@ The Webhook URL must be on HTTPS (not HTTP). If your site runs on `http://`, ins
 **"In Recent deliveries the row 'URL sent' has status unauthorized"**
 No CMS API token is saved, Tribune Desk rejected it, or it lacks `articles:write`; the row says which. The post URL did not arrive; after fixing the token click "Send URLs of published posts to Tribune Desk".
 
-**"…status forbidden"**
-The token is correct, but the article belongs to another newsroom in Tribune Desk (for example a post moved over from a demo installation). This is not a plugin error; that post will not be reported.
+**"…status not_found"** (or **forbidden** from an older Tribune Desk)
+Tribune Desk does not know this article in the token's newsroom: the post was moved over from another installation, or the article belongs to another newsroom. This is not a plugin error; that post will not be reported.
 
 **"…status error with the text 'retry in 5 min'"**
 Tribune Desk did not answer within 5 s or answered 5xx. The plugin tries once more after five minutes (WP-Cron, so on a site with no traffic it may take longer). If the second row also has an error, use the backfill button.
 
-**"A link in the article leads to headlinesforge.com/app/a/…"**
+**"A link in the article leads to …/app/a/…"**
 This is an internal-link placeholder: the article it points to had no URL yet when this text was written. The plugin replaces it by itself once that article is published in this WordPress. If that article is published elsewhere (another CMS), enter its URL in Tribune Desk in the "Link to article" box.
 
 ---

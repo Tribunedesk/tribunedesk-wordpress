@@ -42,6 +42,32 @@ class PostWriter
         return is_array($raw) ? array_values(array_filter($raw, 'is_array')) : [];
     }
 
+    /**
+     * Run a post write with `iframe` allowed in post content. A delivery runs as user 0, so
+     * WordPress filters the content again on save with the default `post` list, which has no
+     * `iframe`: embeds the Sanitizer let through (hosts on its list) would vanish. The filter
+     * is added only for this write and removed afterwards, also when the write throws.
+     *
+     * @template T
+     * @param callable(): T $write
+     * @return T
+     */
+    public static function with_embeds(callable $write)
+    {
+        $allow = static function ($tags, $context) {
+            if ($context === 'post' && is_array($tags)) {
+                $tags['iframe'] = Sanitizer::IFRAME_ATTRIBUTES;
+            }
+            return $tags;
+        };
+        add_filter('wp_kses_allowed_html', $allow, 10, 2);
+        try {
+            return $write();
+        } finally {
+            remove_filter('wp_kses_allowed_html', $allow, 10);
+        }
+    }
+
     /** @param array<string, mixed> $payload */
     public static function write(array $payload, int $author_id, bool $publish = false): array
     {
@@ -64,14 +90,14 @@ class PostWriter
         $excerpt = self::excerpt_for_post($payload);
 
         if ($existing === null) {
-            $post_id = wp_insert_post([
+            $post_id = self::with_embeds(static fn () => wp_insert_post([
                 'post_status'  => $publish ? 'publish' : 'draft',
                 'post_author'  => $author_id,
                 'post_title'   => $title,
                 'post_content' => $html,
                 'post_excerpt' => $excerpt,
                 'meta_input'   => self::meta_input($article_id, $links, $payload),
-            ], true);
+            ], true));
 
             if (is_wp_error($post_id)) {
                 throw new \RuntimeException('wp_insert_post failed: ' . $post_id->get_error_message());
@@ -121,7 +147,7 @@ class PostWriter
         if (DraftRules::fills_excerpt($excerpt, (string) $existing->post_excerpt)) {
             $postarr['post_excerpt'] = $excerpt;
         }
-        $update = wp_update_post($postarr, true);
+        $update = self::with_embeds(static fn () => wp_update_post($postarr, true));
 
         if (is_wp_error($update)) {
             throw new \RuntimeException('wp_update_post failed: ' . $update->get_error_message());
@@ -191,7 +217,12 @@ class PostWriter
     }
 
     /** @param array<string, mixed> $payload */
-    private static function sync_featured_image(int $post_id, array $payload): void
+    /**
+     * The featured image of a delivery, downloaded with the delivery's short limit. When the
+     * download fails the post is saved without it and one retry is scheduled a minute later,
+     * with the background limit; the retry does not schedule another.
+     */
+    private static function sync_featured_image(int $post_id, array $payload, bool $in_delivery = true): void
     {
         $images = $payload['generated_images'] ?? [];
         if (!is_array($images) || $images === []) {
@@ -225,6 +256,27 @@ class PostWriter
             $hints['cms_attachment_id'] = (int) $first['cms_attachment_id'];
         }
 
-        MediaHandler::set_featured_from_url($post_id, $url, (string) ($payload['title'] ?? ''), $metadata, $hints);
+        $title = (string) ($payload['title'] ?? '');
+        $timeout = $in_delivery ? MediaHandler::DELIVERY_TIMEOUT : MediaHandler::BACKGROUND_TIMEOUT;
+        $attached = MediaHandler::set_featured_from_url($post_id, $url, $title, $metadata, $hints, $timeout);
+        if ($attached === null && $in_delivery && !get_post_meta($post_id, MediaHandler::META_THUMBNAIL_SET, true)) {
+            $args = [$post_id, $first, $title];
+            if (wp_next_scheduled(MediaHandler::RETRY_HOOK, $args) === false) {
+                wp_schedule_single_event(time() + 60, MediaHandler::RETRY_HOOK, $args);
+            }
+        }
+    }
+
+    /**
+     * `MediaHandler::RETRY_HOOK`: the featured image a delivery could not download in time.
+     *
+     * @param array<string, mixed> $image the first entry of `generated_images`
+     */
+    public static function retry_featured_image(int $post_id, array $image, string $title): void
+    {
+        if (get_post($post_id) === null) {
+            return;
+        }
+        self::sync_featured_image($post_id, ['generated_images' => [$image], 'title' => $title], false);
     }
 }
