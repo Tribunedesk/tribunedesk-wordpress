@@ -82,3 +82,14 @@ if (function_exists('wp_unschedule_hook')) {
 } else {
     wp_clear_scheduled_hook('headlinesforge_notify_retry');
 }
+
+// 2.2.2: what earlier versions left behind after uninstalling.
+delete_option('headlinesforge_cms_resync');
+delete_option('headlinesforge_auto_update');
+delete_transient('headlinesforge_manifest');
+delete_transient('headlinesforge_cms_settings_notice');
+delete_transient('headlinesforge_backfill_result');
+wp_clear_scheduled_hook('headlinesforge_cms_resync_page');
+if (function_exists('wp_unschedule_hook')) {
+    wp_unschedule_hook('tribunedesk_featured_image_retry');
+}

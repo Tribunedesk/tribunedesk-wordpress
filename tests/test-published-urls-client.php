@@ -7,7 +7,7 @@ use TribuneDesk\WordPress\RestEndpoint;
 /**
  * Wzorzec zaslepki HTTP dla calego planu: pre_http_request zwraca gotowa odpowiedz
  * albo WP_Error i zapisuje kazde zadanie. Pakiet WP nie blokuje ruchu HTTP, wiec bez
- * tej zaslepki test poszedlby do prawdziwego api.headlinesforge.com.
+ * tej zaslepki test poszedlby do prawdziwego api.tribunedesk.com.
  */
 class Test_Published_Urls_Client extends WP_UnitTestCase
 {
@@ -83,7 +83,7 @@ class Test_Published_Urls_Client extends WP_UnitTestCase
         $result = PublishedUrlsClient::send($this->dated(), 5);
 
         $this->assertCount(1, $this->requests);
-        $this->assertSame('https://api.headlinesforge.com/v3/cms/articles/published', $this->requests[0]['url']);
+        $this->assertSame('https://api.tribunedesk.com/v3/cms/articles/published', $this->requests[0]['url']);
         $args = $this->requests[0]['args'];
         $this->assertSame('Bearer tdcms_testtoken', $args['headers']['Authorization']);
         $this->assertArrayNotHasKey('X-Webhook-Secret', $args['headers']);
@@ -173,7 +173,7 @@ class Test_Published_Urls_Client extends WP_UnitTestCase
         PublishedUrlsClient::send($this->one(), 5);
 
         $this->assertCount(1, $this->requests);
-        $this->assertSame('https://api.headlinesforge.com/v3/cms/articles/published', $this->requests[0]['url']);
+        $this->assertSame('https://api.tribunedesk.com/v3/cms/articles/published', $this->requests[0]['url']);
         $args = $this->requests[0]['args'];
         $this->assertSame('Bearer tdcms_testtoken', $args['headers']['Authorization']);
         $this->assertSame('application/json', $args['headers']['Content-Type']);

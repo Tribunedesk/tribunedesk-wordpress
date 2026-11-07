@@ -50,6 +50,9 @@ class CmsSync
 
     private const CACHE_TTL     = 5 * MINUTE_IN_SECONDS;
     private const LOCK_TTL      = 5 * MINUTE_IN_SECONDS;
+
+    /** @var array<string, string> option name => value of the lock this request holds */
+    private static array $held_locks = [];
     private const SEND_DELAY    = MINUTE_IN_SECONDS;
     private const RETRY_DELAY   = 5 * MINUTE_IN_SECONDS;
     private const MAX_ATTEMPTS  = 5;
@@ -113,27 +116,37 @@ class CmsSync
     public static function acquire_lock(string $option = self::OPTION_LOCK): bool
     {
         global $wpdb;
-        $until = time() + self::LOCK_TTL;
-        if ((int) $wpdb->query($wpdb->prepare(
+        // "<expiry>:<owner>": CAST(... AS UNSIGNED) still reads the expiry, and the owner part lets
+        // release_lock() remove only the lock this request took (2.2.2). A run that outlived its
+        // 5 minutes no longer deletes the lock a newer run took over.
+        $value = (time() + self::LOCK_TTL) . ':' . wp_generate_password(12, false);
+        $taken = (int) $wpdb->query($wpdb->prepare(
             "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'no')",
             $option,
-            (string) $until
-        )) === 1) {
-            return true;
+            $value
+        )) === 1
+            || (int) $wpdb->query($wpdb->prepare(
+                "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND CAST(option_value AS UNSIGNED) < %d",
+                $value,
+                $option,
+                time()
+            )) === 1;
+        if ($taken) {
+            self::$held_locks[$option] = $value;
         }
 
-        return (int) $wpdb->query($wpdb->prepare(
-            "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND CAST(option_value AS UNSIGNED) < %d",
-            (string) $until,
-            $option,
-            time()
-        )) === 1;
+        return $taken;
     }
 
     public static function release_lock(string $option = self::OPTION_LOCK): void
     {
         global $wpdb;
-        $wpdb->delete($wpdb->options, ['option_name' => $option]);
+        $value = self::$held_locks[$option] ?? null;
+        if ($value === null) {
+            return;
+        }
+        unset(self::$held_locks[$option]);
+        $wpdb->delete($wpdb->options, ['option_name' => $option, 'option_value' => $value]);
     }
 
     /**

@@ -105,7 +105,7 @@ class Test_Settings_Api extends WP_UnitTestCase
         Settings::render_api_base_field();
         $html = (string) ob_get_clean();
 
-        $this->assertStringContainsString('value="https://api.headlinesforge.com"', $html);
+        $this->assertStringContainsString('value="https://api.tribunedesk.com"', $html);
         $this->assertStringContainsString('name="headlinesforge_api_base"', $html);
     }
 

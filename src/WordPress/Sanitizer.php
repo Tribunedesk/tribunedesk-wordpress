@@ -9,6 +9,21 @@ if (!defined('ABSPATH')) {
 
 class Sanitizer
 {
+    /**
+     * Attributes an embed keeps. PostWriter allows the same set while it saves the post,
+     * because WordPress filters post content again on save (kses), and a delivery runs as
+     * user 0, who has no `unfiltered_html`.
+     */
+    public const IFRAME_ATTRIBUTES = [
+        'src'             => true,
+        'width'           => true,
+        'height'          => true,
+        'frameborder'     => true,
+        'allowfullscreen' => true,
+        'allow'           => true,
+        'title'           => true,
+    ];
+
     private const ALLOWED_IFRAME_HOSTS = [
         'youtube.com/embed/',
         'www.youtube.com/embed/',
@@ -30,15 +45,7 @@ class Sanitizer
         $html = preg_replace('#<script\b[^>]*>.*?</script>#is', '', $html) ?? '';
 
         $allowed = wp_kses_allowed_html('post');
-        $allowed['iframe'] = [
-            'src' => true,
-            'width' => true,
-            'height' => true,
-            'frameborder' => true,
-            'allowfullscreen' => true,
-            'allow' => true,
-            'title' => true,
-        ];
+        $allowed['iframe'] = self::IFRAME_ATTRIBUTES;
 
         $sanitized = wp_kses($html, $allowed);
 

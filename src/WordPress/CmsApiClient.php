@@ -61,6 +61,13 @@ class CmsApiClient
         return trim((string) get_option(self::OPTION_TOKEN, ''));
     }
 
+    /** The API address may carry the token only when it is https with a host. */
+    public static function is_secure_base(string $base): bool
+    {
+        return strtolower((string) wp_parse_url($base, PHP_URL_SCHEME)) === 'https'
+            && (string) wp_parse_url($base, PHP_URL_HOST) !== '';
+    }
+
     /**
      * @param array<string, mixed>|null $body
      * @return array<mixed>|\WP_Error
@@ -73,7 +80,7 @@ class CmsApiClient
         }
 
         $base = PublishedUrlsClient::api_base();
-        if (strtolower((string) wp_parse_url($base, PHP_URL_SCHEME)) !== 'https' || (string) wp_parse_url($base, PHP_URL_HOST) === '') {
+        if (!self::is_secure_base($base)) {
             return self::error(self::ERROR_INSECURE_BASE);
         }
 
@@ -112,7 +119,7 @@ class CmsApiClient
         ]);
     }
 
-    private static function message(string $code): string
+    public static function message(string $code): string
     {
         return match ($code) {
             self::ERROR_NO_TOKEN      => __('The integration is not connected: the CMS API token is missing.', 'tribune-desk'),

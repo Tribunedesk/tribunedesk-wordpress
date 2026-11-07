@@ -22,6 +22,9 @@ if (!defined('ABSPATH')) {
  */
 class LinkResolver
 {
+    /** @var array<int, true> posts resolve_own() is saving right now */
+    private static array $resolving = [];
+
     public const META_LINKS    = '_hf_internal_links';
     public const REVERSE_LIMIT = 50;
 
@@ -218,14 +221,25 @@ class LinkResolver
             return;
         }
         // wp_update_post expects data with slashes.
-        wp_update_post([
-            'ID'            => $post->ID,
-            'post_content'  => wp_slash($resolved),
-            // Without an explicit date core recomputes the status from post_date: a published post with a date
-            // in the future (import, wrong time zone) would be silently unpublished.
-            'post_date'     => $post->post_date,
-            'post_date_gmt' => $post->post_date_gmt,
-        ]);
+        self::$resolving[$post->ID] = true;
+        try {
+            wp_update_post([
+                'ID'            => $post->ID,
+                'post_content'  => wp_slash($resolved),
+                // Without an explicit date core recomputes the status from post_date: a published post with a date
+                // in the future (import, wrong time zone) would be silently unpublished.
+                'post_date'     => $post->post_date,
+                'post_date_gmt' => $post->post_date_gmt,
+            ]);
+        } finally {
+            unset(self::$resolving[$post->ID]);
+        }
+    }
+
+    /** True while resolve_own() saves this post (PublishNotifier skips that nested save). */
+    public static function is_resolving(int $post_id): bool
+    {
+        return isset(self::$resolving[$post_id]);
     }
 
     /**

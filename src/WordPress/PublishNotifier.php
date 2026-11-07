@@ -44,6 +44,12 @@ class PublishNotifier
         if (!$post instanceof \WP_Post || $post->post_status !== 'publish') {
             return;
         }
+        // The save LinkResolver makes from the transition hook (placeholders resolved while the
+        // post is being published) is not a publication of its own: the outer save reports the
+        // post, so this one must not report it a second time (2.2.2).
+        if (LinkResolver::is_resolving($post->ID)) {
+            return;
+        }
         $first = !$post_before instanceof \WP_Post || $post_before->post_status !== 'publish';
         if (!$first && !SocialQueueFlag::changed($post->ID)) {
             return;

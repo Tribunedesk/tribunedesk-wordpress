@@ -245,7 +245,7 @@ class Updater
                 sprintf(
                     /* translators: %s: installed plugin version */
                     __(
-                        'HeadlinesForge manifest could not be fetched, so the package could not be verified. The update was aborted, version %s remains installed. Try again later.',
+                        'Tribune Desk manifest could not be fetched, so the package could not be verified. The update was aborted, version %s remains installed. Try again later.',
                         'tribune-desk'
                     ),
                     HEADLINESFORGE_VERSION
@@ -259,7 +259,7 @@ class Updater
                 sprintf(
                     /* translators: %s: installed plugin version */
                     __(
-                        'The HeadlinesForge manifest points to a different package than the one WordPress is trying to download — the update list is stale. Refresh it (Dashboard -> Updates -> "Check again") and try again. The update was aborted, version %s remains installed.',
+                        'The Tribune Desk manifest points to a different package than the one WordPress is trying to download — the update list is stale. Refresh it (Dashboard -> Updates -> "Check again") and try again. The update was aborted, version %s remains installed.',
                         'tribune-desk'
                     ),
                     HEADLINESFORGE_VERSION
@@ -290,7 +290,7 @@ class Updater
             sprintf(
                 /* translators: %s: installed plugin version */
                 __(
-                    'The checksum of the downloaded HeadlinesForge package does not match the manifest. The update was aborted, version %s remains installed.',
+                    'The checksum of the downloaded Tribune Desk package does not match the manifest. The update was aborted, version %s remains installed.',
                     'tribune-desk'
                 ),
                 HEADLINESFORGE_VERSION

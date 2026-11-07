@@ -4,7 +4,7 @@
  * Plugin URI:  https://github.com/Tribunedesk/tribunedesk-wordpress
  * Update URI: https://updates.headlinesforge.com/wp-plugin/manifest.json
  * Description: Receives finished articles from Tribune Desk (ArticleWriter) and creates them as drafts or publishes them immediately.
- * Version:           2.2.1
+ * Version:           2.2.2
  * Requires at least: 5.6
  * Requires PHP: 8.3
  * Author:      Dominik Czarnota
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('HEADLINESFORGE_VERSION', '2.2.1');
+define('HEADLINESFORGE_VERSION', '2.2.2');
 define('HEADLINESFORGE_PLUGIN_FILE', __FILE__);
 define('HEADLINESFORGE_PLUGIN_DIR', plugin_dir_path(__FILE__));
 
@@ -61,6 +61,8 @@ add_action('updated_post_meta', [\TribuneDesk\WordPress\SocialQueueFlag::class, 
 add_action('deleted_post_meta', [\TribuneDesk\WordPress\SocialQueueFlag::class, 'after_change'], 10, 3);
 add_action('shutdown', [\TribuneDesk\WordPress\PublishNotifier::class, 'flush_pending']);
 add_action(\TribuneDesk\WordPress\PublishNotifier::RETRY_HOOK, [\TribuneDesk\WordPress\PublishNotifier::class, 'retry']);
+// 2.2.2: a featured image a delivery could not download within its time limit.
+add_action(\TribuneDesk\WordPress\MediaHandler::RETRY_HOOK, [\TribuneDesk\WordPress\PostWriter::class, 'retry_featured_image'], 10, 3);
 add_action('admin_post_' . \TribuneDesk\WordPress\Backfill::ACTION, [\TribuneDesk\WordPress\Backfill::class, 'handle_admin_post']);
 
 // Hourly safety net for sending via /v3 and the threshold of new images.
@@ -99,6 +101,10 @@ register_deactivation_hook(__FILE__, static function (): void {
     wp_clear_scheduled_hook(\TribuneDesk\WordPress\CmsSync::HOOK_SEND);
     wp_clear_scheduled_hook(\TribuneDesk\WordPress\CmsResync::HOOK_PAGE);
     wp_clear_scheduled_hook(\TribuneDesk\WordPress\CmsBackfill::HOOK);
+    // 2.2.2: one-off retries left behind by link backs and deliveries. They carry arguments,
+    // which wp_clear_scheduled_hook() without arguments does not match.
+    wp_unschedule_hook(\TribuneDesk\WordPress\PublishNotifier::RETRY_HOOK);
+    wp_unschedule_hook(\TribuneDesk\WordPress\MediaHandler::RETRY_HOOK);
 });
 
 \TribuneDesk\WordPress\Updater::init();

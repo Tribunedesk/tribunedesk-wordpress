@@ -40,7 +40,7 @@ msgid "all posts sent; the next click starts from the beginning"
 msgstr ""
 
 #: src/WordPress/Backfill.php:61
-msgid "no published posts from HeadlinesForge"
+msgid "no published posts from Tribune Desk"
 msgstr ""
 
 #. translators: %d: number of posts skipped
@@ -50,7 +50,7 @@ msgid "skipped %d posts without a UUID"
 msgstr ""
 
 #: src/WordPress/Backfill.php:108
-msgid "HeadlinesForge request limit hit again after the retry — try again in a minute"
+msgid "Tribune Desk request limit hit again after the retry — try again in a minute"
 msgstr ""
 
 #: src/WordPress/Backfill.php:132
@@ -679,7 +679,7 @@ msgid "Tribune Desk has no /v3/cms/articles/published route"
 msgstr ""
 
 #: src/WordPress/PublishedUrlsClient.php:135
-msgid "HeadlinesForge request limit"
+msgid "Tribune Desk request limit"
 msgstr ""
 
 #: src/WordPress/PublishedUrlsClient.php:146
@@ -697,7 +697,7 @@ msgstr ""
 #. translators: %s: URL
 #: src/WordPress/PublishedUrlsClient.php:168
 #, php-format
-msgid "HeadlinesForge rejected the address: %s"
+msgid "Tribune Desk rejected the address: %s"
 msgstr ""
 
 #. translators: %s: item status
@@ -707,7 +707,7 @@ msgid "unknown item status: %s"
 msgstr ""
 
 #: src/WordPress/PublishNotifier.php:146
-msgid "HeadlinesForge did not return a status for this item"
+msgid "Tribune Desk did not return a status for this item"
 msgstr ""
 
 #: src/WordPress/PublishNotifier.php:151
@@ -989,19 +989,19 @@ msgstr ""
 #. translators: %s: installed plugin version
 #: src/WordPress/Updater.php:247
 #, php-format
-msgid "HeadlinesForge manifest could not be fetched, so the package could not be verified. The update was aborted, version %s remains installed. Try again later."
+msgid "Tribune Desk manifest could not be fetched, so the package could not be verified. The update was aborted, version %s remains installed. Try again later."
 msgstr ""
 
 #. translators: %s: installed plugin version
 #: src/WordPress/Updater.php:261
 #, php-format
-msgid "The HeadlinesForge manifest points to a different package than the one WordPress is trying to download — the update list is stale. Refresh it (Dashboard -> Updates -> \"Check again\") and try again. The update was aborted, version %s remains installed."
+msgid "The Tribune Desk manifest points to a different package than the one WordPress is trying to download — the update list is stale. Refresh it (Dashboard -> Updates -> \"Check again\") and try again. The update was aborted, version %s remains installed."
 msgstr ""
 
 #. translators: %s: installed plugin version
 #: src/WordPress/Updater.php:292
 #, php-format
-msgid "The checksum of the downloaded HeadlinesForge package does not match the manifest. The update was aborted, version %s remains installed."
+msgid "The checksum of the downloaded Tribune Desk package does not match the manifest. The update was aborted, version %s remains installed."
 msgstr ""
 
 #: assets/read-more-block.js:18

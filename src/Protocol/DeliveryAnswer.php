@@ -11,7 +11,10 @@ namespace TribuneDesk\Protocol;
  * `cms_post_id` is the contract field (text); `post_id` stays for Tribune Desk versions that read
  * it. `permalink` only for a public post: a draft has no public address, and the edit URL is
  * never a permalink. `featured_image` only when the main image came from Tribune Desk (asset_id
- * known), so Tribune Desk can reuse the file next time.
+ * known), so Tribune Desk can reuse the file next time; it carries the attachment id both as
+ * `cms_media_id` (text, contract 3.4.0) and as `attachment_id` (number, for older Tribune Desk).
+ * `social_queue_exclude` goes with `permalink` when the "do not publish on Facebook" field is
+ * configured, so a flagged post published at once never enters the Facebook queue (3.4.0).
  */
 final class DeliveryAnswer
 {
@@ -19,7 +22,7 @@ final class DeliveryAnswer
      * @param array{asset_id: string, attachment_id: int, url: string}|null $featured_image
      * @return array<string, mixed>
      */
-    public static function build(int $post_id, string $status, ?string $edit_url, ?string $permalink, ?array $featured_image): array
+    public static function build(int $post_id, string $status, ?string $edit_url, ?string $permalink, ?array $featured_image, ?bool $social_queue_exclude = null): array
     {
         $answer = [
             'cms_post_id' => (string) $post_id,
@@ -29,9 +32,12 @@ final class DeliveryAnswer
         ];
         if ($permalink !== null && $permalink !== '') {
             $answer['permalink'] = $permalink;
+            if ($social_queue_exclude !== null) {
+                $answer['social_queue_exclude'] = $social_queue_exclude;
+            }
         }
         if ($featured_image !== null) {
-            $answer['featured_image'] = $featured_image;
+            $answer['featured_image'] = ['cms_media_id' => (string) $featured_image['attachment_id']] + $featured_image;
         }
 
         return $answer;
