@@ -14,7 +14,7 @@ use TribuneDesk\WordPress\PublishedUrlsClient;
 /**
  * Umowa sciezek: kazde zadanie wtyczki do /v3/cms musi istniec w OpenAPI serwera. Mocki w pozostalych
  * testach przyjma kazda sciezke, wiec tylko to lapie wysylke na trase, ktorej serwer nie ma.
- * Kontrakt to `paths` z tests/contract/openapi.json, kopii z taga repo publicznego (tests/contract/VERSION).
+ * Kontrakt to `paths` z tests/contract/openapi.json, kopii z taga repo publicznego (pole `contract` w tribunedesk.json).
  */
 class Test_Cms_V3_Paths extends WP_UnitTestCase
 {
