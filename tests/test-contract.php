@@ -6,8 +6,8 @@ use TribuneDesk\WordPress\RestEndpoint;
 
 /**
  * The plugin against the published contract: copies of `openapi.json` and the sample
- * `article-delivered.json` from the tag of Tribunedesk/tribunedesk-cms-api named in
- * tests/contract/VERSION. CI checks the copies byte for byte against that tag, so these tests
+ * `article-delivered.json` from the tag of Tribunedesk/tribunedesk-cms-api named by the
+ * `contract` field of tribunedesk.json. CI checks the copies byte for byte against that tag, so these tests
  * run offline and a contract change shows up in the diff.
  */
 class Test_Contract extends WP_UnitTestCase

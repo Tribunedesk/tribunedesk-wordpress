@@ -43,6 +43,8 @@ jobs:
 
       # src/Protocol to kopia biblioteki tribunedesk/cms-protocol z tagu z pola "protocol"
       # manifestu: zmiana regul protokolu idzie najpierw do biblioteki, potem kopia tutaj.
+      # Testy jednostkowe tych klas biegna w CI biblioteki; tutaj ich nie ma, wiec ten diff
+      # jest jedynym dowodem, ze kopia to przetestowany kod. Nie luzowac go bez przeniesienia testow.
       - name: Kopia biblioteki z tagu
         run: |
           git clone -q --depth 1 --branch "v$(php -r 'echo json_decode(file_get_contents("tribunedesk.json"))->protocol;')" https://github.com/Tribunedesk/tribunedesk-cms-php /tmp/lib
