@@ -2,7 +2,6 @@
   "components": {
     "schemas": {
       "AiProvenance": {
-        "additionalProperties": false,
         "description": "Signed statement that the text was produced with AI (EU AI Act, art. 50(2)).",
         "properties": {
           "claims": {
@@ -70,7 +69,6 @@
         "type": "object"
       },
       "ArticleDelivery": {
-        "additionalProperties": false,
         "description": "The article Tribune Desk sends to your webhook when an editor clicks \"Send to CMS\".\n\nFields marked as omitted are absent from the body, not null, when they do not apply.\nNew fields may be added in a minor version; ignore the ones you do not know.",
         "properties": {
           "ai_provenance": {
@@ -439,6 +437,18 @@
             "description": "Deprecated: the same as `cms_post_id`, read only when that is absent.",
             "title": "Post Id"
           },
+          "social_queue_exclude": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level 2 (link back). `true` keeps the post off the Tribune Desk Facebook queue, `false` puts it back; the same as in `POST /v3/cms/articles/published`. Stored before `permalink`, so a flagged post never enters the queue. Leaving it out keeps the stored value.",
+            "title": "Social Queue Exclude"
+          },
           "status": {
             "anyOf": [
               {
@@ -467,9 +477,20 @@
             "title": "Article Id",
             "type": "string"
           },
+          "ignored_fields": {
+            "description": "Fields of the right type that Tribune Desk did not store, e.g. a `permalink` that is not a public `http(s)` address or a `featured_image` for a file this send did not carry.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Ignored Fields",
+            "type": "array"
+          },
           "state": {
-            "const": "delivered",
-            "description": "The send is recorded as delivered, also when the result is repeated.",
+            "description": "`delivered`, also when the result is repeated; `failed` when you sent `error`.",
+            "enum": [
+              "delivered",
+              "failed"
+            ],
             "title": "State",
             "type": "string"
           }
@@ -479,6 +500,188 @@
           "state"
         ],
         "title": "ArticleResultAck",
+        "type": "object"
+      },
+      "ArticleResultReport": {
+        "description": "Read mode: the body of `POST /v3/cms/articles/{article_id}/result`. The fields of\n`ArticleDeliveryResult`, plus the send it answers and an optional failure.",
+        "properties": {
+          "cms_post_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level 1 (receive article). Your identifier of the post, as text. Tribune Desk stores it with the article.",
+            "title": "Cms Post Id"
+          },
+          "delivery_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The `X-Delivery-Id` of the `GET /v3/cms/articles/{article_id}` answer you applied. With it the result closes exactly that send; a send replaced by a newer one gives `409 state_conflict` (fetch the article again). Without it the result closes the newest waiting send (kept for older clients).",
+            "title": "Delivery Id"
+          },
+          "edit_url": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level 1 (receive article). An `http(s)` address where the editor edits the post; shown as \"Edit in CMS\". Other schemes are ignored.",
+            "title": "Edit Url"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when your CMS could not take the article: the send is recorded as failed with this text (the editor sees its first 200 characters), and the other fields are ignored.",
+            "title": "Error"
+          },
+          "featured_image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FeaturedImageResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level 4 (media library). The attachment made from the featured image, so Tribune Desk can reuse it next time."
+          },
+          "permalink": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level 2 (link back). The public address of the post. Tribune Desk uses it to link to this article from other articles.",
+            "title": "Permalink"
+          },
+          "post_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Deprecated: the same as `cms_post_id`, read only when that is absent.",
+            "title": "Post Id"
+          },
+          "social_queue_exclude": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level 2 (link back). `true` keeps the post off the Tribune Desk Facebook queue, `false` puts it back; the same as in `POST /v3/cms/articles/published`. Stored before `permalink`, so a flagged post never enters the queue. Leaving it out keeps the stored value.",
+            "title": "Social Queue Exclude"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "created",
+                  "updated",
+                  "skipped_already_published"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level 1 (receive article). `created`, `updated`, or `skipped_already_published` when you left an already published post alone. Informational: Tribune Desk does not act on it today.",
+            "title": "Status"
+          }
+        },
+        "title": "ArticleResultReport",
+        "type": "object"
+      },
+      "AwaitingArticle": {
+        "properties": {
+          "article_id": {
+            "format": "uuid",
+            "title": "Article Id",
+            "type": "string"
+          },
+          "delivery_id": {
+            "format": "uuid",
+            "title": "Delivery Id",
+            "type": "string"
+          },
+          "sent_at": {
+            "description": "When the editor sent the article.",
+            "format": "date-time",
+            "title": "Sent At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "delivery_id",
+          "article_id",
+          "sent_at"
+        ],
+        "title": "AwaitingArticle",
+        "type": "object"
+      },
+      "AwaitingArticlesPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AwaitingArticle"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Pass it as `cursor` for the next page; `null` on the last page.",
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "AwaitingArticlesPage",
         "type": "object"
       },
       "BackfillCandidate": {
@@ -828,7 +1031,6 @@
         "type": "object"
       },
       "BacklinkSource": {
-        "additionalProperties": false,
         "description": "An older article that should link to this one.",
         "properties": {
           "article_id": {
@@ -1081,7 +1283,6 @@
         "type": "object"
       },
       "CustomBlock": {
-        "additionalProperties": false,
         "description": "A text block the newsroom defined for its own use (e.g. a lead or a box).",
         "properties": {
           "items": {
@@ -1148,7 +1349,6 @@
         "type": "object"
       },
       "DeliveryImage": {
-        "additionalProperties": false,
         "description": "One image generated for the article.",
         "properties": {
           "alt": {
@@ -1196,8 +1396,23 @@
                 "type": "null"
               }
             ],
+            "deprecated": true,
             "description": "Level 4 (media library). Your attachment identifier for this file, when you reported it earlier. Reuse that attachment instead of downloading the file again.",
             "title": "Cms Attachment Id"
+          },
+          "cms_media_id": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Level 4 (media library). Your identifier of this file, as text: the same `cms_media_id` as in the media library, also when it is a number. Reuse that file instead of downloading it again. Omitted when the file has none.",
+            "title": "Cms Media Id"
           },
           "created_at": {
             "anyOf": [
@@ -1280,7 +1495,6 @@
         "type": "object"
       },
       "DeliveryMetadata": {
-        "additionalProperties": false,
         "description": "Where the article comes from.",
         "properties": {
           "created_at": {
@@ -1309,7 +1523,6 @@
         "type": "object"
       },
       "DeliveryPerson": {
-        "additionalProperties": false,
         "description": "A Tribune Desk user.",
         "properties": {
           "email": {
@@ -1351,7 +1564,7 @@
         "type": "object"
       },
       "FeaturedImageResult": {
-        "description": "The attachment your CMS made from `featured_image` (level 4).",
+        "description": "The attachment your CMS made from `featured_image` (level 4). Give `cms_media_id`;\n`attachment_id` is the older numeric form, read only when `cms_media_id` is absent.",
         "properties": {
           "asset_id": {
             "description": "`asset_id` of the image you received.",
@@ -1359,10 +1572,32 @@
             "type": "string"
           },
           "attachment_id": {
-            "description": "Your attachment identifier.",
-            "minimum": 1.0,
-            "title": "Attachment Id",
-            "type": "integer"
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "deprecated": true,
+            "description": "Deprecated: a numeric identifier; use `cms_media_id`.",
+            "title": "Attachment Id"
+          },
+          "cms_media_id": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Your identifier of the file, as text (any text of 1 to 255 characters, as `cms_media_id` in the media library).",
+            "title": "Cms Media Id"
           },
           "url": {
             "description": "Address of the file in your CMS.",
@@ -1372,7 +1607,6 @@
         },
         "required": [
           "asset_id",
-          "attachment_id",
           "url"
         ],
         "title": "FeaturedImageResult",
@@ -1561,6 +1795,35 @@
         "title": "FieldToggles",
         "type": "object"
       },
+      "FieldTogglesOut": {
+        "description": "`FieldToggles` in answers: open to fields added in a minor version (spec E8 D2).",
+        "properties": {
+          "alt": {
+            "title": "Alt",
+            "type": "boolean"
+          },
+          "caption": {
+            "title": "Caption",
+            "type": "boolean"
+          },
+          "description": {
+            "title": "Description",
+            "type": "boolean"
+          },
+          "title": {
+            "title": "Title",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "title",
+          "alt",
+          "caption",
+          "description"
+        ],
+        "title": "FieldTogglesOut",
+        "type": "object"
+      },
       "FieldUpdate": {
         "additionalProperties": false,
         "properties": {
@@ -1744,7 +2007,6 @@
         "type": "object"
       },
       "InternalLinkRef": {
-        "additionalProperties": false,
         "description": "A link to another article of the same newsroom, placed in `html`.",
         "properties": {
           "anchor_text": {
@@ -2090,7 +2352,6 @@
         "type": "object"
       },
       "ProvenanceClaims": {
-        "additionalProperties": false,
         "description": "What the AI provenance signature states.",
         "properties": {
           "article_id": {
@@ -2201,7 +2462,7 @@
             "type": "string"
           },
           "status": {
-            "description": "`ok`: stored. `not_found`: no such article. `forbidden`: the article belongs to another organization than the token. `invalid_url`: the address was rejected.",
+            "description": "`ok`: stored. `not_found`: no such article in the organization of the token (also an article of another organization). `invalid_url`: the address was rejected. `forbidden` is no longer returned; it stays in the list for older clients.",
             "enum": [
               "ok",
               "not_found",
@@ -2351,7 +2612,6 @@
         "type": "object"
       },
       "RelatedTopic": {
-        "additionalProperties": false,
         "description": "A follow-up topic suggested for the newsroom.",
         "properties": {
           "reason": {
@@ -2688,6 +2948,121 @@
         "title": "SettingsOptions",
         "type": "object"
       },
+      "SettingsOptionsOut": {
+        "description": "`SettingsOptions` in answers: open to options added in a minor version (spec E8 D2).",
+        "properties": {
+          "cms_deletion_trashes_in_td": {
+            "title": "Cms Deletion Trashes In Td",
+            "type": "boolean"
+          },
+          "conflict_rule": {
+            "enum": [
+              "last_change",
+              "cms",
+              "td"
+            ],
+            "title": "Conflict Rule",
+            "type": "string"
+          },
+          "fields_cms_to_td": {
+            "$ref": "#/components/schemas/FieldTogglesOut"
+          },
+          "fields_td_to_cms": {
+            "$ref": "#/components/schemas/FieldTogglesOut"
+          },
+          "keep_copies_in_td": {
+            "title": "Keep Copies In Td",
+            "type": "boolean"
+          },
+          "keep_nonempty_cms_to_td": {
+            "title": "Keep Nonempty Cms To Td",
+            "type": "boolean"
+          },
+          "keep_nonempty_td_to_cms": {
+            "title": "Keep Nonempty Td To Cms",
+            "type": "boolean"
+          },
+          "mass_change_threshold": {
+            "description": "Changes in one run, 1 to 500; above it they are held for a decision. A resync preview is one run; for field changes sent from the CMS a run is the 60 minutes after the first counted change.",
+            "maximum": 500.0,
+            "minimum": 1.0,
+            "title": "Mass Change Threshold",
+            "type": "integer"
+          },
+          "model_texts_to_cms": {
+            "enum": [
+              "never",
+              "empty_only"
+            ],
+            "title": "Model Texts To Cms",
+            "type": "string"
+          },
+          "new_files_cms_to_td": {
+            "title": "New Files Cms To Td",
+            "type": "boolean"
+          },
+          "new_files_cms_to_td_min_width": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Files Cms To Td Min Width"
+          },
+          "new_files_cms_to_td_since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Files Cms To Td Since"
+          },
+          "new_files_td_to_cms": {
+            "title": "New Files Td To Cms",
+            "type": "boolean"
+          },
+          "td_deletion_marks_in_cms": {
+            "title": "Td Deletion Marks In Cms",
+            "type": "boolean"
+          },
+          "td_to_cms_editor_files": {
+            "title": "Td To Cms Editor Files",
+            "type": "boolean"
+          },
+          "td_to_cms_graphics": {
+            "title": "Td To Cms Graphics",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "new_files_cms_to_td",
+          "new_files_cms_to_td_since",
+          "new_files_cms_to_td_min_width",
+          "new_files_td_to_cms",
+          "td_to_cms_editor_files",
+          "td_to_cms_graphics",
+          "fields_cms_to_td",
+          "fields_td_to_cms",
+          "conflict_rule",
+          "keep_nonempty_cms_to_td",
+          "keep_nonempty_td_to_cms",
+          "model_texts_to_cms",
+          "mass_change_threshold",
+          "cms_deletion_trashes_in_td",
+          "td_deletion_marks_in_cms",
+          "keep_copies_in_td"
+        ],
+        "title": "SettingsOptionsOut",
+        "type": "object"
+      },
       "SettingsResponse": {
         "properties": {
           "image_hosts": {
@@ -2710,7 +3085,7 @@
             "type": "array"
           },
           "options": {
-            "$ref": "#/components/schemas/SettingsOptions"
+            "$ref": "#/components/schemas/SettingsOptionsOut"
           },
           "updated_at": {
             "anyOf": [
@@ -2793,6 +3168,14 @@
             "description": "Batches held by the mass-change threshold, waiting for a decision. `null` while `disabled`.",
             "title": "Held Batches"
           },
+          "image_hosts": {
+            "description": "Hosts that image URLs in deliveries and in the change feed come from: the Tribune Desk file storage and the hosts of your CMS set for the organization. Download images only from these hosts. Never empty; an empty list is an error on our side, so download nothing.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Image Hosts",
+            "type": "array"
+          },
           "last_changes_poll_at": {
             "anyOf": [
               {
@@ -2869,10 +3252,145 @@
   "info": {
     "description": "Contract between a CMS and Tribune Desk. The CMS is the client: it polls changes with a cursor (`GET /changes`) and sends its own.\n\n**Authentication:** `Authorization: Bearer tdcms_...`. A super admin issues the token for one organization with scopes `media:read`, `media:write`, `settings:read`, `settings:write`, `backfill:write`, `articles:read`, `articles:write`.\n\n**Limits:** 600 requests per minute per token (`429` with `Retry-After`).\n\n**Errors:** every error of every route has the body `ApiError` (`code`, `message`, `retry_after`).\n\nOperations marked `x-status: planned` require their scope but answer `501 not_implemented`.",
     "title": "Tribune Desk CMS API",
-    "version": "3.3.0-draft"
+    "version": "3.4.0-draft"
   },
   "openapi": "3.1.0",
   "paths": {
+    "/v3/cms/articles/awaiting": {
+      "get": {
+        "description": "Read mode: the sends your CMS has not reported a result for yet, oldest first, up to 100 per page. Use it after `410 cursor_expired` on `GET /changes` when your token has no `media:write` for `POST /resync`: handle these sends, then poll `GET /changes` again without a cursor. A send replaced by a newer send of the same article is not listed.",
+        "operationId": "listAwaitingArticles",
+        "parameters": [
+          {
+            "description": "`next_cursor` of the previous page.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`next_cursor` of the previous page.",
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AwaitingArticlesPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unauthorized`: missing, unknown or revoked token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`forbidden`: the token lacks the scope of this route."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`validation_error`: the request does not match the schema."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`internal_error`."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "List sends waiting for a result (read mode)",
+        "tags": [
+          "cms-v3"
+        ]
+      }
+    },
     "/v3/cms/articles/published": {
       "post": {
         "description": "Level 2 (link back): tell Tribune Desk the public address of posts made from delivered articles, 1 to 100 per request. Tribune Desk shows the link to the editor and uses the article as a target of internal links. Each item gets its own status; a bad item does not fail the others. Repeating an item with the same address changes nothing.",
@@ -2926,7 +3444,7 @@
                 }
               }
             },
-            "description": "`project_deactivated`: the organization is frozen and rejects writes; `option_locked`: the option is locked by the super admin; `state_conflict`: the object is not in a state that allows this (e.g. a held batch already decided, a resync preview that is not `ready` or has expired)."
+            "description": "`project_deactivated`: the organization is frozen and rejects writes."
           },
           "422": {
             "content": {
@@ -2946,7 +3464,15 @@
                 }
               }
             },
-            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           },
           "500": {
             "content": {
@@ -2966,7 +3492,15 @@
                 }
               }
             },
-            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2982,7 +3516,7 @@
     },
     "/v3/cms/articles/{article_id}": {
       "get": {
-        "description": "Read mode, for a CMS without a public endpoint: the same body the `article.delivered` webhook would carry, built from the current state of the article. Fetch it after an `article_sent` change in `GET /changes`, then report the outcome with `POST /articles/{article_id}/result`. `404 not_found`: no such article in the organization, or it was never sent to the CMS.",
+        "description": "Read mode, for a CMS without a public endpoint: the same body the `article.delivered` webhook would carry, built from the current state of the article. Fetch it after an `article_sent` change in `GET /changes`, then report the outcome with `POST /articles/{article_id}/result`, passing the `X-Delivery-Id` header of this answer as `delivery_id`. `sent_at` is when the editor made that send. `404 not_found`: no such article in the organization, or it was never sent to the CMS.",
         "operationId": "getArticle",
         "parameters": [
           {
@@ -3005,7 +3539,16 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "Successful Response",
+            "headers": {
+              "X-Delivery-Id": {
+                "description": "The send this body belongs to; pass it as `delivery_id` of `POST /articles/{article_id}/result`.",
+                "schema": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              }
+            }
           },
           "401": {
             "content": {
@@ -3055,7 +3598,15 @@
                 }
               }
             },
-            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           },
           "500": {
             "content": {
@@ -3075,7 +3626,15 @@
                 }
               }
             },
-            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3091,7 +3650,7 @@
     },
     "/v3/cms/articles/{article_id}/result": {
       "post": {
-        "description": "Read mode: the body your webhook would answer with (`ArticleDeliveryResult`). Tribune Desk stores `cms_post_id`, `edit_url` and `permalink` and marks the send as delivered. Unlike a webhook answer, this request is validated: a field of the wrong type gives `422 validation_error`; an `edit_url` that is not `http(s)` is ignored. Repeating the result is safe. `404 not_found`: no such article in the organization. `409 conflict`: the article was never sent to the CMS; nothing is stored.",
+        "description": "Read mode: the body your webhook would answer with, plus `delivery_id` and `error` (`ArticleResultReport`). Tribune Desk stores `social_queue_exclude`, `permalink`, `cms_post_id` and `edit_url` and marks the send as delivered; with `error` it marks the send as failed and stores nothing else. Unlike a webhook answer, this request is validated: a field of the wrong type gives `422 validation_error`. A field of the right type that is not stored (an `edit_url` that is not `http(s)`, a `permalink` that is not a public address) is listed in `ignored_fields`. Repeating the result is safe. `404 not_found`: no such article in the organization. `409 state_conflict`: the article was never sent to the CMS, or `delivery_id` names a send that a newer send replaced (fetch the article again); nothing is stored.",
         "operationId": "reportArticleResult",
         "parameters": [
           {
@@ -3109,7 +3668,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ArticleDeliveryResult"
+                "$ref": "#/components/schemas/ArticleResultReport"
               }
             }
           },
@@ -3164,7 +3723,7 @@
                 }
               }
             },
-            "description": "`project_deactivated`: the organization is frozen and rejects writes; `option_locked`: the option is locked by the super admin; `state_conflict`: the object is not in a state that allows this (e.g. a held batch already decided, a resync preview that is not `ready` or has expired)."
+            "description": "`project_deactivated`: the organization is frozen and rejects writes. `state_conflict`: the object is not in a state that allows this; the route description says when."
           },
           "422": {
             "content": {
@@ -3184,7 +3743,15 @@
                 }
               }
             },
-            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           },
           "500": {
             "content": {
@@ -3204,7 +3771,15 @@
                 }
               }
             },
-            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3261,7 +3836,15 @@
                 }
               }
             },
-            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           },
           "500": {
             "content": {
@@ -3281,7 +3864,15 @@
                 }
               }
             },
-            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3370,7 +3961,7 @@
                 }
               }
             },
-            "description": "`project_deactivated`: the organization is frozen and rejects writes; `option_locked`: the option is locked by the super admin; `state_conflict`: the object is not in a state that allows this (e.g. a held batch already decided, a resync preview that is not `ready` or has expired)."
+            "description": "`project_deactivated`: the organization is frozen and rejects writes. `state_conflict`: the object is not in a state that allows this; the route description says when."
           },
           "422": {
             "content": {
@@ -3390,7 +3981,15 @@
                 }
               }
             },
-            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           },
           "500": {
             "content": {
@@ -3410,7 +4009,15 @@
                 }
               }
             },
-            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3529,7 +4136,15 @@
                 }
               }
             },
-            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           },
           "500": {
             "content": {
@@ -3549,7 +4164,15 @@
                 }
               }
             },
-            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3606,7 +4229,15 @@
                 }
               }
             },
-            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           },
           "500": {
             "content": {
@@ -3626,7 +4257,15 @@
                 }
               }
             },
-            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3715,7 +4354,7 @@
                 }
               }
             },
-            "description": "`project_deactivated`: the organization is frozen and rejects writes; `option_locked`: the option is locked by the super admin; `state_conflict`: the object is not in a state that allows this (e.g. a held batch already decided, a resync preview that is not `ready` or has expired)."
+            "description": "`project_deactivated`: the organization is frozen and rejects writes. `state_conflict`: the object is not in a state that allows this; the route description says when."
           },
           "422": {
             "content": {
@@ -3735,7 +4374,15 @@
                 }
               }
             },
-            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           },
           "500": {
             "content": {
@@ -3755,7 +4402,15 @@
                 }
               }
             },
-            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3822,7 +4477,7 @@
                 }
               }
             },
-            "description": "`project_deactivated`: the organization is frozen and rejects writes; `option_locked`: the option is locked by the super admin; `state_conflict`: the object is not in a state that allows this (e.g. a held batch already decided, a resync preview that is not `ready` or has expired)."
+            "description": "`project_deactivated`: the organization is frozen and rejects writes. `state_conflict`: the object is not in a state that allows this; the route description says when."
           },
           "422": {
             "content": {
@@ -3842,7 +4497,15 @@
                 }
               }
             },
-            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           },
           "500": {
             "content": {
@@ -3862,7 +4525,15 @@
                 }
               }
             },
-            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3929,7 +4600,7 @@
                 }
               }
             },
-            "description": "`project_deactivated`: the organization is frozen and rejects writes; `option_locked`: the option is locked by the super admin; `state_conflict`: the object is not in a state that allows this (e.g. a held batch already decided, a resync preview that is not `ready` or has expired)."
+            "description": "`project_deactivated`: the organization is frozen and rejects writes. `state_conflict`: the object is not in a state that allows this; the route description says when."
           },
           "422": {
             "content": {
@@ -3949,7 +4620,15 @@
                 }
               }
             },
-            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           },
           "500": {
             "content": {
@@ -3969,7 +4648,15 @@
                 }
               }
             },
-            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4036,7 +4723,7 @@
                 }
               }
             },
-            "description": "`project_deactivated`: the organization is frozen and rejects writes; `option_locked`: the option is locked by the super admin; `state_conflict`: the object is not in a state that allows this (e.g. a held batch already decided, a resync preview that is not `ready` or has expired)."
+            "description": "`project_deactivated`: the organization is frozen and rejects writes. `state_conflict`: the object is not in a state that allows this; the route description says when."
           },
           "422": {
             "content": {
@@ -4056,7 +4743,15 @@
                 }
               }
             },
-            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           },
           "500": {
             "content": {
@@ -4076,7 +4771,15 @@
                 }
               }
             },
-            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4143,7 +4846,7 @@
                 }
               }
             },
-            "description": "`project_deactivated`: the organization is frozen and rejects writes; `option_locked`: the option is locked by the super admin; `state_conflict`: the object is not in a state that allows this (e.g. a held batch already decided, a resync preview that is not `ready` or has expired)."
+            "description": "`project_deactivated`: the organization is frozen and rejects writes. `state_conflict`: the object is not in a state that allows this; the route description says when."
           },
           "422": {
             "content": {
@@ -4163,7 +4866,15 @@
                 }
               }
             },
-            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           },
           "500": {
             "content": {
@@ -4183,7 +4894,15 @@
                 }
               }
             },
-            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4272,7 +4991,7 @@
                 }
               }
             },
-            "description": "`project_deactivated`: the organization is frozen and rejects writes; `option_locked`: the option is locked by the super admin; `state_conflict`: the object is not in a state that allows this (e.g. a held batch already decided, a resync preview that is not `ready` or has expired)."
+            "description": "`project_deactivated`: the organization is frozen and rejects writes. `state_conflict`: the object is not in a state that allows this; the route description says when."
           },
           "422": {
             "content": {
@@ -4292,7 +5011,15 @@
                 }
               }
             },
-            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           },
           "500": {
             "content": {
@@ -4312,7 +5039,15 @@
                 }
               }
             },
-            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4321,6 +5056,29 @@
           }
         ],
         "summary": "CMS confirms it took a file from TD",
+        "tags": [
+          "cms-v3"
+        ]
+      }
+    },
+    "/v3/cms/openapi.json": {
+      "get": {
+        "description": "The contract as an OpenAPI 3.1 document. No token needed.",
+        "operationId": "getOpenapi",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The OpenAPI document."
+          }
+        },
+        "security": [],
+        "summary": "This OpenAPI document",
         "tags": [
           "cms-v3"
         ]
@@ -4405,7 +5163,7 @@
                 }
               }
             },
-            "description": "`project_deactivated`: the organization is frozen and rejects writes; `option_locked`: the option is locked by the super admin; `state_conflict`: the object is not in a state that allows this (e.g. a held batch already decided, a resync preview that is not `ready` or has expired)."
+            "description": "`project_deactivated`: the organization is frozen and rejects writes. `state_conflict`: the object is not in a state that allows this; the route description says when."
           },
           "422": {
             "content": {
@@ -4425,7 +5183,15 @@
                 }
               }
             },
-            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           },
           "500": {
             "content": {
@@ -4445,7 +5211,15 @@
                 }
               }
             },
-            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4512,7 +5286,15 @@
                 }
               }
             },
-            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           },
           "500": {
             "content": {
@@ -4532,7 +5314,15 @@
                 }
               }
             },
-            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4597,7 +5387,7 @@
                 }
               }
             },
-            "description": "`project_deactivated`: the organization is frozen and rejects writes; `option_locked`: the option is locked by the super admin; `state_conflict`: the object is not in a state that allows this (e.g. a held batch already decided, a resync preview that is not `ready` or has expired)."
+            "description": "`project_deactivated`: the organization is frozen and rejects writes. `option_locked`: the option is locked by the super admin. `state_conflict`: the object is not in a state that allows this; the route description says when."
           },
           "422": {
             "content": {
@@ -4617,7 +5407,15 @@
                 }
               }
             },
-            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           },
           "500": {
             "content": {
@@ -4637,7 +5435,15 @@
                 }
               }
             },
-            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4693,7 +5499,15 @@
                 }
               }
             },
-            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds)."
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           },
           "500": {
             "content": {
@@ -4713,7 +5527,15 @@
                 }
               }
             },
-            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`)."
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4736,8 +5558,65 @@
   "webhooks": {
     "article.delivered": {
       "post": {
-        "description": "Sent when an editor clicks \"Send to CMS\" (or a newsroom widget sends the article). Tribune Desk makes a `POST` with a JSON body to the webhook address set for the organization.\n\n**Signature:** when your organization has a signing secret (`whsec_...`), every request carries `webhook-id`, `webhook-timestamp` and `webhook-signature` as defined by Standard Webhooks: HMAC-SHA256 of `{webhook-id}.{webhook-timestamp}.{body}`, keyed with the base64-decoded secret, as `v1,<base64>`. Two active secrets give two space-separated signatures; any match is valid. Reject a timestamp more than 5 minutes from your clock. `webhook-id` is the same for every attempt of one send. The signature is the only proof that a request comes from Tribune Desk: ask for a signing secret before you go live.\n\n**Headers:** `X-Delivery-Id` stays the same for every attempt of one send, so you can drop duplicates; `X-Delivery-Attempt` is the attempt number, starting at 1.\n\n**Your answer:** any `2xx` means delivered. Answer within 30 seconds.\n\n**Retries:** after a network error, a timeout, `5xx` or `408, 425, 429`, Tribune Desk tries again after 2, 10, 30, 120, 360, 840 minutes. Any other status (another `4xx`, or a `3xx`: redirects are not followed) ends the send at once.\n\n**Idempotency:** the same article comes again with the same `article_id` when it is resent or edited: update the post you created the first time, do not create a second one.",
+        "description": "Sent when an editor clicks \"Send to CMS\" (or a newsroom widget sends the article). Tribune Desk makes a `POST` with a JSON body to the webhook address set for the organization.\n\n**Signature:** every request carries `webhook-id`, `webhook-timestamp` and `webhook-signature` as defined by Standard Webhooks: HMAC-SHA256 of `{webhook-id}.{webhook-timestamp}.{body}`, keyed with the base64-decoded secret, as `v1,<base64>`. Two active secrets give two space-separated signatures; any match is valid. Reject a timestamp more than 5 minutes from your clock. `webhook-id` is the same for every attempt of one send. The signature is the only proof that a request comes from Tribune Desk. An organization without a signing secret (`whsec_...`, issued by a super admin) gets no deliveries, so a request without these headers is not from Tribune Desk.\n\n**Headers:** `X-Delivery-Id` stays the same for every attempt of one send, so you can drop duplicates; `X-Delivery-Attempt` is the attempt number, starting at 1. `User-Agent` is `ArticleWriter/2`. Deliveries come from no fixed IP address: the signature, not the address, proves the sender.\n\n**Your answer:** any `2xx` means delivered. Answer within 30 seconds.\n\n**Retries:** after a network error, a timeout, `5xx` or `408, 425, 429`, Tribune Desk tries again after 2, 10, 30, 120, 360, 840 minutes. Any other status (another `4xx`, or a `3xx`: redirects are not followed) ends the send at once.\n\n**Idempotency:** the same article comes again with the same `article_id` when it is resent or edited: update the post you created the first time, do not create a second one.\n\n**Order:** a newer send of the same article cancels the pending retries of an older one, and every attempt carries the current state of the article. An attempt of an older send that was already on its way can still arrive after a newer one: skip a body whose `sent_at` is older than the `sent_at` you last applied for that `article_id`.",
         "operationId": "articleDelivered",
+        "parameters": [
+          {
+            "description": "Id of the send, the same for every attempt (Standard Webhooks).",
+            "in": "header",
+            "name": "webhook-id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Unix time of this attempt, in seconds.",
+            "in": "header",
+            "name": "webhook-timestamp",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "One or more `v1,<base64>` signatures, space-separated.",
+            "in": "header",
+            "name": "webhook-signature",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The same as `webhook-id`.",
+            "in": "header",
+            "name": "X-Delivery-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Attempt number, starting at 1.",
+            "in": "header",
+            "name": "X-Delivery-Attempt",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "`ArticleWriter/2`.",
+            "in": "header",
+            "name": "User-Agent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -4763,7 +5642,7 @@
             "description": "Not delivered; redirects are not followed, the send ends."
           },
           "4XX": {
-            "description": "Not delivered. `408, 425, 429` are retried; any other `4xx` ends the send at once (for example a wrong secret or an unknown organization)."
+            "description": "Not delivered. `408, 425, 429` are retried; any other `4xx` ends the send at once (for example a failed signature check or an unknown organization)."
           },
           "5XX": {
             "description": "Not delivered; retried."
