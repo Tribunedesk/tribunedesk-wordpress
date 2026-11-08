@@ -21,6 +21,7 @@ final class LinkBack
 {
     public const PATH       = '/v3/cms/articles/published';
     public const MAX_ITEMS  = 100;
+    // 'forbidden' is no longer returned since contract 3.4.0; kept so older answers parse.
     public const STATUSES   = ['ok', 'not_found', 'forbidden', 'invalid_url'];
 
     /** CMS field values (any case, trimmed) that mean "true"; anything else is false. */

@@ -4,7 +4,7 @@ Tags: webhook, automation, content
 Requires at least: 5.6
 Tested up to: 7.1
 Requires PHP: 8.3
-Stable tag: 2.2.2
+Stable tag: 2.2.3
 License: MIT
 
 Receives finished articles from Tribune Desk (ArticleWriter) and creates them as drafts in WordPress.
@@ -33,6 +33,9 @@ Features:
 3. Go to `Ustawienia → Tribune Desk`, paste the signing secret (`whsec_…`) and the CMS API token you got from Tribune Desk, pick the default author, and copy the Webhook URL into Tribune Desk Settings → Integracje.
 
 == Changelog ==
+
+= 2.2.3 =
+* Protocol rules now come from the tribunedesk/cms-protocol library; the delivery answer no longer carries the deprecated post_id.
 
 = 2.2.2 =
 * Embeds (`iframe` from YouTube, Vimeo and the other allowed hosts) survive the save, also when a link placeholder is resolved later: WordPress filtered post content once more as the anonymous delivery user and dropped them.

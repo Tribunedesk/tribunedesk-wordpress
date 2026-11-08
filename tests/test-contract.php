@@ -51,9 +51,14 @@ class Test_Contract extends WP_UnitTestCase
 
     public function test_version_names_a_tag(): void
     {
-        $version = trim((string) @file_get_contents(__DIR__ . '/contract/VERSION'));
-        $this->assertMatchesRegularExpression('/^v\d+\.\d+\.\d+(-[a-z0-9.]+)?$/', $version);
-        $this->assertSame(ltrim($version, 'v'), self::json('openapi.json')['info']['version']);
+        // 2.2.3: the manifest tribunedesk.json replaces tests/contract/VERSION; CI fetches tag
+        // v<contract> of the contract and v<protocol> of tribunedesk/cms-protocol from it.
+        $manifest = json_decode((string) @file_get_contents(dirname(__DIR__) . '/tribunedesk.json'), true);
+        $this->assertIsArray($manifest, 'tribunedesk.json is missing or not JSON');
+        $this->assertMatchesRegularExpression('/^\d+\.\d+\.\d+(-[a-z0-9.]+)?$/', (string) ($manifest['contract'] ?? ''));
+        $this->assertSame($manifest['contract'], self::json('openapi.json')['info']['version']);
+        $this->assertSame($manifest['contract'], \TribuneDesk\Protocol\ContractVersion::TESTED, 'src/Protocol is tested on the same contract');
+        $this->assertMatchesRegularExpression('/^\d+\.\d+\.\d+$/', (string) ($manifest['protocol'] ?? ''));
     }
 
     public function test_sample_delivery_creates_a_draft_and_answers_in_contract_keys(): void
@@ -69,7 +74,7 @@ class Test_Contract extends WP_UnitTestCase
 
         $this->assertSame(200, $res->get_status(), (string) wp_json_encode($res->get_data()));
         $data = $res->get_data();
-        $post = get_post((int) $data['post_id']);
+        $post = get_post((int) $data['cms_post_id']);
         $this->assertSame('draft', $post->post_status);
         $this->assertSame($payload['title'], $post->post_title);
         $this->assertStringContainsString('approved the 2027 budget', $post->post_content);

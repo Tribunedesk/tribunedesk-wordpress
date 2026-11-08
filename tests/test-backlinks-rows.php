@@ -207,7 +207,7 @@ class Test_Backlinks_Rows extends WP_UnitTestCase
         tribune_desk_tests_sign($req);
         $res = rest_do_request($req);
         $this->assertSame(200, $res->get_status());
-        $post_id = (int) $res->get_data()['post_id'];
+        $post_id = (int) $res->get_data()['cms_post_id'];
 
         $this->assertSame([$s1], array_column($this->rows_of($post_id), 0));
     }

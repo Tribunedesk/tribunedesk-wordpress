@@ -19,8 +19,9 @@ final class WebhookSignature
     public const TOLERANCE = 300; // seconds, both ways
 
     /**
-     * @param array<string, mixed> $headers Plain headers, or WP_REST_Request::get_headers()
-     *                                      (lower case, '_' instead of '-', values as lists).
+     * @param array<string, mixed> $headers Plain headers, PSR-7 getHeaders() or Symfony
+     *                                      headers->all() (any case, values as lists), or
+     *                                      WP_REST_Request::get_headers() ('_' instead of '-').
      * @param string               $body    The raw request body, before any JSON parsing.
      */
     public static function verify(string $secret, array $headers, string $body, ?int $now = null, int $tolerance = self::TOLERANCE): bool

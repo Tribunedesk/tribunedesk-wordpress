@@ -1,0 +1,3 @@
+# src/Protocol is a byte-for-byte copy of tribunedesk/cms-protocol (see tribunedesk.json) and
+# CI compares it with the tag; a CRLF checkout on Windows must not change those bytes.
+/src/Protocol/** text eol=lf

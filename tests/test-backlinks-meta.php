@@ -71,7 +71,7 @@ class Test_Backlinks_Meta extends WP_UnitTestCase
             ],
             'evergreen' => true,
         ]);
-        $id = $data['post_id'];
+        $id = (int) $data['cms_post_id'];
 
         $this->assertSame(
             [['article_id' => self::UUID_A, 'distance' => 0.21]],
@@ -82,7 +82,7 @@ class Test_Backlinks_Meta extends WP_UnitTestCase
 
     public function test_brak_pol_nie_tworzy_meta(): void
     {
-        $id = $this->send([])['post_id'];
+        $id = (int) $this->send([])['cms_post_id'];
 
         $this->assertFalse(metadata_exists('post', $id, Backlinks::META_SOURCES));
         $this->assertFalse(metadata_exists('post', $id, Backlinks::META_EVERGREEN));
@@ -93,16 +93,16 @@ class Test_Backlinks_Meta extends WP_UnitTestCase
         $data = $this->send(['backlink_sources' => 'abc', 'evergreen' => 'tak']);
 
         $this->assertSame('created', $data['status']);
-        $this->assertFalse(metadata_exists('post', $data['post_id'], Backlinks::META_SOURCES));
-        $this->assertFalse(metadata_exists('post', $data['post_id'], Backlinks::META_EVERGREEN));
+        $this->assertFalse(metadata_exists('post', $data['cms_post_id'], Backlinks::META_SOURCES));
+        $this->assertFalse(metadata_exists('post', $data['cms_post_id'], Backlinks::META_EVERGREEN));
     }
 
     public function test_ponowna_wysylka_szkicu_nadpisuje_meta(): void
     {
-        $id = $this->send([
+        $id = (int) $this->send([
             'backlink_sources' => [['article_id' => self::UUID_A, 'distance' => 0.2]],
             'evergreen' => true,
-        ])['post_id'];
+        ])['cms_post_id'];
 
         $second = $this->send(['backlink_sources' => [], 'evergreen' => false]);
 
@@ -113,10 +113,10 @@ class Test_Backlinks_Meta extends WP_UnitTestCase
 
     public function test_ponowna_wysylka_szkicu_bez_pol_zostawia_meta(): void
     {
-        $id = $this->send([
+        $id = (int) $this->send([
             'backlink_sources' => [['article_id' => self::UUID_B, 'distance' => null]],
             'evergreen' => true,
-        ])['post_id'];
+        ])['cms_post_id'];
 
         $second = $this->send([]);
 
@@ -130,7 +130,7 @@ class Test_Backlinks_Meta extends WP_UnitTestCase
 
     public function test_evergreen_null_zostawia_meta(): void
     {
-        $id = $this->send(['evergreen' => true])['post_id'];
+        $id = (int) $this->send(['evergreen' => true])['cms_post_id'];
 
         $second = $this->send(['evergreen' => null]);
 
@@ -140,7 +140,7 @@ class Test_Backlinks_Meta extends WP_UnitTestCase
 
     public function test_sources_of_rozroznia_brak_od_pustej_listy(): void
     {
-        $id = $this->send([])['post_id'];
+        $id = (int) $this->send([])['cms_post_id'];
         $this->assertNull(Backlinks::sources_of($id));
 
         $this->send(['backlink_sources' => []]);
