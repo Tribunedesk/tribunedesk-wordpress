@@ -60,6 +60,10 @@ class Test_Protocol_Is_Portable extends WP_UnitTestCase
     public function test_every_protocol_class_has_the_reader_header(): void
     {
         foreach ((array) glob(dirname(__DIR__) . '/src/Protocol/*.php') as $file) {
+            // ContractVersion (cms-protocol 1.0.0) is a version constant, not a protocol rule.
+            if (basename((string) $file) === 'ContractVersion.php') {
+                continue;
+            }
             $text = (string) file_get_contents((string) $file);
             foreach (['Level:', 'Routes:', 'Guide: '] as $field) {
                 $this->assertStringContainsString($field, $text, basename((string) $file) . " lacks $field");

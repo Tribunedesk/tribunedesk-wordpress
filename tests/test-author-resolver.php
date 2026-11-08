@@ -60,7 +60,7 @@ class Test_AuthorResolver extends WP_UnitTestCase
         $res = rest_do_request($req);
         $this->assertSame(200, $res->get_status());
 
-        return (int) get_post((int) $res->get_data()['post_id'])->post_author;
+        return (int) get_post((int) $res->get_data()['cms_post_id'])->post_author;
     }
 
     public function test_bez_osob_w_payloadzie_autor_domyslny_jak_w_1_0_0(): void

@@ -147,13 +147,17 @@ class Test_RestEndpoint extends WP_UnitTestCase
         $this->assertSame(401, $res->get_status());
     }
 
-    public function test_response_has_cms_post_id_next_to_post_id(): void
+    public function test_response_has_cms_post_id_without_deprecated_post_id(): void
     {
+        // 2.2.3: the answer comes from tribunedesk/cms-protocol, which no longer sends post_id
+        // (Tribune Desk reads it only when cms_post_id is missing).
         $res  = $this->send(['article_id' => '0b8f1c2a-3d4e-4f5a-8b6c-7d8e9f0a1b2e', 'topic' => 't', 'html' => '<p>x</p>']);
         $data = $res->get_data();
         $this->assertSame(200, $res->get_status());
-        $this->assertIsInt($data['post_id']);
-        $this->assertSame((string) $data['post_id'], $data['cms_post_id']);
+        $this->assertIsString($data['cms_post_id']);
+        $this->assertGreaterThan(0, (int) $data['cms_post_id']);
+        $this->assertSame((string) (int) $data['cms_post_id'], $data['cms_post_id']);
+        $this->assertArrayNotHasKey('post_id', $data);
     }
 
     public function test_error_500_does_not_leak_the_exception_text(): void
@@ -213,7 +217,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
         $data = $res->get_data();
         $this->assertSame('created', $data['status']);
 
-        $post = get_post($data['post_id']);
+        $post = get_post($data['cms_post_id']);
         $this->assertSame('draft', $post->post_status);
         $this->assertSame('Brand title', $post->post_title);
     }
@@ -251,7 +255,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
         $data = $res->get_data();
         $this->assertSame('created', $data['status']);
 
-        $post = get_post($data['post_id']);
+        $post = get_post($data['cms_post_id']);
         $this->assertSame('draft', $post->post_status);
         $this->assertSame('Test title', $post->post_title);
         $this->assertSame($this->author_id, (int) $post->post_author);
@@ -271,22 +275,22 @@ class Test_RestEndpoint extends WP_UnitTestCase
 
         $this->assertSame('created', $first['status']);
         $this->assertSame('updated', $second['status']);
-        $this->assertSame($first['post_id'], $second['post_id']);
+        $this->assertSame($first['cms_post_id'], $second['cms_post_id']);
 
-        $post = get_post($second['post_id']);
+        $post = get_post($second['cms_post_id']);
         $this->assertStringContainsString('v2', $post->post_content);
     }
 
     public function test_skips_already_published(): void
     {
         $first = $this->send(['article_id' => 'art-300', 'topic' => 't', 'html' => '<p>v1</p>'])->get_data();
-        wp_publish_post($first['post_id']);
+        wp_publish_post($first['cms_post_id']);
 
         $second = $this->send(['article_id' => 'art-300', 'topic' => 't', 'html' => '<p>v2</p>'])->get_data();
         $this->assertSame('skipped_already_published', $second['status']);
-        $this->assertSame($first['post_id'], $second['post_id']);
+        $this->assertSame($first['cms_post_id'], $second['cms_post_id']);
 
-        $post = get_post($first['post_id']);
+        $post = get_post($first['cms_post_id']);
         $this->assertStringContainsString('v1', $post->post_content); // not overwritten
     }
 
@@ -295,7 +299,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
         // Re-send of an already-published article must NOT overwrite its content
         // but SHOULD still sync late-arriving metadata (tags, featured image).
         $first = $this->send(['article_id' => 'art-301', 'topic' => 't', 'html' => '<p>v1</p>'])->get_data();
-        wp_publish_post($first['post_id']);
+        wp_publish_post($first['cms_post_id']);
 
         $second = $this->send([
             'article_id' => 'art-301',
@@ -305,7 +309,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
         ])->get_data();
         $this->assertSame('skipped_already_published', $second['status']);
 
-        $post = get_post($first['post_id']);
+        $post = get_post($first['cms_post_id']);
         $this->assertStringContainsString('v1', $post->post_content); // content preserved
         $tags = wp_get_post_tags($post->ID, ['fields' => 'names']);
         $this->assertSame([], $tags); // tematy na przyszlosc nie sa tagami tego wpisu
@@ -316,7 +320,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
         // domyślnie opcja publish-immediately jest wyłączona
         $res = $this->send(['article_id' => 'art-400', 'topic' => 't', 'html' => '<p>x</p>']);
         $this->assertSame(200, $res->get_status());
-        $post = get_post($res->get_data()['post_id']);
+        $post = get_post($res->get_data()['cms_post_id']);
         $this->assertSame('draft', $post->post_status);
     }
 
@@ -327,7 +331,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
         $this->assertSame(200, $res->get_status());
         $data = $res->get_data();
         $this->assertSame('created', $data['status']);
-        $post = get_post($data['post_id']);
+        $post = get_post($data['cms_post_id']);
         $this->assertSame('publish', $post->post_status);
     }
 
@@ -343,7 +347,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
         ]);
         $this->assertSame(200, $res->get_status());
 
-        $post_id = $res->get_data()['post_id'];
+        $post_id = $res->get_data()['cms_post_id'];
         $this->assertSame('Tytul SEO', get_post_meta($post_id, SeoMeta::META_TITLE, true));
         $this->assertSame('Opis meta', get_post_meta($post_id, SeoMeta::META_DESC, true));
         $this->assertSame('fraza glowna', get_post_meta($post_id, SeoMeta::META_FOCUS, true));
@@ -355,7 +359,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
         // description potrafi dojsc dopiero za drugim razem — juz na
         // opublikowanym poscie. Tresc zostaje nietknieta, meta ma dojsc.
         $first = $this->send(['article_id' => 'art-501', 'topic' => 't', 'html' => '<p>v1</p>'])->get_data();
-        wp_publish_post($first['post_id']);
+        wp_publish_post($first['cms_post_id']);
 
         $second = $this->send([
             'article_id'       => 'art-501',
@@ -365,11 +369,11 @@ class Test_RestEndpoint extends WP_UnitTestCase
         ])->get_data();
 
         $this->assertSame('skipped_already_published', $second['status']);
-        $post = get_post($first['post_id']);
+        $post = get_post($first['cms_post_id']);
         $this->assertStringContainsString('v1', $post->post_content); // tresc nietknieta
         $this->assertSame(
             'Pozny opis meta',
-            get_post_meta($first['post_id'], SeoMeta::META_DESC, true)
+            get_post_meta($first['cms_post_id'], SeoMeta::META_DESC, true)
         );
     }
 
@@ -383,7 +387,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
         ])->get_data();
 
         // Redaktor poprawia opis w Yoascie...
-        update_post_meta($first['post_id'], SeoMeta::META_DESC, 'Opis redaktora');
+        update_post_meta($first['cms_post_id'], SeoMeta::META_DESC, 'Opis redaktora');
 
         // ...a artykul przychodzi ponownie z inna wartoscia.
         $this->send([
@@ -395,7 +399,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
 
         $this->assertSame(
             'Opis redaktora',
-            get_post_meta($first['post_id'], SeoMeta::META_DESC, true)
+            get_post_meta($first['cms_post_id'], SeoMeta::META_DESC, true)
         );
     }
 
@@ -407,7 +411,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
 
         $res = $this->send(['article_id' => $uuid_a, 'topic' => 't', 'html' => '<p>x</p>', 'internal_links' => [$link]]);
 
-        $meta = get_post_meta($res->get_data()['post_id'], \TribuneDesk\WordPress\LinkResolver::META_LINKS, true);
+        $meta = get_post_meta($res->get_data()['cms_post_id'], \TribuneDesk\WordPress\LinkResolver::META_LINKS, true);
         $this->assertSame([$link], $meta);
     }
 
@@ -427,7 +431,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
             'internal_links' => [$this->placeholder_link($uuid_b)],
         ]);
 
-        $content = get_post($res->get_data()['post_id'])->post_content;
+        $content = get_post($res->get_data()['cms_post_id'])->post_content;
         $this->assertStringContainsString(get_permalink($target), $content);
         $this->assertStringNotContainsString('/app/a/', $content);
     }
@@ -438,7 +442,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
         $l1     = $this->placeholder_link('22222222-2222-4222-8222-222222222222');
         $l2     = $this->placeholder_link('33333333-3333-4333-8333-333333333333');
 
-        $post_id = $this->send(['article_id' => $uuid_a, 'topic' => 't', 'html' => '<p>1</p>', 'internal_links' => [$l1]])->get_data()['post_id'];
+        $post_id = $this->send(['article_id' => $uuid_a, 'topic' => 't', 'html' => '<p>1</p>', 'internal_links' => [$l1]])->get_data()['cms_post_id'];
         $this->send(['article_id' => $uuid_a, 'topic' => 't', 'html' => '<p>2</p>', 'internal_links' => [$l2]]);
         $this->assertSame([$l2], get_post_meta($post_id, \TribuneDesk\WordPress\LinkResolver::META_LINKS, true));
 
@@ -452,7 +456,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
         $l1     = $this->placeholder_link('22222222-2222-4222-8222-222222222222');
         $l2     = $this->placeholder_link('33333333-3333-4333-8333-333333333333');
 
-        $post_id = $this->send(['article_id' => $uuid_a, 'topic' => 't', 'html' => '<p>1</p>', 'internal_links' => [$l1]])->get_data()['post_id'];
+        $post_id = $this->send(['article_id' => $uuid_a, 'topic' => 't', 'html' => '<p>1</p>', 'internal_links' => [$l1]])->get_data()['cms_post_id'];
         wp_publish_post($post_id);
 
         $second = $this->send(['article_id' => $uuid_a, 'topic' => 't', 'html' => '<p>2</p>', 'internal_links' => [$l2]])->get_data();
@@ -467,7 +471,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
 
         $data = $this->send(['article_id' => '44444444-4444-4444-8444-444444444444', 'topic' => 't', 'html' => '<p>x</p>'])->get_data();
 
-        $this->assertSame(get_permalink($data['post_id']), $data['permalink']);
+        $this->assertSame(get_permalink($data['cms_post_id']), $data['permalink']);
         $this->assertNotSame($data['edit_url'], $data['permalink']);
         $this->assertStringNotContainsString('wp-admin', $data['permalink']);
     }
@@ -480,19 +484,19 @@ class Test_RestEndpoint extends WP_UnitTestCase
 
         $data = $this->send(['article_id' => '66666666-6666-4666-8666-666666666666', 'topic' => 't', 'html' => '<p>x</p>'])->get_data();
 
-        $this->assertSame(admin_url('post.php?post=' . $data['post_id'] . '&action=edit'), $data['edit_url']);
+        $this->assertSame(admin_url('post.php?post=' . $data['cms_post_id'] . '&action=edit'), $data['edit_url']);
     }
 
     public function test_permalink_przy_skipped_already_published(): void
     {
         $first = $this->send(['article_id' => '55555555-5555-4555-8555-555555555555', 'topic' => 't', 'html' => '<p>x</p>'])->get_data();
         $this->assertArrayNotHasKey('permalink', $first); // szkic nie ma publicznego adresu
-        wp_publish_post($first['post_id']);
+        wp_publish_post($first['cms_post_id']);
 
         $second = $this->send(['article_id' => '55555555-5555-4555-8555-555555555555', 'topic' => 't', 'html' => '<p>y</p>'])->get_data();
 
         $this->assertSame('skipped_already_published', $second['status']);
-        $this->assertSame(get_permalink($first['post_id']), $second['permalink']);
+        $this->assertSame(get_permalink($first['cms_post_id']), $second['permalink']);
     }
 
     public function test_szkic_nie_ma_klucza_permalink(): void
@@ -500,7 +504,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
         $data = $this->send(['article_id' => '66666666-6666-4666-8666-666666666666', 'topic' => 't', 'html' => '<p>x</p>'])->get_data();
 
         $this->assertArrayNotHasKey('permalink', $data);
-        $this->assertSame('draft', get_post_status($data['post_id']));
+        $this->assertSame('draft', get_post_status($data['cms_post_id']));
     }
 
     private const ASSET = '77777777-7777-4777-8777-777777777777';
@@ -557,7 +561,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
         $att = $this->library_attachment();
         $payload = $this->payload_with_image('88888888-8888-4888-8888-888888888882', $att);
         $first = $this->send($payload)->get_data();
-        wp_publish_post($first['post_id']);
+        wp_publish_post($first['cms_post_id']);
 
         $second = $this->send($payload)->get_data();
 
@@ -577,7 +581,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
         unset($payload['generated_images'][0]['asset_id']);
         $data = $this->send($payload)->get_data();
 
-        $this->assertNotSame(0, (int) get_post_thumbnail_id($data['post_id']));
+        $this->assertNotSame(0, (int) get_post_thumbnail_id($data['cms_post_id']));
         $this->assertArrayNotHasKey('featured_image', $data);
     }
 
@@ -593,7 +597,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
             'html'       => '<p>Przed</p>' . $embed . '<p>Po</p>',
         ])->get_data();
 
-        $content = get_post($data['post_id'])->post_content;
+        $content = get_post($data['cms_post_id'])->post_content;
         $this->assertStringContainsString('<iframe', $content);
         $this->assertStringContainsString('https://www.youtube.com/embed/abc123', $content);
         // The filter lives only for the write: ordinary post content is filtered as before.
@@ -609,18 +613,18 @@ class Test_RestEndpoint extends WP_UnitTestCase
             'html'       => '<p>x</p><iframe src="https://evil.example.com/x"></iframe>',
         ])->get_data();
 
-        $this->assertStringNotContainsString('<iframe', get_post($data['post_id'])->post_content);
+        $this->assertStringNotContainsString('<iframe', get_post($data['cms_post_id'])->post_content);
     }
 
     public function test_pending_post_is_updated_like_a_draft(): void
     {
         $first = $this->send(['article_id' => 'art-2223', 'topic' => 't', 'html' => '<p>v1</p>'])->get_data();
-        wp_update_post(['ID' => $first['post_id'], 'post_status' => 'pending']);
+        wp_update_post(['ID' => $first['cms_post_id'], 'post_status' => 'pending']);
 
         $second = $this->send(['article_id' => 'art-2223', 'topic' => 't', 'html' => '<p>v2</p>'])->get_data();
 
         $this->assertSame('updated', $second['status']);
-        $post = get_post($first['post_id']);
+        $post = get_post($first['cms_post_id']);
         $this->assertSame('pending', $post->post_status);
         $this->assertStringContainsString('v2', $post->post_content);
     }
@@ -630,7 +634,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
         $first = $this->send(['article_id' => 'art-2224', 'topic' => 't', 'html' => '<p>v1</p>'])->get_data();
         $when = gmdate('Y-m-d H:i:s', time() + DAY_IN_SECONDS);
         wp_update_post([
-            'ID'            => $first['post_id'],
+            'ID'            => $first['cms_post_id'],
             'post_status'   => 'future',
             'post_date'     => get_date_from_gmt($when),
             'post_date_gmt' => $when,
@@ -639,7 +643,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
         $second = $this->send(['article_id' => 'art-2224', 'topic' => 't', 'html' => '<p>v2</p>'])->get_data();
 
         $this->assertSame('skipped_already_published', $second['status']);
-        $this->assertStringContainsString('v1', get_post($first['post_id'])->post_content);
+        $this->assertStringContainsString('v1', get_post($first['cms_post_id'])->post_content);
     }
 
     public function test_post_published_at_once_reports_the_facebook_flag_with_the_permalink(): void
@@ -688,11 +692,11 @@ class Test_RestEndpoint extends WP_UnitTestCase
 
         $this->assertSame(200, $this->send(['article_id' => 'art-2228', 'topic' => 't', 'html' => '<p>y</p>'])->get_status());
         $this->assertSame([\TribuneDesk\WordPress\MediaHandler::DELIVERY_TIMEOUT], $timeouts);
-        $this->assertSame(0, (int) get_post_thumbnail_id($data['post_id']));
+        $this->assertSame(0, (int) get_post_thumbnail_id($data['cms_post_id']));
         $this->assertArrayNotHasKey('featured_image', $data);
         $this->assertNotFalse(wp_next_scheduled(
             \TribuneDesk\WordPress\MediaHandler::RETRY_HOOK,
-            [$data['post_id'], ['label' => 'main', 'url' => 'https://img.example.com/a.jpg'], '']
+            [(int) $data['cms_post_id'], ['label' => 'main', 'url' => 'https://img.example.com/a.jpg'], '']
         ));
     }
 }

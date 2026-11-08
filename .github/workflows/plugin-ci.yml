@@ -33,13 +33,20 @@ jobs:
           coverage: none
 
       # Kopie kontraktu w tests/contract musza byc bajt w bajt tym, co lezy pod tagiem
-      # repo publicznego z tests/contract/VERSION. Testy czytaja kopie (bez sieci), a ten
-      # krok pilnuje, ze kopie to opublikowany kontrakt.
+      # repo publicznego z pola "contract" manifestu tribunedesk.json. Testy czytaja kopie
+      # (bez sieci), a ten krok pilnuje, ze kopie to opublikowany kontrakt.
       - name: Kontrakt z otagowanej wersji tribunedesk-cms-api
         run: |
-          base="https://raw.githubusercontent.com/Tribunedesk/tribunedesk-cms-api/$(cat tests/contract/VERSION)"
+          base="https://raw.githubusercontent.com/Tribunedesk/tribunedesk-cms-api/v$(php -r 'echo json_decode(file_get_contents("tribunedesk.json"))->contract;')"
           curl -fsS "$base/openapi.json" | cmp - tests/contract/openapi.json
           curl -fsS "$base/examples/payloads/article-delivered.json" | cmp - tests/contract/article-delivered.json
+
+      # src/Protocol to kopia biblioteki tribunedesk/cms-protocol z tagu z pola "protocol"
+      # manifestu: zmiana regul protokolu idzie najpierw do biblioteki, potem kopia tutaj.
+      - name: Kopia biblioteki z tagu
+        run: |
+          git clone -q --depth 1 --branch "v$(php -r 'echo json_decode(file_get_contents("tribunedesk.json"))->protocol;')" https://github.com/Tribunedesk/tribunedesk-cms-php /tmp/lib
+          diff -r /tmp/lib/src src/Protocol
 
       # php -l na kazdym pliku. xargs zwraca != 0, gdy ktorykolwiek php -l padl.
       - name: Lint PHP

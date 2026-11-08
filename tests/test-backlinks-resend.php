@@ -64,7 +64,7 @@ class Test_Backlinks_Resend extends WP_UnitTestCase
     /** Pierwsza wysylka: szkic z ustalona data, zeby created_at wierszy dalo sie porownac. */
     private function first_send(array $extra): int
     {
-        $id = $this->send($extra)['post_id'];
+        $id = (int) $this->send($extra)['cms_post_id'];
         wp_update_post(['ID' => $id, 'post_date' => self::DATE, 'post_date_gmt' => self::DATE, 'edit_date' => true]);
 
         return $id;
