@@ -4,7 +4,7 @@ Tags: webhook, automation, content
 Requires at least: 5.6
 Tested up to: 7.1
 Requires PHP: 8.3
-Stable tag: 2.2.3
+Stable tag: 2.3.0
 License: MIT
 
 Receives finished articles from Tribune Desk (ArticleWriter) and creates them as drafts in WordPress.
@@ -33,6 +33,12 @@ Features:
 3. Go to `Ustawienia → Tribune Desk`, paste the signing secret (`whsec_…`) and the CMS API token you got from Tribune Desk, pick the default author, and copy the Webhook URL into Tribune Desk Settings → Integracje.
 
 == Changelog ==
+
+= 2.3.0 =
+* Images are downloaded only from the hosts Tribune Desk lists. The list is read from `GET /v3/cms/status`, so a token with `articles:read` or `media:read` is enough (before: `settings:read` and an enabled integration).
+* Without a token, or until the list is read, images come only from the Tribune Desk storage and this site's own host. Before, any https address was downloaded. An image from another host is skipped and leaves a row in the deliveries log.
+* A sync from WordPress to Tribune Desk (resync, "WordPress wins") leaves out empty alt texts, captions and descriptions instead of clearing them in Tribune Desk.
+* Protocol rules from tribunedesk/cms-protocol 1.1.0.
 
 = 2.2.3 =
 * Protocol rules now come from the tribunedesk/cms-protocol library; the delivery answer no longer carries the deprecated post_id.
@@ -88,7 +94,7 @@ Features:
 * Podpis dostaw (Standard Webhooks): nowe pole "Sekret podpisu (whsec_...)". Gdy jest ustawione, wtyczka przyjmuje tylko dostawy z poprawnym podpisem i znacznikiem czasu do 5 minut od zegara serwera, a sekret webhooka nie jest juz sprawdzany. Bez niego wszystko dziala jak w 1.16.0.
 * Link zwrotny tokenem API CMS: z tokenem adres i data publikacji ida do `/v3/cms/articles/published`. Token bez uprawnienia `articles:write` (tylko media) dostaje odmowe - wtedy ta sama paczka idzie stara droga `/v2/cms/published-urls`, a log mowi dlaczego.
 * Format zastepnika linku wewnetrznego z dostawy (`link_placeholder_prefix`) zamiast wpisanego na sztywno `/app/a/`. Stare zastepniki nadal sa podmieniane.
-* Obrazki tylko przez https i, gdy jest token, tylko z hostow, ktore podaje Tribune Desk (`image_hosts`).
+* Obrazki tylko przez https i tylko z hostow, ktore podaje Tribune Desk (`image_hosts`); bez tokenu tylko z magazynu Tribune Desk i z tej strony.
 * Boks "Czytaj wiecej": shortcode `[tribune_desk_read_more limit="5" title="..."]` i blok "Czytaj wiecej (Tribune Desk)". Wtyczka nie wstawia go sama.
 * Sekret webhooka, sekret podpisu i token sa polami hasla: nie widac ich w zrodle strony, a zapis z pustym polem zostawia zapisana wartosc. Sekret podpisu mozna usunac zaznaczeniem pod polem.
 * Obrazek odrzucony przez sprawdzenie hostow zostawia wiersz w logu dostaw; pusta lista hostow znaczy "nieznana" (tylko https). Link zwrotny przechodzi na stara droge takze przy 404 z `/v3`.

@@ -20,6 +20,10 @@ class Test_Contract extends WP_UnitTestCase
         Activator::activate();
         update_option(RestEndpoint::OPTION_SIGNING_SECRET, TRIBUNE_DESK_TESTS_SIGNING_SECRET);
         update_option(RestEndpoint::OPTION_DEFAULT_AUTHOR, (int) self::factory()->user->create(['role' => 'editor']));
+        // The sample's image is on media.example.com: the list Tribune Desk gives a CMS with a
+        // token (GET /v3/cms/status), already read this hour.
+        update_option(\TribuneDesk\WordPress\CmsApiClient::OPTION_TOKEN, 'tdcms_contract');
+        update_option(\TribuneDesk\WordPress\ImageHosts::OPTION, ['hosts' => ['media.example.com'], 'fetched_at' => time()]);
         do_action('rest_api_init');
         add_filter('pre_http_request', [$this, 'fake_http'], 10, 3);
     }

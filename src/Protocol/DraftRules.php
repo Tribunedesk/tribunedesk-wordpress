@@ -13,6 +13,11 @@ namespace TribuneDesk\Protocol;
  * and author with the new send. Anything else (published, scheduled, private): leave title and
  * content alone, the newsroom may have edited them, and answer skipped_already_published; only
  * late metadata (featured image, SEO, read-more sources) still follows.
+ *
+ * The guide asks to update the post made the first time and allows skipped_already_published
+ * for a post already published; leaving a published post alone is this library's policy, not a
+ * rule of the contract. The statuses are WordPress's (`draft`, `pending`): another CMS maps its
+ * own states to them before calling action().
  */
 final class DraftRules
 {

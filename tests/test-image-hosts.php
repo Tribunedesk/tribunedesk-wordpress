@@ -8,8 +8,9 @@ use TribuneDesk\WordPress\MediaHandler;
 
 /**
  * Images only from the hosts Tribune Desk lists (spec D10 "Security", guide level 1 "Where
- * images come from"). Without a token (level 1 only) the plugin cannot read the list and checks
- * https only (plan E4a, Ruling 6).
+ * images come from"). The list comes from GET /v3/cms/status. Without a token, or until the list
+ * is read, only the Tribune Desk storage hosts and this site's own host are allowed: an unknown
+ * list never means "any https host".
  */
 class Test_ImageHosts extends WP_UnitTestCase
 {
@@ -41,7 +42,7 @@ class Test_ImageHosts extends WP_UnitTestCase
     public function fake_http($preempt, array $args, string $url)
     {
         $this->urls[] = $url;
-        if (str_contains($url, '/v3/cms/settings')) {
+        if (str_contains($url, '/v3/cms/status')) {
             return [
                 'headers'  => ['content-type' => 'application/json'],
                 'body'     => $this->settings_status === 200
@@ -65,9 +66,10 @@ class Test_ImageHosts extends WP_UnitTestCase
         ];
     }
 
-    public function test_allows_is_https_only_without_a_list(): void
+    public function test_allows_nothing_without_a_list(): void
     {
-        $this->assertTrue(ImageHosts::allows('https://anything.example.net/a.png', null));
+        $this->assertFalse(ImageHosts::allows('https://anything.example.net/a.png', null));
+        $this->assertFalse(ImageHosts::allows('https://anything.example.net/a.png', []));
         $this->assertFalse(ImageHosts::allows('http://anything.example.net/a.png', null));
         $this->assertFalse(ImageHosts::allows('data:image/png;base64,AAAA', null));
         $this->assertFalse(ImageHosts::allows('//media.example.com/a.png', null));
@@ -83,9 +85,13 @@ class Test_ImageHosts extends WP_UnitTestCase
         $this->assertFalse(ImageHosts::allows('http://media.example.com/a.png', $hosts));
     }
 
-    public function test_current_without_token_is_null_and_makes_no_request(): void
+    public function test_current_without_token_is_the_fallback_and_makes_no_request(): void
     {
-        $this->assertNull(ImageHosts::current());
+        $hosts = ImageHosts::current();
+        $this->assertContains('storage.tribunedesk.com', $hosts);
+        $this->assertContains('storage.headlinesforge.com', $hosts);
+        $this->assertContains((string) wp_parse_url(home_url(), PHP_URL_HOST), $hosts);
+        $this->assertNotContains('media.example.com', $hosts);
         $this->assertSame([], $this->urls);
     }
 
@@ -94,27 +100,28 @@ class Test_ImageHosts extends WP_UnitTestCase
         update_option(CmsApiClient::OPTION_TOKEN, 'tdcms_testtoken');
         $this->assertSame(['media.example.com', 'cdn.example.org'], ImageHosts::current());
         $this->assertCount(1, $this->urls);
+        $this->assertStringContainsString('/v3/cms/status', $this->urls[0]);
         // Fresh list: no second request.
         $this->assertSame(['media.example.com', 'cdn.example.org'], ImageHosts::current());
         $this->assertCount(1, $this->urls);
     }
 
-    public function test_fetch_error_without_an_old_list_gives_null_and_logs(): void
+    public function test_fetch_error_without_an_old_list_gives_the_fallback_and_logs(): void
     {
         update_option(CmsApiClient::OPTION_TOKEN, 'tdcms_testtoken');
         $this->settings_status = 500;
-        $this->assertNull(ImageHosts::current());
+        $this->assertSame(ImageHosts::fallback(), ImageHosts::current());
         $this->assertStringContainsString('image_hosts', (string) DeliveriesLog::recent()[0]['error_msg']);
     }
 
     public function test_failed_fetch_is_not_repeated_within_the_hour(): void
     {
-        // A token without settings:read (articles only) fails every time: one request and one
+        // A token without articles:read or media:read fails every time: one request and one
         // log row per hour, not per image.
-        update_option(CmsApiClient::OPTION_TOKEN, 'tdcms_articlesonly');
+        update_option(CmsApiClient::OPTION_TOKEN, 'tdcms_settingsonly');
         $this->settings_status = 403;
-        $this->assertNull(ImageHosts::current());
-        $this->assertNull(ImageHosts::current());
+        $this->assertSame(ImageHosts::fallback(), ImageHosts::current());
+        $this->assertSame(ImageHosts::fallback(), ImageHosts::current());
         $this->assertCount(1, $this->urls);
         $this->assertCount(1, DeliveriesLog::recent());
     }
@@ -168,18 +175,21 @@ class Test_ImageHosts extends WP_UnitTestCase
         $this->assertStringContainsString('cdn.client.example.net', (string) $row['error_msg']);
     }
 
-    public function test_empty_list_from_tribune_desk_means_unknown_not_nothing(): void
+    public function test_empty_list_from_tribune_desk_is_not_any_host(): void
     {
         $this->assertNull(ImageHosts::remember(['image_hosts' => []]));
         update_option(CmsApiClient::OPTION_TOKEN, 'tdcms_testtoken');
         update_option(ImageHosts::OPTION, ['hosts' => [], 'fetched_at' => time()]);
-        $this->assertNull(ImageHosts::current());
-        $this->assertIsInt(MediaHandler::sideload_from_url('https://media.example.com/a.png', 'a.png'));
+        $this->assertSame(ImageHosts::fallback(), ImageHosts::current());
+        $this->assertNull(MediaHandler::sideload_from_url('https://media.example.com/a.png', 'a.png'));
     }
 
-    public function test_sideload_without_token_still_works_over_https(): void
+    public function test_sideload_without_token_takes_only_tribune_desk_storage_and_this_site(): void
     {
-        $this->assertIsInt(MediaHandler::sideload_from_url('https://media.example.com/a.png', 'a.png'));
-        $this->assertNull(MediaHandler::sideload_from_url('http://media.example.com/a.png', 'a.png'));
+        $this->assertNull(MediaHandler::sideload_from_url('https://media.example.com/a.png', 'a.png'));
+        $this->assertIsInt(MediaHandler::sideload_from_url('https://storage.tribunedesk.com/a/b.png', 'b.png'));
+        $own = (string) wp_parse_url(home_url(), PHP_URL_HOST);
+        $this->assertIsInt(MediaHandler::sideload_from_url('https://' . $own . '/wp-content/uploads/c.png', 'c.png'));
+        $this->assertNull(MediaHandler::sideload_from_url('http://storage.tribunedesk.com/a/b.png', 'b.png'));
     }
 }

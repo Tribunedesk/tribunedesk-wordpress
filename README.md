@@ -2,11 +2,11 @@
 
 A WordPress plugin that receives finished articles from [Tribune Desk](https://tribunedesk.com) (a newsroom tool) and creates them in wp-admin, as drafts or, with **Publish immediately**, as published posts. It implements the public Tribune Desk CMS API at levels 1-4: article delivery, link back, full content and the media library.
 
-**Version:** v2.2.3
+**Version:** v2.3.0
 
-**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.2.3.zip**
+**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.3.0.zip**
 
-> Version 2.2.3 takes its protocol rules from the [tribunedesk/cms-protocol](https://github.com/Tribunedesk/tribunedesk-cms-php) library and follows contract 3.4.1-draft; the delivery answer no longer carries the deprecated `post_id`.
+> Version 2.3.0 downloads images only from the hosts Tribune Desk lists (read from `GET /v3/cms/status`), or without a token only from the Tribune Desk storage and the site itself, never from any https host; a resync from WordPress no longer clears alt texts and captions in Tribune Desk. Protocol rules come from [tribunedesk/cms-protocol](https://github.com/Tribunedesk/tribunedesk-cms-php) 1.1.0.
 
 > Version 2.2.2 keeps embeds in delivered posts, updates posts waiting for review, answers Tribune Desk in time when the featured image is slow, and sends the link back only over https. It follows contract 3.4.0-draft; see the changelog in `readme.txt`.
 
@@ -69,7 +69,7 @@ A step-by-step guide for someone who has never installed a plugin by hand. Every
 
 Download **one file** from our server. You do not need a GitHub account and you **do not rename the folder**; the archive is already packed correctly:
 
-**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.2.3.zip**
+**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.3.0.zip**
 
 **Do not unpack it.** WordPress does that itself.
 
@@ -160,9 +160,9 @@ To remove the signing secret, tick **"Remove saved signing secret"** under the f
 
 ## Images and placeholders (since 1.17.0)
 
-Images are downloaded over https only. When a CMS token is set, only from the hosts in `image_hosts` from `GET /v3/cms/settings` (refreshed hourly). Without a token the list cannot be fetched and only https is checked.
+Images are downloaded over https only. When a CMS token is set (`articles:read` or `media:read`), only from the hosts in `image_hosts` from `GET /v3/cms/status` (refreshed hourly). Without a token, or until the list is read, only from the Tribune Desk storage (`storage.tribunedesk.com`, `storage.headlinesforge.com`) and this site's own host.
 
-An image rejected by the host check leaves a row in the deliveries log (kind media, with the host name). An empty `image_hosts` list from Tribune Desk means "unknown": then only https is checked.
+An image rejected by the host check leaves a row in the deliveries log (kind media, with the host name). An empty `image_hosts` list from Tribune Desk is an error and counts as no list: the storage and own-host list above applies. No list never means "any https host".
 
 Internal-link placeholders are recognized by the path from the delivery field `link_placeholder_prefix` (today `/app/a/`), not by a hard-coded value.
 

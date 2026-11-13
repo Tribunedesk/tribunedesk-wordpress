@@ -671,7 +671,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
     {
         $timeouts = [];
         $slow = static function ($preempt, array $args, string $url) use (&$timeouts) {
-            if (str_contains($url, 'img.example.com')) {
+            if (str_contains($url, 'storage.tribunedesk.com')) {
                 $timeouts[] = (int) $args['timeout'];
 
                 return new WP_Error('http_request_failed', 'Operation timed out');
@@ -686,7 +686,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
             'article_id'       => 'art-2227',
             'topic'            => 't',
             'html'             => '<p>x</p>',
-            'generated_images' => [['label' => 'main', 'url' => 'https://img.example.com/a.jpg']],
+            'generated_images' => [['label' => 'main', 'url' => 'https://storage.tribunedesk.com/a.jpg']],
         ])->get_data();
         remove_filter('pre_http_request', $slow, 5);
 
@@ -696,7 +696,7 @@ class Test_RestEndpoint extends WP_UnitTestCase
         $this->assertArrayNotHasKey('featured_image', $data);
         $this->assertNotFalse(wp_next_scheduled(
             \TribuneDesk\WordPress\MediaHandler::RETRY_HOOK,
-            [(int) $data['cms_post_id'], ['label' => 'main', 'url' => 'https://img.example.com/a.jpg'], '']
+            [(int) $data['cms_post_id'], ['label' => 'main', 'url' => 'https://storage.tribunedesk.com/a.jpg'], '']
         ));
     }
 }

@@ -12,7 +12,9 @@ namespace TribuneDesk\Protocol;
  * compares them and answers with the number of differences. The first page has no resync_id,
  * every later page carries the one from the first answer, the last page says is_last. A value
  * longer than 5000 characters or with a NUL byte would fail the whole page (422), so it is left
- * out. An answer must carry a resync_id, and `ready` only after the last page.
+ * out. With cms_to_td an empty value (or only whitespace) is left out too: sent, it would clear
+ * the field in Tribune Desk. With td_to_cms it is sent, and brings the Tribune Desk value over.
+ * An answer must carry a resync_id, and `ready` only after the last page.
  */
 final class Resync
 {
@@ -30,7 +32,7 @@ final class Resync
         foreach ($values as $id => $fields) {
             $sent = [];
             foreach ($fields as $field => $value) {
-                if (self::sendable($value)) {
+                if (self::sendable($value) && ($direction !== 'cms_to_td' || trim($value) !== '')) {
                     $sent[] = ['field' => $field, 'value' => $value];
                 }
             }

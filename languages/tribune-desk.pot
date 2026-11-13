@@ -630,8 +630,8 @@ msgstr ""
 msgid "Could not save a change from Tribune Desk."
 msgstr ""
 
-#: src/WordPress/ImageHosts.php:54
-msgid "could not fetch image_hosts from Tribune Desk — images are checked for https only"
+#: src/WordPress/ImageHosts.php:81
+msgid "could not fetch image_hosts from Tribune Desk — images only from Tribune Desk storage and this site"
 msgstr ""
 
 #. translators: 1: language code, 2: comma-separated list of configured languages
