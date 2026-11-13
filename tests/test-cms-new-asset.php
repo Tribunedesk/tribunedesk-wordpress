@@ -49,7 +49,7 @@ class Test_Cms_New_Asset extends WP_UnitTestCase
         $this->downloads = 0;
         $this->requests  = [];
         $this->routes    = [
-            'GET /v3/cms/status'   => [200, ['state' => 'active', 'recent_errors' => []]],
+            'GET /v3/cms/status'   => [200, ['state' => 'active', 'recent_errors' => [], 'image_hosts' => ['pliki.example.test']]],
             'GET /v3/cms/settings' => [200, ['variant' => 'custom', 'options' => ['keep_nonempty_td_to_cms' => true], 'locked_options' => []]],
             'GET /v3/cms/held'     => [200, ['items' => []]],
             'GET /v3/cms/changes'  => [200, ['changes' => [], 'next_cursor' => 'c2', 'has_more' => false]],
@@ -354,7 +354,7 @@ class Test_Cms_New_Asset extends WP_UnitTestCase
         $this->routes['POST ' . self::LINK] = [409, ['code' => 'state_conflict', 'message' => 'x']];
         $this->feed([$this->asset_row()]);
         $this->assertTrue(CmsSync::is_active());
-        $this->routes['GET /v3/cms/status'] = [200, ['state' => 'disabled', 'recent_errors' => []]];
+        $this->routes['GET /v3/cms/status'] = [200, ['state' => 'disabled', 'recent_errors' => [], 'image_hosts' => ['pliki.example.test']]];
 
         CmsSync::run_poll();
 

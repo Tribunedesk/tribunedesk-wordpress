@@ -206,6 +206,21 @@ class Test_Cms_Resync extends WP_UnitTestCase
         $this->assertSame('ready', get_option(CmsResync::OPTION_STATE)['status']);
     }
 
+    public function test_wordpress_wins_leaves_out_empty_values(): void
+    {
+        // Guide 4, resync step 1: with cms_to_td an empty value would clear the field in
+        // Tribune Desk. An image without alt or description sends only what it has.
+        $id = $this->images(1)[0];
+        update_option(CmsResync::OPTION_STATE, ['direction' => 'cms_to_td', 'status' => 'collecting']);
+        $this->routes['POST /v3/cms/resync preview'] = [200, $this->preview('ready')];
+
+        CmsResync::run_page();
+
+        $by = array_column($this->posts('preview')[0]['items'][0]['fields'], 'value', 'field');
+        $this->assertSame((string) $id, $this->posts('preview')[0]['items'][0]['cms_media_id']);
+        $this->assertSame(['title' => 'T0', 'caption' => 'C0'], $by);
+    }
+
     public function test_confirm_sets_cursor_and_clears_flag(): void
     {
         update_option(CmsSync::OPTION_NEEDS_RESYNC, 1);

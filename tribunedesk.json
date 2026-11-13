@@ -1,1 +1,1 @@
-{"contract": "3.4.1-draft", "protocol": "1.0.0", "levels": [1, 2, 3, 4], "delivery": "webhook", "cms": "wordpress"}
+{"contract": "3.4.1-draft", "protocol": "1.1.0", "levels": [1, 2, 3, 4], "delivery": "webhook", "cms": "wordpress"}

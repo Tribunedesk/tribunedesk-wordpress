@@ -52,7 +52,7 @@ class Test_Media_Handler extends WP_UnitTestCase
     {
         $id = MediaHandler::set_featured_from_url(
             $this->post_id,
-            'https://pub.example.r2.dev/abc/result.png',
+            'https://storage.tribunedesk.com/abc/result.png',
             'Tytuł artykułu',
             ['filename' => 'Pola Wiśniewska w dżungli.jpg']
         );
@@ -60,14 +60,14 @@ class Test_Media_Handler extends WP_UnitTestCase
         $this->assertIsInt($id);
         $this->assertSame('pola-wisniewska-w-dzungli.png', $this->attached_file($id));
         $this->assertSame($id, (int) get_post_thumbnail_id($this->post_id));
-        $this->assertSame('https://pub.example.r2.dev/abc/result.png', get_post_meta($id, '_source_url', true));
+        $this->assertSame('https://storage.tribunedesk.com/abc/result.png', get_post_meta($id, '_source_url', true));
     }
 
     public function test_bez_filename_nazwa_z_tytulu_przycieta(): void
     {
         $title = 'Szczęka opada! Pola Wiśniewska w kontrowersyjnym show. Kolejna żona lidera Ich Troje przerywa milczenie [zdjęcia] 🌙';
 
-        $id = MediaHandler::set_featured_from_url($this->post_id, 'https://pub.example.r2.dev/abc/result.png', $title);
+        $id = MediaHandler::set_featured_from_url($this->post_id, 'https://storage.tribunedesk.com/abc/result.png', $title);
 
         $name = $this->attached_file($id);
         $this->assertStringStartsWith('szczeka-opada-pola-wisniewska', $name);
@@ -86,9 +86,9 @@ class Test_Media_Handler extends WP_UnitTestCase
 
     public function test_drugie_wywolanie_dla_tego_samego_wpisu_nic_nie_robi(): void
     {
-        MediaHandler::set_featured_from_url($this->post_id, 'https://pub.example.r2.dev/abc/result.png', 'Tytuł');
+        MediaHandler::set_featured_from_url($this->post_id, 'https://storage.tribunedesk.com/abc/result.png', 'Tytuł');
 
-        $this->assertNull(MediaHandler::set_featured_from_url($this->post_id, 'https://pub.example.r2.dev/abc/result.png', 'Tytuł'));
+        $this->assertNull(MediaHandler::set_featured_from_url($this->post_id, 'https://storage.tribunedesk.com/abc/result.png', 'Tytuł'));
     }
 
     private int $http_calls = 0;
@@ -145,8 +145,8 @@ class Test_Media_Handler extends WP_UnitTestCase
         $post2 = self::factory()->post->create(['post_status' => 'draft']);
         $hints = ['asset_id' => '11111111-1111-1111-1111-111111111111'];
 
-        $a = MediaHandler::set_featured_from_url($this->post_id, 'https://pub.example.r2.dev/abc/result.png', 'T1', [], $hints);
-        $b = MediaHandler::set_featured_from_url($post2, 'https://pub.example.r2.dev/zzz/result.png', 'T2', [], $hints);
+        $a = MediaHandler::set_featured_from_url($this->post_id, 'https://storage.tribunedesk.com/abc/result.png', 'T1', [], $hints);
+        $b = MediaHandler::set_featured_from_url($post2, 'https://storage.tribunedesk.com/zzz/result.png', 'T2', [], $hints);
         remove_filter('pre_http_request', [$this, 'count_http'], 5);
 
         $this->assertIsInt($a);
@@ -161,7 +161,7 @@ class Test_Media_Handler extends WP_UnitTestCase
         $existing = $this->make_attachment($this->put_file_in_uploads('2026/10/cms.png'));
         add_filter('pre_http_request', [$this, 'count_http'], 5);
 
-        $id = MediaHandler::set_featured_from_url($this->post_id, 'https://pub.example.r2.dev/abc/result.png', 'T', [], [
+        $id = MediaHandler::set_featured_from_url($this->post_id, 'https://storage.tribunedesk.com/abc/result.png', 'T', [], [
             'cms_attachment_id' => $existing,
             'asset_id'          => '22222222-2222-2222-2222-222222222222',
         ]);
@@ -174,7 +174,7 @@ class Test_Media_Handler extends WP_UnitTestCase
 
     public function test_cms_attachment_id_of_non_attachment_is_ignored(): void
     {
-        $id = MediaHandler::set_featured_from_url($this->post_id, 'https://pub.example.r2.dev/abc/result.png', 'T', [], [
+        $id = MediaHandler::set_featured_from_url($this->post_id, 'https://storage.tribunedesk.com/abc/result.png', 'T', [], [
             'cms_attachment_id' => $this->post_id,
         ]);
 
@@ -243,7 +243,7 @@ class Test_Media_Handler extends WP_UnitTestCase
 
     public function test_sideload_sets_from_td_meta(): void
     {
-        $id = MediaHandler::set_featured_from_url($this->post_id, 'https://pub.example.r2.dev/abc/result.png', 'T');
+        $id = MediaHandler::set_featured_from_url($this->post_id, 'https://storage.tribunedesk.com/abc/result.png', 'T');
 
         $this->assertIsInt($id);
         $this->assertSame('1', get_post_meta($id, MediaHandler::META_FROM_TD, true));

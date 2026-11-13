@@ -97,7 +97,7 @@ class MediaHandler
         require_once ABSPATH . 'wp-admin/includes/image.php';
 
         // The one place every image download passes (featured image and /v3 new_asset):
-        // only https, and only the hosts Tribune Desk lists when the list is known.
+        // only https, and only the hosts Tribune Desk lists (without the list: its storage and this site).
         if (!ImageHosts::allows($url, ImageHosts::current())) {
             // A refused image must leave a trace: otherwise a missing featured image has no cause.
             DeliveriesLog::record(
