@@ -115,6 +115,24 @@ class Test_Media_Meta_Sync extends WP_UnitTestCase
         $this->assertSame([], $this->dirty($id));
     }
 
+    /**
+     * `wp td media edit` (DevCommands) acts as an editor would, so tdkit check can test sending
+     * an edit: as_editor marks the field although WP_CLI is defined.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function test_as_editor_marks_under_wp_cli(): void
+    {
+        define('WP_CLI', true);
+        $id = $this->attachment();
+
+        MediaMetaSync::as_editor(static fn () => wp_update_post(['ID' => $id, 'post_excerpt' => 'Jak redaktor']));
+
+        $this->assertSame(['caption'], $this->dirty($id));
+        $this->assertFalse(MediaMetaSync::is_human_write(), 'outside as_editor WP-CLI still does not count');
+    }
+
     public function test_logged_in_rest_marks(): void
     {
         $id = $this->attachment();

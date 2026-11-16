@@ -41,13 +41,35 @@ class MediaMetaSync
         }
     }
 
+    private static bool $as_editor = false;
+
+    /**
+     * Performs a write that counts as an editor's change even from WP-CLI: the developer
+     * commands `wp td media …` (DevCommands) act as an editor would, for `tdkit check`.
+     *
+     * @return mixed what `$write` returns
+     */
+    public static function as_editor(callable $write)
+    {
+        $previous        = self::$as_editor;
+        self::$as_editor = true;
+        try {
+            return $write();
+        } finally {
+            self::$as_editor = $previous;
+        }
+    }
+
     /**
      * Whether the current write counts as an editor's change (spec HF media sync D6): the admin
-     * panel or REST of a logged-in user. WP-CLI (also with --user), cron, an anonymous write and the
-     * plugin's own writes do not count.
+     * panel or REST of a logged-in user, or a write inside as_editor(). WP-CLI (also with --user),
+     * cron, an anonymous write and the plugin's own writes do not count.
      */
     public static function is_human_write(): bool
     {
+        if (self::$as_editor && !self::$applying) {
+            return true;
+        }
         if (self::$applying || (defined('WP_CLI') && WP_CLI) || wp_doing_cron()) {
             return false;
         }
