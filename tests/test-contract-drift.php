@@ -464,4 +464,30 @@ MD;
         $this->assertSame($before, self::snapshot($repo));
         $this->assertFileDoesNotExist("$repo/body.md");
     }
+
+    // -- .github/workflows/contract-drift.yml ---------------------------------------------------
+
+    private static function workflow(): string
+    {
+        $text = @file_get_contents(dirname(__DIR__) . '/.github/workflows/contract-drift.yml');
+        self::assertIsString($text, '.github/workflows/contract-drift.yml is missing');
+        return $text;
+    }
+
+    public function test_workflow_passes_the_manifest_only_with_an_open_pull_request(): void
+    {
+        $this->assertSame(1, preg_match('/id: open\n(.+?)\n\n/s', self::workflow(), $m));
+        $open = strpos($m[1], 'gh pr list --head contract/latest --state open');
+        $this->assertNotFalse($open, 'a branch left by a closed or never-opened pull request must be rebuilt');
+        $this->assertLessThan(strpos($m[1], 'git fetch'), $open);
+    }
+
+    public function test_workflow_commits_no_workflow_file(): void
+    {
+        $this->assertSame(1, preg_match('/^\s*git add (.+)$/m', self::workflow(), $m));
+        $this->assertStringNotContainsString('.github', $m[1]);
+        foreach (['tribunedesk.json', 'tests/contract', 'src/Protocol', 'README.md'] as $place) {
+            $this->assertStringContainsString($place, $m[1], "the drift changes $place, so the workflow must commit it");
+        }
+    }
 }

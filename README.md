@@ -33,6 +33,8 @@ This plugin is the reference integration of the public **Tribune Desk CMS API**.
 
 The plugin pins its versions in the manifest `tribunedesk.json`: `contract` is the tag of the API contract, `protocol` the tag of the [tribunedesk/cms-protocol](https://github.com/Tribunedesk/tribunedesk-cms-php) library. CI checks that the copies in `tests/contract/` match the contract tag byte for byte and that `src/Protocol/` is exactly `src/` of the library tag, and the contract tests run the sample delivery through the real endpoint.
 
+Every day `contract-drift.yml` compares both pins with the newest tags; when one is behind, it opens (or updates) one pull request from the branch `contract/latest` that moves the manifest, the copies in `tests/contract/`, the links above and `src/Protocol/`, runs CI on it, and stays red until the pull request lands. The feature map `docs/contract-map.json` gives every class of `src/WordPress/` its section of the guide (checked against the copy `tests/contract/guide/`), or says why it is WordPress only: a new class without an entry fails CI. The tests of the CI scripts run without WordPress too: `php vendor/bin/phpunit -c ci/phpunit.xml`.
+
 Where to read:
 
 - `src/Protocol/` — the rules of the API in plain PHP, with no WordPress calls (signature check, draft/update/published rules, link placeholders, change feed cursor). Each class names its level, routes and guide chapter. It is a copy of the tribunedesk/cms-protocol library: in another PHP CMS install the library with Composer instead of copying these files.

@@ -1,0 +1,95 @@
+name: contract-drift
+
+# Spec "kontrakt najpierw" D2b (Tribunedesk/tribunedesk-cms-kit, docs/specs/2026-11-13-...):
+# once a day, compare "contract" and "protocol" of tribunedesk.json with the newest tags of
+# Tribunedesk/tribunedesk-cms-api and Tribunedesk/tribunedesk-cms-php. When a pin is behind, move
+# it (the manifest, the copies in tests/contract/, the README links, src/Protocol) on the branch
+# contract/latest, open or update one pull request, start CI on it, and fail this run: a pin left
+# behind stays red every day.
+#
+# One branch for both pins, not one each: tests/test-contract.php requires "contract" to equal
+# ContractVersion::TESTED of src/Protocol, so a pull request moving only one of them would be red
+# for the order alone. The pull request never merges itself; the owner lands it. Landing it does
+# not release the plugin: the version, the changelog and a vX.Y.Z tag are a separate decision.
+#
+# GITHUB_TOKEN only. It may not push changes under .github/workflows/; the pins live outside it.
+# A pull request opened with it starts no workflow, so CI is started with `gh workflow run`
+# (workflow_dispatch is the exception GitHub allows). Opening the pull request needs the
+# repository setting "Allow GitHub Actions to create and approve pull requests". While its pull
+# request is open, the branch is rebuilt only when a newer tag replaces one it pins: commits
+# pushed onto it survive.
+
+on:
+  schedule:
+    - cron: "30 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+concurrency:
+  group: contract-drift
+  cancel-in-progress: false
+
+jobs:
+  drift:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      # Only an open pull request keeps its branch: a branch left behind by a closed pull request,
+      # or by a run whose `gh pr create` failed, is rebuilt and the pull request opened again.
+      - name: The manifest on contract/latest, if its pull request is open
+        id: open
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          open="$(gh pr list --head contract/latest --state open --json number --jq '.[0].number')"
+          if [ -n "$open" ] && git fetch --quiet origin contract/latest 2>/dev/null \
+            && git show FETCH_HEAD:tribunedesk.json > "$RUNNER_TEMP/open.json" 2>/dev/null; then
+            echo "manifest=$RUNNER_TEMP/open.json" >> "$GITHUB_OUTPUT"
+          else
+            echo "manifest=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Compare the pins with the newest tags
+        id: drift
+        env:
+          OPEN_MANIFEST: ${{ steps.open.outputs.manifest }}
+        run: php ci/contract-drift.php --body-out "$RUNNER_TEMP/body.md" --open-pr-manifest "$OPEN_MANIFEST"
+
+      - name: Push contract/latest, open the pull request, start CI
+        if: steps.drift.outputs.rebuild == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: ${{ steps.drift.outputs.title }}
+        run: |
+          branch="contract/latest"
+          git config user.name "tribunedesk-contract-drift"
+          git config user.email "tribunedesk-contract-drift@users.noreply.github.com"
+          git checkout -B "$branch"
+          git add -A tribunedesk.json tests/contract src/Protocol README.md
+          git commit -q -m "$TITLE"
+          git push --force origin "$branch"
+          open="$(gh pr list --head "$branch" --state open --json number --jq '.[0].number')"
+          if [ -z "$open" ]; then
+            gh pr create --base main --head "$branch" --title "$TITLE" --body-file "$RUNNER_TEMP/body.md"
+          else
+            gh pr edit "$open" --title "$TITLE" --body-file "$RUNNER_TEMP/body.md"
+          fi
+          gh workflow run plugin-ci.yml --ref "$branch"
+
+      - name: Stay red while a pin is behind
+        if: steps.drift.outputs.behind == 'true'
+        env:
+          TITLE: ${{ steps.drift.outputs.title }}
+        run: |
+          echo "::error::tribunedesk.json is behind the newest tags ($TITLE): land the contract/latest pull request"
+          exit 1
