@@ -2,7 +2,7 @@
 
 ## Reporting the published address
 
-When a post made from a delivered article goes public, call `POST /v3/cms/articles/published` with a token that has `articles:write`. Send `items`, 1 to 100 per request, each with `article_id` (from the delivery), `url` (the public `http(s)` address) and, optionally, `published_at` (ISO 8601 with a time zone). The answer has one result per item, in order: `ok`, `not_found` (no such article in the organization of the token) or `invalid_url`. Older clients may still expect `forbidden`; it is no longer returned. A bad item does not fail the others. The route shares the limit of the token (600 requests per minute).
+When a post made from a delivered article goes public, call `POST /v3/cms/articles/published` with a token that has `articles:write`. Send `items`, 1 to 100 per request, each with `article_id` (from the delivery), `url` (the public `http(s)` address) and, optionally, `published_at` (ISO 8601 with a time zone; a time without one fails the whole request with `422`). The answer has one result per item, in order: `ok`, `not_found` (no such article in the organization of the token) or `invalid_url`. Older clients may still expect `forbidden`; it is no longer returned. A bad item does not fail the others. The route shares the limit of the token (600 requests per minute).
 
 Answering a delivery with `permalink` (and `social_queue_exclude`, below) does the same for a post published at once; use this route for posts published later. When a post is unpublished, Tribune Desk keeps the last address: no route takes it back today, so send the new address when the post comes back or moves.
 
@@ -17,3 +17,4 @@ A working client in Python is in [`examples/python/level2_link_back.py`](../exam
 - Every post made from a delivered article is reported once it is public, either by `permalink` in the delivery answer or by `POST /v3/cms/articles/published`.
 - Reporting the same post again does no harm, and an item answered `not_found` or `invalid_url` is logged, not retried unchanged.
 - Your token for this route is a `tdcms_` token with `articles:write`, not the webhook secret.
+- If your CMS has a setting that keeps a post off Facebook, every report carries `social_queue_exclude`, `false` included.

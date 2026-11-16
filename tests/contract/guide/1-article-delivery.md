@@ -30,7 +30,7 @@ When your CMS cannot receive requests from the internet, a super admin switches 
 1. Poll `GET /v3/cms/changes` with a token that has `articles:read`. A sent article appears as a change of kind `article_sent` with its `article_id`. A token sees only the kinds of its scopes: `article_sent` needs `articles:read`, every other kind `media:read`; the cursor still moves past the kinds you do not see. Read mode needs the integration enabled by a super admin.
 2. Fetch the article with `GET /v3/cms/articles/{article_id}`. The body is the same `ArticleDelivery` the webhook carries, built from the current state of the article, with `sent_at` of the send. The `X-Delivery-Id` header names that send; keep it. An article that was never sent gives `404`.
 3. Create or update the post, then report the outcome with `POST /v3/cms/articles/{article_id}/result` and a token with `articles:write`. The body (`ArticleResultReport`) is what your webhook would answer with, plus `delivery_id`: the `X-Delivery-Id` from step 2. With it the result closes exactly that send; if a newer send of the article replaced it you get `409` with `state_conflict` and nothing is stored, so fetch the article again. Without `delivery_id` the result closes the newest waiting send. If your CMS could not take the article, send `error` with a short reason instead: the editor sees the send as failed with that text. Unlike a webhook answer the body is validated: a field of the wrong type gives `422`. A field of the right type that Tribune Desk did not store is listed in `ignored_fields` of the answer. An article that was never sent gives `409` and nothing is stored. Repeating the result is safe.
-4. After `410 cursor_expired` from `GET /changes`, a token without `media:write` cannot run a resync. List the sends still waiting with `GET /v3/cms/articles/awaiting` (`articles:read`, oldest first, pages with `next_cursor`), handle each as in steps 2 and 3, then poll `GET /changes` again without a cursor.
+4. After `410 cursor_expired` from `GET /changes`, a token without `media:write` cannot run a resync. List the sends still waiting with `GET /v3/cms/articles/awaiting` (`articles:read`, oldest first, pages with `next_cursor`), handle each as in steps 2 and 3, then poll `GET /changes` again without a cursor. A poll without a cursor starts from now and returns no history, whatever the scopes of the token; a send made between your last page of `GET /articles/awaiting` and that poll is still listed there, so read it once more after the poll. `GET /articles/awaiting` pages by the time of the send: a send made while you page appears on a later page, and a send you report a result for drops out without moving the others. Read until `next_cursor` is `null`.
 
 ## Verifying the signature
 
@@ -121,3 +121,11 @@ A working receiver in Python, with no dependencies, is in [`examples/python/leve
 - A repeated attempt with the same `webhook-id` makes no second draft, and a new send of the same `article_id` updates the post you made the first time.
 - Fields you do not know are ignored, not rejected; do not validate the body with a schema that rejects unknown properties.
 - An attempt of an older send that arrives after a newer one does not overwrite the post.
+- Two attempts of one send that overlap make one post, not two.
+- Images are downloaded only from the hosts in `image_hosts`; an image on any other host is not fetched.
+
+In read mode, also:
+
+- Every result carries the `delivery_id` of the send it answers, or `error` when your CMS could not take the article.
+- After `409 state_conflict` from the result, the article is fetched again and the newer send is answered.
+- After `410 cursor_expired`, the sends listed by `GET /v3/cms/articles/awaiting` are handled before polling `GET /v3/cms/changes` again without a cursor.

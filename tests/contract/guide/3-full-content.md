@@ -58,7 +58,7 @@ Anyone can check the mark without a token, at `https://api.tribunedesk.com`:
 
 ## Done when
 
-- Placeholders are replaced with your addresses, or the link text is left without a link, and earlier posts are updated when a target is published.
+- Placeholders are replaced with your addresses, or the link text is left without a link. Going back to earlier posts when a target is published is optional.
 - The “read more” box follows `backlink_sources`, including the missing-key and empty-list rules.
 - SEO fields, author and language are stored on the post.
 - The AI label is in the `<head>` of every public page made from a delivery whose `ai_provenance` is not `null`.

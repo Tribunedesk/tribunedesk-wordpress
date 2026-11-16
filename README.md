@@ -28,8 +28,8 @@ A WordPress plugin that receives finished articles from [Tribune Desk](https://t
 
 This plugin is the reference integration of the public **Tribune Desk CMS API**. If you are connecting another CMS, start with the API, not with this code:
 
-- Guide: https://github.com/Tribunedesk/tribunedesk-cms-api/tree/v3.4.1-draft/guide (levels 1-4)
-- Contract (OpenAPI, with webhooks): https://github.com/Tribunedesk/tribunedesk-cms-api/blob/v3.4.1-draft/openapi.json
+- Guide: https://github.com/Tribunedesk/tribunedesk-cms-api/tree/v3.4.2-draft/guide (levels 1-4)
+- Contract (OpenAPI, with webhooks): https://github.com/Tribunedesk/tribunedesk-cms-api/blob/v3.4.2-draft/openapi.json
 
 The plugin pins its versions in the manifest `tribunedesk.json`: `contract` is the tag of the API contract, `protocol` the tag of the [tribunedesk/cms-protocol](https://github.com/Tribunedesk/tribunedesk-cms-php) library. CI checks that the copies in `tests/contract/` match the contract tag byte for byte and that `src/Protocol/` is exactly `src/` of the library tag, and the contract tests run the sample delivery through the real endpoint.
 
