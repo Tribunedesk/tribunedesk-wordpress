@@ -260,11 +260,9 @@ final class ContractDrift
         file_put_contents("$repo/tribunedesk.json", self::setPin($manifest, 'contract', $latest));
         self::copy("$tagRoot/openapi.json", "$repo/tests/contract/openapi.json");
         self::copy("$tagRoot/examples/payloads/article-delivered.json", "$repo/tests/contract/article-delivered.json");
+        // The whole tree, not only *.md: plugin-ci.yml compares it with `diff -r`.
         self::remove("$repo/tests/contract/guide");
-        mkdir("$repo/tests/contract/guide", 0777, true);
-        foreach ($guides as $guide) {
-            self::copy($guide, "$repo/tests/contract/guide/" . basename($guide));
-        }
+        self::copyTree("$tagRoot/guide", "$repo/tests/contract/guide");
         $readme = preg_replace('#(tribunedesk-cms-api/(?:blob|tree)/)v\d+\.\d+\.\d+(?:-draft)?/#', '${1}v' . $latest . '/', $readme);
         file_put_contents("$repo/README.md", (string) $readme);
     }

@@ -300,6 +300,19 @@ MD;
         $this->assertStringNotContainsString('3.4.1-draft', $readme);
     }
 
+    public function test_apply_contract_copies_the_whole_guide_tree(): void
+    {
+        // plugin-ci.yml compares the copy with `diff -r` of the tag's guide/: a file that is not
+        // top-level Markdown must be copied too, or every drift pull request stays red.
+        $repo = $this->plugin();
+        $tag = $this->tempDir();
+        self::write($tag, self::TAGS[ContractDrift::CONTRACT_REPO . '@v3.4.2-draft'] + ['guide/img/flow.png' => 'png']);
+
+        ContractDrift::applyContract($repo, $tag, '3.4.2-draft');
+
+        $this->assertSame('png', @file_get_contents("$repo/tests/contract/guide/img/flow.png"));
+    }
+
     public function test_apply_contract_fails_before_writing_without_sample(): void
     {
         $repo = $this->plugin();
