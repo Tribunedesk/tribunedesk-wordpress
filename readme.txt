@@ -4,7 +4,7 @@ Tags: webhook, automation, content
 Requires at least: 5.6
 Tested up to: 7.1
 Requires PHP: 8.3
-Stable tag: 2.3.0
+Stable tag: 2.4.0
 License: MIT
 
 Receives finished articles from Tribune Desk (ArticleWriter) and creates them as drafts in WordPress.
@@ -33,6 +33,15 @@ Features:
 3. Go to `Ustawienia → Tribune Desk`, paste the signing secret (`whsec_…`) and the CMS API token you got from Tribune Desk, pick the default author, and copy the Webhook URL into Tribune Desk Settings → Integracje.
 
 == Changelog ==
+
+= 2.4.0 =
+* An attempt of an older send that arrives after a newer one no longer overwrites the post (the plugin keeps the `sent_at` it last applied).
+* Two overlapping attempts of one send no longer make two posts: the write of an article waits for the other attempt (up to 20 s), otherwise Tribune Desk tries again.
+* New photos go to the Tribune Desk library at the next send, also without a published post (before: after a day). A photo Tribune Desk accepted is sent again for three days until its pair (`asset_id`) is known.
+* When the feed cursor expires, the "Tribune Desk wins" resync preview starts by itself; applying it still needs a click on the Tribune Desk page.
+* A settings change in Tribune Desk is read at once.
+* New WP-CLI commands `wp td inspect|publish|sync|media|reset` for the `tdkit check` conformance test.
+* Contract 3.4.2-draft, protocol rules from tribunedesk/cms-protocol 1.1.1.
 
 = 2.3.0 =
 * Images are downloaded only from the hosts Tribune Desk lists. The list is read from `GET /v3/cms/status`, so a token with `articles:read` or `media:read` is enough (before: `settings:read` and an enabled integration).
