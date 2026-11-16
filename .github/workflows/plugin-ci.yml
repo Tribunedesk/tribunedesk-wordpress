@@ -90,6 +90,8 @@ jobs:
   tdkit:
     name: tdkit check
     runs-on: ubuntu-26.04
+    # Rewizja D2e: job ma trwac ~10 min; limit lapie zawieszenie zamiast 6 h runnera.
+    timeout-minutes: 30
     services:
       mariadb:
         image: mariadb:12.3
@@ -162,8 +164,9 @@ jobs:
           done
           start=$(date +%s)
           curl -fsS http://127.0.0.1:8888/tdkit-sleep.php > /dev/null &
+          other=$!
           curl -fsS http://127.0.0.1:8888/tdkit-sleep.php > /dev/null
-          wait
+          wait "$other"
           test $(( $(date +%s) - start )) -lt 4 || { echo "::error::php -S serves one request at a time"; exit 1; }
           rm tdkit-sleep.php
 
