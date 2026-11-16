@@ -199,9 +199,11 @@ jobs:
 
   # Ochrona main wymaga checku o nazwie "test"; job z macierza raportuje sie jako
   # "test (PHP x.y)", wiec ten job zbiera obie wersje pod ta jedna nazwa.
+  # Od etapu 5b takze job tdkit: wtyczka przechodzi tdkit check, inaczej main jej nie przyjmie.
   test:
-    needs: php
+    needs: [php, tdkit]
     if: always()
     runs-on: ubuntu-26.04
     steps:
       - run: test "${{ needs.php.result }}" = success
+      - run: test "${{ needs.tdkit.result }}" = success
