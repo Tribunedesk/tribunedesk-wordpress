@@ -33,6 +33,11 @@ function tribune_desk_load_textdomain(): void
 }
 add_action('init', 'tribune_desk_load_textdomain');
 
+// Developer commands `wp td …` for `tdkit check` (Tribunedesk/tribunedesk-cms-kit).
+if (defined('WP_CLI') && WP_CLI) {
+    \TribuneDesk\WordPress\Cli::register();
+}
+
 register_activation_hook(__FILE__, [\TribuneDesk\WordPress\Activator::class, 'activate']);
 // Priority 1: the schema migration must run before anything can write a delivery row.
 add_action('plugins_loaded', [\TribuneDesk\WordPress\Activator::class, 'maybe_upgrade'], 1);

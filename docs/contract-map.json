@@ -17,6 +17,10 @@
             "guide": "3-full-content.md#the-read-more-box"
         },
         {
+            "class": "Cli",
+            "wp_only": "WP-CLI wrapper of DevCommands: developer commands for tdkit check, not a behaviour of the integration"
+        },
+        {
             "class": "CmsApiClient",
             "wp_only": "HTTP transport to /v3/cms over the WordPress HTTP API; the routes it calls are mapped by the classes that call them"
         },
@@ -43,6 +47,10 @@
         {
             "class": "DeliveriesLog",
             "wp_only": "the log of deliveries shown in wp-admin"
+        },
+        {
+            "class": "DevCommands",
+            "wp_only": "developer commands for tdkit check (inspect, publish, sync, media); tdkit's README defines them, not the guide"
         },
         {
             "class": "Hooks",

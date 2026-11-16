@@ -82,6 +82,118 @@ jobs:
       - name: PHPUnit
         run: npx @wordpress/env run tests-cli --env-cwd=wp-content/plugins/${{ github.event.repository.name }} ./vendor/bin/phpunit
 
+  # Spec "kontrakt najpierw" D2e (Tribunedesk/tribunedesk-cms-kit): wtyczka przechodzi ten sam
+  # `tdkit check` co kazdy inny CMS, z tdkit z pola "kit" manifestu. WordPress stoi na runnerze,
+  # nie w wp-env: atrapa tdkit i WordPress musza sie widziec na 127.0.0.1 w obie strony. API
+  # atrapy idzie po https przez proxy TLS na certyfikacie testowym kitu, bo wtyczka wysyla token
+  # tylko po https; ci/tdkit/mu-plugin.php ufa temu CA tylko w tym jobie (poza ZIP-em wydania).
+  tdkit:
+    name: tdkit check
+    runs-on: ubuntu-26.04
+    services:
+      mariadb:
+        image: mariadb:12.3
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=24
+    env:
+      SITE: ${{ github.workspace }}/../wp-site
+      # Publiczne wartosci testowe atrapy (README kitu), nie sekrety.
+      TD_WEBHOOK_SECRET: whsec_dGRraXQtbW9jay1zaWduaW5nLXNlY3JldC0wMDAwMDA=
+      TD_API_HTTPS: https://127.0.0.1:8443
+      WP_CLI_VERSION: '2.12.0'
+      WP_CLI_SHA512: be928f6b8ca1e8dfb9d2f4b75a13aa4aee0896f8a9a0a1c45cd5d2c98605e6172e6d014dda2e27f88c98befc16c040cbb2bd1bfa121510ea5cdf5f6a30fe8832
+      POLYLANG_VERSION: '3.9.2'
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mysqli, gd, curl, mbstring, zip, intl
+          coverage: none
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.12.20"
+
+      - name: Wersje z tribunedesk.json
+        run: |
+          echo "CONTRACT=$(php -r 'echo json_decode(file_get_contents("tribunedesk.json"))->contract;')" >> "$GITHUB_ENV"
+          echo "KIT=$(php -r 'echo json_decode(file_get_contents("tribunedesk.json"))->kit;')" >> "$GITHUB_ENV"
+
+      - name: WP-CLI
+        run: |
+          curl -fsSLo /tmp/wp "https://github.com/wp-cli/wp-cli/releases/download/v$WP_CLI_VERSION/wp-cli-$WP_CLI_VERSION.phar"
+          echo "$WP_CLI_SHA512  /tmp/wp" | sha512sum -c -
+          sudo install -m 0755 /tmp/wp /usr/local/bin/wp
+
+      - name: tdkit z tagu v${{ env.KIT }}
+        run: |
+          uv tool install "git+https://github.com/Tribunedesk/tribunedesk-cms-kit@v$KIT"
+          tls="$("$(uv tool dir)/tdkit/bin/python" -c 'from tdkit.mock import tls; print(tls.CA_BUNDLE.parent)')"
+          echo "TLS_DIR=$tls" >> "$GITHUB_ENV"
+          echo "TD_CA_BUNDLE=$tls/ca.pem" >> "$GITHUB_ENV"
+          tdkit manifest validate tribunedesk.json
+
+      # Atrapa wystawia API po http na 8787 (startuje ja dopiero `tdkit check`); proxy podaje je
+      # po https na 8443 z tym samym certyfikatem testowym co pliki (spec D5).
+      - name: Proxy TLS przed API atrapy
+        run: |
+          sudo apt-get install -y -qq socat > /dev/null
+          socat "OPENSSL-LISTEN:8443,reuseaddr,fork,bind=127.0.0.1,cert=$TLS_DIR/server.pem,key=$TLS_DIR/server-key.pem,verify=0" TCP:127.0.0.1:8787 > "$RUNNER_TEMP/socat.log" 2>&1 &
+
+      - name: WordPress na runnerze
+        run: bash ci/tdkit/site.sh "$SITE" http://127.0.0.1:8888 "$GITHUB_WORKSPACE"
+
+      # Kilka workerow: jednowatkowy serwer szeregowalby rownolegle proby jednej dostawy i
+      # l1-overlapping-attempts przechodzilby bez dowodu blokady. Ostatnie polecenie to sprawdza.
+      - name: Start strony
+        run: |
+          cd "$SITE"
+          printf '%s\n' '<?php sleep(2); echo "ok";' > tdkit-sleep.php
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8888 > "$RUNNER_TEMP/php.log" 2>&1 &
+          for i in $(seq 1 50); do
+            curl -fsS -o /dev/null "http://127.0.0.1:8888/?rest_route=/" && break
+            sleep 0.2
+          done
+          start=$(date +%s)
+          curl -fsS http://127.0.0.1:8888/tdkit-sleep.php > /dev/null &
+          curl -fsS http://127.0.0.1:8888/tdkit-sleep.php > /dev/null
+          wait
+          test $(( $(date +%s) - start )) -lt 4 || { echo "::error::php -S serves one request at a time"; exit 1; }
+          rm tdkit-sleep.php
+
+      - name: tdkit check, poziomy 1-4, webhook
+        run: |
+          cd "$SITE"
+          tdkit check --levels 1,2,3,4 --mode webhook --contract "v$CONTRACT" \
+            --webhook "http://127.0.0.1:8888/?rest_route=/tribunedesk/v1/receive" \
+            --social-flag --backfill --media-fields alt,caption \
+            --inspect-cmd "wp td inspect {article_id}" \
+            --publish-cmd "wp --user=editor td publish {article_id}" \
+            --sync-cmd "wp td sync --backfill" \
+            --media-inspect-cmd "wp td media inspect {cms_media_id}" \
+            --media-add-cmd "wp --user=editor td media add {file}" \
+            --media-edit-cmd "wp --user=editor td media edit {cms_media_id} {field} {value}" \
+            --media-delete-cmd "wp --user=editor td media delete {cms_media_id}" \
+            --reset-cmd "wp td reset" \
+            --json "$RUNNER_TEMP/tdkit-report.json"
+
+      - name: Raport i logi
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tdkit-report
+          path: |
+            ${{ runner.temp }}/tdkit-report.json
+            ${{ runner.temp }}/php.log
+            ${{ runner.temp }}/socat.log
+          if-no-files-found: ignore
+
   # Ochrona main wymaga checku o nazwie "test"; job z macierza raportuje sie jako
   # "test (PHP x.y)", wiec ten job zbiera obie wersje pod ta jedna nazwa.
   test:
