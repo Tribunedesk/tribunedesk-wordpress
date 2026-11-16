@@ -18,6 +18,8 @@ class MediaPush
 {
     public const HOOK            = 'headlinesforge_media_push';
     public const HOST_RETRY      = 7 * DAY_IN_SECONDS;
+    /** How long an accepted file without asset_id is sent again to learn its pair (guide 4: "a few days"). */
+    public const PAIR_CHECK      = 3 * DAY_IN_SECONDS;
     public const OPTION_FLOOR    = 'headlinesforge_media_push_floor';
     public const META_PUSHED     = '_hf_media_pushed';
 
@@ -39,8 +41,12 @@ class MediaPush
         }
     }
 
-    /** @return int[] */
-    public static function candidates(int $limit): array
+    /**
+     * Files to send to POST /v3/cms/media, ascending by ID, only IDs above `$after` (paging).
+     *
+     * @return int[]
+     */
+    public static function candidates(int $limit, int $after = 0): array
     {
         $floor = get_option(self::OPTION_FLOOR, false);
         if ($floor === false || $floor === '' || $limit < 1) {
@@ -50,9 +56,12 @@ class MediaPush
         global $wpdb;
         $now       = time();
         $host_cut  = $now - self::HOST_RETRY;
+        $pair_cut  = $now - self::PAIR_CHECK;
         $mimes     = implode(',', array_fill(0, count(self::MIMES), '%s'));
 
-        // Sent earlier: skipped, unless rejected for host or missing dimensions longer ago than HOST_RETRY.
+        // Sent earlier: skipped, unless rejected for host or missing dimensions longer ago than HOST_RETRY,
+        // or accepted/known without asset_id (a paired file has META_ASSET_ID, excluded above) less
+        // than PAIR_CHECK ago: sending it again is how its asset_id is learned (guide 4).
         $sql = "SELECT p.ID FROM {$wpdb->posts} p
             LEFT JOIN {$wpdb->postmeta} pm ON pm.post_id = p.ID AND pm.meta_key = %s
             WHERE p.post_type = 'attachment'
@@ -61,7 +70,8 @@ class MediaPush
               AND p.ID > %d
               AND NOT EXISTS (SELECT 1 FROM {$wpdb->postmeta} x WHERE x.post_id = p.ID AND x.meta_key IN (%s, %s, %s))
               AND (pm.meta_id IS NULL
-                   OR ((pm.meta_value LIKE %s OR pm.meta_value LIKE %s) AND CAST(SUBSTRING_INDEX(pm.meta_value, '@', -1) AS UNSIGNED) < %d))
+                   OR ((pm.meta_value LIKE %s OR pm.meta_value LIKE %s) AND CAST(SUBSTRING_INDEX(pm.meta_value, '@', -1) AS UNSIGNED) < %d)
+                   OR ((pm.meta_value LIKE %s OR pm.meta_value LIKE %s) AND CAST(SUBSTRING_INDEX(pm.meta_value, '@', -1) AS UNSIGNED) >= %d))
             GROUP BY p.ID
             ORDER BY p.ID ASC
             LIMIT %d";
@@ -70,13 +80,16 @@ class MediaPush
             [self::META_PUSHED],
             self::MIMES,
             [
-                (int) $floor,
+                max((int) $floor, $after),
                 MediaHandler::META_ASSET_ID,
                 '_source_url',
                 MediaHandler::META_FROM_TD,
                 $wpdb->esc_like('rejected:host@') . '%',
                 $wpdb->esc_like('rejected:missing_metadata@') . '%',
                 $host_cut,
+                $wpdb->esc_like('accepted@') . '%',
+                $wpdb->esc_like('known@') . '%',
+                $pair_cut,
                 $limit,
             ]
         );

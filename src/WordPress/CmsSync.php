@@ -1132,8 +1132,11 @@ class CmsSync
     /** @return string error or empty */
     private static function send_new_files(): string
     {
+        $after = 0;
         for ($i = 0; $i < self::MAX_PAGES; $i++) {
-            $ids = MediaPush::candidates(self::BATCH);
+            // Paging by ID: a file sent again to learn its pair stays a candidate, so without
+            // `$after` the next page would be the same files.
+            $ids = MediaPush::candidates(self::BATCH, $after);
             if ($ids === []) {
                 return '';
             }
@@ -1159,6 +1162,7 @@ class CmsSync
                 }
                 self::finish_files($ids, $response['results']);
             }
+            $after = max($ids);
             if (count($ids) < self::BATCH) {
                 return '';
             }
@@ -1184,7 +1188,18 @@ class CmsSync
                 'known' => 'known',
                 default => 'rejected:' . sanitize_key((string) ($result['reason'] ?? 'unknown')),
             };
-            update_post_meta($id, MediaPush::META_PUSHED, $outcome . '@' . time());
+            // An answer for a file Tribune Desk already holds carries its asset_id: the pair.
+            $asset_id = $result['asset_id'] ?? null;
+            if (is_string($asset_id) && $asset_id !== '') {
+                update_post_meta($id, MediaHandler::META_ASSET_ID, $asset_id);
+            }
+            // A repeated accepted/known keeps the first time, so the PAIR_CHECK window ends.
+            $previous = (string) get_post_meta($id, MediaPush::META_PUSHED, true);
+            $since    = time();
+            if (!str_starts_with($outcome, 'rejected') && preg_match('/^(?:accepted|known)@(\d+)$/', $previous, $m)) {
+                $since = (int) $m[1];
+            }
+            update_post_meta($id, MediaPush::META_PUSHED, $outcome . '@' . $since);
             $key          = str_starts_with($outcome, 'rejected') ? 'rejected' : $outcome;
             $counts[$key] = ($counts[$key] ?? 0) + 1;
         }

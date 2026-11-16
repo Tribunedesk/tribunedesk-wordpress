@@ -130,6 +130,37 @@ class Test_Media_Push extends WP_UnitTestCase
         $this->assertNotContains($small, $c);
     }
 
+    public function test_przyjety_bez_asset_id_wraca_przez_3_dni(): void
+    {
+        // guide 4 "When a file you sent becomes paired": send the item again to learn asset_id;
+        // stop after "a few days". A paired file (asset_id stored) is never a candidate.
+        $parent  = $this->published_parent();
+        $fresh   = $this->attachment(['post_parent' => $parent]);
+        update_post_meta($fresh, MediaPush::META_PUSHED, 'accepted@' . (time() - HOUR_IN_SECONDS));
+        $known   = $this->attachment(['post_parent' => $parent]);
+        update_post_meta($known, MediaPush::META_PUSHED, 'known@' . (time() - HOUR_IN_SECONDS));
+        $stale   = $this->attachment(['post_parent' => $parent]);
+        update_post_meta($stale, MediaPush::META_PUSHED, 'accepted@' . (time() - 4 * DAY_IN_SECONDS));
+        $paired  = $this->attachment(['post_parent' => $parent]);
+        update_post_meta($paired, MediaPush::META_PUSHED, 'accepted@' . (time() - HOUR_IN_SECONDS));
+        update_post_meta($paired, MediaHandler::META_ASSET_ID, 'a-1');
+
+        $c = MediaPush::candidates(50);
+        $this->assertContains($fresh, $c);
+        $this->assertContains($known, $c);
+        $this->assertNotContains($stale, $c);
+        $this->assertNotContains($paired, $c);
+    }
+
+    public function test_candidates_after_skips_lower_ids(): void
+    {
+        $parent = $this->published_parent();
+        $a = $this->attachment(['post_parent' => $parent]);
+        $b = $this->attachment(['post_parent' => $parent]);
+
+        $this->assertSame([$b], MediaPush::candidates(50, $a));
+    }
+
     public function test_limit_i_kolejnosc_rosnaco_po_id(): void
     {
         $parent = $this->published_parent();

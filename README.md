@@ -395,6 +395,25 @@ The local WP is at http://localhost:8888 (admin / password). The plugin settings
 
 **`--env-cwd` uses the name of your clone's folder** (`tribunedesk-wordpress` when cloned as is): wp-env mounts the plugin under the name of the **working directory**, so a clone or worktree in `…/my-branch` ends up in `wp-content/plugins/my-branch`. Check it with `npx @wordpress/env run tests-cli ls wp-content/plugins`.
 
+### `tdkit check` and the `wp td` commands
+
+CI runs the same conformance test as every other CMS: `tdkit check --levels 1,2,3,4 --mode webhook` from [tribunedesk-cms-kit](https://github.com/Tribunedesk/tribunedesk-cms-kit), the version in `"kit"` of `tribunedesk.json` (job `tdkit` in `plugin-ci.yml`). It installs WordPress on the runner, not in wp-env, because the tdkit mock and WordPress must reach each other on `127.0.0.1`; `ci/tdkit/site.sh` sets the plugin up for the mock and `ci/tdkit/mu-plugin.php` (CI only, not in the ZIP) trusts the mock's test certificate.
+
+The plugin gives `tdkit` its developer commands (WP-CLI), which an integrator building their own WordPress integration can use too:
+
+```text
+wp td inspect <article_id>              the post made from the article, as JSON, or null
+wp td publish <article_id>              publish it as an editor would; the link back is sent before it returns
+wp td sync [--backfill]                 one whole sync cycle of the media library (level 4)
+wp td media inspect <id>                an attachment, as JSON, or null
+wp td media add <file>                  add an image as an editor would
+wp td media edit <id> <field> <value>   alt, caption, title or description, as an editor would
+wp td media delete <id>                 delete an attachment as an editor would
+wp td reset                             clear the level 4 state
+```
+
+The job's report (`tdkit-report.json`) and the web server log are the run's artifact `tdkit-report`.
+
 ### Releasing a new version
 
 1. Bump the version in **six** places and check locally:

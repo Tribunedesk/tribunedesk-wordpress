@@ -6,6 +6,7 @@ use TribuneDesk\WordPress\CmsApiClient;
 use TribuneDesk\WordPress\CmsResync;
 use TribuneDesk\WordPress\CmsSettingsScreen;
 use TribuneDesk\WordPress\CmsSync;
+use TribuneDesk\WordPress\MediaHandler;
 use TribuneDesk\WordPress\MediaMetaSync;
 use TribuneDesk\WordPress\MediaPush;
 use TribuneDesk\WordPress\PublishedUrlsClient;
@@ -1161,6 +1162,25 @@ class Test_Cms_Sync extends WP_UnitTestCase
         $this->assertStringStartsWith('accepted@', get_post_meta($ok, MediaPush::META_PUSHED, true));
         $this->assertStringStartsWith('known@', get_post_meta($known, MediaPush::META_PUSHED, true));
         $this->assertStringStartsWith('rejected:host@', get_post_meta($rejected, MediaPush::META_PUSHED, true));
+    }
+
+    public function test_media_answer_with_asset_id_pairs_the_file(): void
+    {
+        // guide 4: "ok, known and rejected carry asset_id once a live file with this id exists ...
+        // Keep that asset_id". The first acceptance time stays, so the re-check window ends.
+        update_option(MediaPush::OPTION_FLOOR, 0);
+        $id    = $this->file();
+        $first = time() - DAY_IN_SECONDS;
+        update_post_meta($id, MediaPush::META_PUSHED, 'accepted@' . $first);
+        $this->routes['POST /v3/cms/media'] = [200, ['results' => [
+            ['id' => (string) $id, 'status' => 'known', 'asset_id' => 'asset-7', 'fields' => []],
+        ]]];
+
+        MediaPush::run();
+
+        $this->assertSame('asset-7', get_post_meta($id, MediaHandler::META_ASSET_ID, true));
+        $this->assertSame('known@' . $first, get_post_meta($id, MediaPush::META_PUSHED, true));
+        $this->assertCount(1, $this->calls('/v3/cms/media', 'POST'));
     }
 
     public function test_media_409_keeps_queue(): void
