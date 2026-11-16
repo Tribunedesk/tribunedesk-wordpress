@@ -1,13 +1,13 @@
 name: contract-drift
 
 # Spec "kontrakt najpierw" D2b (Tribunedesk/tribunedesk-cms-kit, docs/specs/2026-11-13-...):
-# once a day, compare "contract" and "protocol" of tribunedesk.json with the newest tags of
-# Tribunedesk/tribunedesk-cms-api and Tribunedesk/tribunedesk-cms-php. When a pin is behind, move
+# once a day, compare "contract", "protocol" and "kit" of tribunedesk.json with the newest tags of
+# Tribunedesk/tribunedesk-cms-api, tribunedesk-cms-php and tribunedesk-cms-kit. When a pin is behind, move
 # it (the manifest, the copies in tests/contract/, the README links, src/Protocol) on the branch
 # contract/latest, open or update one pull request, start CI on it, and fail this run: a pin left
 # behind stays red every day.
 #
-# One branch for both pins, not one each: tests/test-contract.php requires "contract" to equal
+# One branch for all pins, not one each: tests/test-contract.php requires "contract" to equal
 # ContractVersion::TESTED of src/Protocol, so a pull request moving only one of them would be red
 # for the order alone. The pull request never merges itself; the owner lands it. Landing it does
 # not release the plugin: the version, the changelog and a vX.Y.Z tag are a separate decision.

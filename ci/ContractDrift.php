@@ -18,7 +18,10 @@ use RuntimeException;
  *
  * - "contract" (newest v* tag of tribunedesk-cms-api): the manifest, tests/contract/openapi.json,
  *   tests/contract/article-delivered.json, tests/contract/guide/ and the README links;
- * - "protocol" (newest vX.Y.Z tag of tribunedesk-cms-php): the manifest and src/Protocol = src/.
+ * - "protocol" (newest vX.Y.Z tag of tribunedesk-cms-php): the manifest and src/Protocol = src/;
+ * - "kit" (newest vX.Y.Z tag of tribunedesk-cms-kit, the tdkit that CI's `tdkit check` runs):
+ *   the manifest only. tribunedesk-cms-api tags a new contract minor only after a kit release
+ *   knows it (spec D2c), so the newest kit runs the newest contract.
  *
  * Both current: `behind=false`, exit 0. One ahead of every tag (a deleted tag): exit 1, nothing
  * changed. The open pull request (`--open-pr-manifest`, tribunedesk.json on contract/latest)
@@ -36,6 +39,8 @@ final class ContractDrift
     public const PROTOCOL_REPO = 'https://github.com/Tribunedesk/tribunedesk-cms-php';
     public const CONTRACT_TAG = '/^v\d+\.\d+\.\d+(?:-draft)?$/';
     public const PROTOCOL_TAG = '/^v\d+\.\d+\.\d+$/';
+    public const KIT_REPO = 'https://github.com/Tribunedesk/tribunedesk-cms-kit';
+    public const KIT_TAG = '/^v\d+\.\d+\.\d+$/';
 
     private const TESTED = "/public const TESTED = '([^']*)';/";
 
@@ -132,12 +137,12 @@ final class ContractDrift
     /**
      * Title of the commit and the pull request: the pins that move, contract first.
      *
-     * @param array{contract?: array{0: string, 1: string}, protocol?: array{0: string, 1: string}} $moves
+     * @param array<string, array{0: string, 1: string}> $moves keys: contract, protocol, kit
      */
     public static function title(array $moves): string
     {
         $parts = [];
-        foreach (['contract', 'protocol'] as $pin) {
+        foreach (['contract', 'protocol', 'kit'] as $pin) {
             if (isset($moves[$pin])) {
                 $parts[] = "$pin: {$moves[$pin][0]} → {$moves[$pin][1]}";
             }
@@ -150,7 +155,7 @@ final class ContractDrift
      * TESTED of the library copy after it: when they differ, the pull request stays red until
      * tribunedesk-cms-php releases a library tested on `$contract`.
      *
-     * @param array{contract?: array{0: string, 1: string}, protocol?: array{0: string, 1: string}} $moves
+     * @param array<string, array{0: string, 1: string}> $moves keys: contract, protocol, kit
      * @param list<string> $missingAnchors
      */
     public static function prBody(array $moves, string $changelog, string $contract, string $tested, array $missingAnchors): string
@@ -184,6 +189,13 @@ final class ContractDrift
             $lines[] = "The library tribunedesk/cms-protocol has a newer tag: `$old` → `$new` (src/Protocol is its src/).";
             $lines[] = '';
             $lines[] = 'Changes: ' . self::PROTOCOL_REPO . "/compare/v$old...v$new";
+            $lines[] = '';
+        }
+        if (isset($moves['kit'])) {
+            [$old, $new] = $moves['kit'];
+            $lines[] = "tdkit has a newer tag: `$old` → `$new` (the `tdkit check` job of Plugin CI runs it).";
+            $lines[] = '';
+            $lines[] = 'Changes: ' . self::KIT_REPO . "/compare/v$old...v$new";
             $lines[] = '';
         }
         if ($tested !== $contract) {
@@ -267,6 +279,13 @@ final class ContractDrift
         file_put_contents("$repo/README.md", (string) $readme);
     }
 
+    /** Moves "kit" to `$latest` (no `v`): the manifest only. */
+    public static function applyKit(string $repo, string $latest): void
+    {
+        $manifest = self::pinnedManifest($repo, 'kit');
+        file_put_contents("$repo/tribunedesk.json", self::setPin($manifest, 'kit', $latest));
+    }
+
     /**
      * Moves "protocol" to `$latest` (no `v`): the manifest, and src/Protocol replaced whole by
      * src/ of the library tag in `$tagRoot`.
@@ -346,13 +365,18 @@ final class ContractDrift
 
         $pinned = self::pins(self::read("$repo/tribunedesk.json"));
         $latest = [];
-        foreach (['contract' => [self::CONTRACT_REPO, self::CONTRACT_TAG], 'protocol' => [self::PROTOCOL_REPO, self::PROTOCOL_TAG]] as $pin => [$url, $pattern]) {
+        $sources = [
+            'contract' => [self::CONTRACT_REPO, self::CONTRACT_TAG],
+            'protocol' => [self::PROTOCOL_REPO, self::PROTOCOL_TAG],
+            'kit' => [self::KIT_REPO, self::KIT_TAG],
+        ];
+        foreach ($sources as $pin => [$url, $pattern]) {
             $lines = preg_split('/\r?\n/', $git(['ls-remote', '--tags', '--refs', $url])) ?: [];
             $latest[$pin] = substr(self::latestTag($lines, $pattern), 1);
         }
 
         $moves = [];
-        foreach (['contract', 'protocol'] as $pin) {
+        foreach (array_keys($sources) as $pin) {
             $state = self::compare($pinned[$pin], $latest[$pin]);
             if ($state === 'ahead') {
                 fwrite(STDERR, "\"$pin\" {$pinned[$pin]} is newer than the newest tag v{$latest[$pin]}.\n");
@@ -363,13 +387,20 @@ final class ContractDrift
             }
         }
         if ($moves === []) {
-            echo "contract {$pinned['contract']} and protocol {$pinned['protocol']} are the newest tags.\n";
+            echo "contract {$pinned['contract']}, protocol {$pinned['protocol']} and kit {$pinned['kit']} are the newest tags.\n";
             self::output(['behind' => 'false']);
             return 0;
         }
         $title = self::title($moves);
         if ($openManifest !== '' && is_file($openManifest)) {
-            $open = self::pins(self::read($openManifest));
+            try {
+                $open = self::pins(self::read($openManifest));
+            } catch (InvalidArgumentException | RuntimeException $e) {
+                // A manifest without every pin (a pull request older than a pin, a broken merge)
+                // is rebuilt like a closed pull request, not left to jam every run.
+                echo "contract/latest has an unreadable tribunedesk.json ({$e->getMessage()}); rebuilding it.\n";
+                $open = null;
+            }
             if ($open === $latest) {
                 echo "$title: contract/latest already moves them.\n";
                 self::output(['behind' => 'true', 'rebuild' => 'false', 'title' => $title]);
@@ -399,6 +430,9 @@ final class ContractDrift
             if ($protocolRoot !== null) {
                 self::applyProtocol($repo, $protocolRoot, $latest['protocol']);
             }
+            if (isset($moves['kit'])) {
+                self::applyKit($repo, $latest['kit']);
+            }
         } finally {
             self::remove($tmp);
         }
@@ -410,16 +444,19 @@ final class ContractDrift
         return 0;
     }
 
-    /** @return array{contract: string, protocol: string} the two pins of a tribunedesk.json */
+    /** @return array{contract: string, protocol: string, kit: string} the three pins of a tribunedesk.json */
     private static function pins(string $manifest): array
     {
         $data = json_decode($manifest, true);
-        if (!is_array($data) || !is_string($data['contract'] ?? null) || !is_string($data['protocol'] ?? null)) {
-            throw new RuntimeException('tribunedesk.json has no "contract" and "protocol"');
+        $pins = [];
+        foreach (['contract', 'protocol', 'kit'] as $pin) {
+            if (!is_array($data) || !is_string($data[$pin] ?? null)) {
+                throw new RuntimeException("tribunedesk.json has no \"$pin\"");
+            }
+            self::versionKey($data[$pin]);
+            $pins[$pin] = $data[$pin];
         }
-        self::versionKey($data['contract']);
-        self::versionKey($data['protocol']);
-        return ['contract' => $data['contract'], 'protocol' => $data['protocol']];
+        return $pins;
     }
 
     /** The manifest's text, checked to carry exactly one `"<pin>": "…"`. */

@@ -8,7 +8,7 @@ use TribuneDesk\Ci\ContractDrift;
 
 /**
  * ci/ContractDrift.php, the daily drift of .github/workflows/contract-drift.yml (spec
- * "kontrakt najpierw" D2b in Tribunedesk/tribunedesk-cms-kit): "contract" and "protocol" of
+ * "kontrakt najpierw" D2b in Tribunedesk/tribunedesk-cms-kit): "contract", "protocol" and "kit" of
  * tribunedesk.json against the newest tags of tribunedesk-cms-api and tribunedesk-cms-php.
  * No WordPress, no network: git is a fake that answers from prepared directories.
  */
@@ -208,7 +208,7 @@ MD;
         return "<?php\nfinal class ContractVersion\n{\n    public const TESTED = '$tested';\n}\n";
     }
 
-    private const MANIFEST = "{\"contract\": \"3.4.1-draft\", \"protocol\": \"1.1.0\", \"levels\": [1, 2, 3, 4], \"delivery\": \"webhook\", \"cms\": \"wordpress\"}\n";
+    private const MANIFEST = "{\"contract\": \"3.4.1-draft\", \"protocol\": \"1.1.0\", \"kit\": \"1.3.0\", \"levels\": [1, 2, 3, 4], \"delivery\": \"webhook\", \"cms\": \"wordpress\"}\n";
 
     /** The plugin today: contract 3.4.1-draft, library 1.1.0. */
     private function plugin(): string
@@ -248,6 +248,7 @@ MD;
     private const NEWEST = [
         ContractDrift::CONTRACT_REPO => ['v3.4.1-draft', 'v3.4.2-draft', 'ship-lock'],
         ContractDrift::PROTOCOL_REPO => ['v1.1.0', 'v1.1.1', 'ship-lock'],
+        ContractDrift::KIT_REPO => ['v1.2.0', 'v1.3.0', 'v1.1.2', 'ship-lock'],
     ];
 
     /**
@@ -372,7 +373,7 @@ MD;
 
         $this->assertSame(0, $code);
         $this->assertSame(['behind' => 'false'], self::outputs($out));
-        $this->assertCount(2, $calls);
+        $this->assertCount(3, $calls);
         $this->assertSame($before, self::snapshot($repo));
     }
 
@@ -407,7 +408,7 @@ MD;
             ['behind' => 'true', 'rebuild' => 'false', 'title' => 'contract: 3.4.1-draft → 3.4.2-draft, protocol: 1.1.0 → 1.1.1'],
             self::outputs($out)
         );
-        $this->assertCount(2, $calls);
+        $this->assertCount(3, $calls);
         $this->assertSame($before, self::snapshot($repo));
         $this->assertFileDoesNotExist("$repo/body.md");
     }
@@ -450,8 +451,8 @@ MD;
         $this->assertStringContainsString('- Nothing to do.', $body);
         $this->assertStringNotContainsString('stays red', $body);
         $this->assertStringContainsString('PublishNotifier → 2-link-back.md#done-when', $body);
-        $this->assertCount(4, $calls);
-        foreach ([2, 3] as $clone) {
+        $this->assertCount(5, $calls);
+        foreach ([3, 4] as $clone) {
             $this->assertDirectoryDoesNotExist($calls[$clone][count($calls[$clone]) - 1]);
         }
     }
@@ -476,6 +477,63 @@ MD;
         }
         $this->assertSame($before, self::snapshot($repo));
         $this->assertFileDoesNotExist("$repo/body.md");
+    }
+
+    public function test_run_rebuilds_when_the_open_manifest_lacks_a_pin(): void
+    {
+        // A pull request opened before "kit" existed (or a broken hand-made merge) must not jam
+        // the drift: an open manifest it cannot read is rebuilt like a closed one.
+        $repo = $this->plugin();
+        $open = $this->tempDir() . '/open.json';
+        file_put_contents($open, "{\"contract\": \"3.4.2-draft\", \"protocol\": \"1.1.1\", \"levels\": [1, 2, 3, 4]}\n");
+        $out = $this->tempDir() . '/output';
+        putenv("GITHUB_OUTPUT=$out");
+        $calls = [];
+
+        $this->expectOutputRegex('/moved/');
+        $code = ContractDrift::run(['x', '--body-out', "$repo/body.md", '--open-pr-manifest', $open], $repo, self::fakeGit(self::NEWEST, $calls));
+
+        $this->assertSame(0, $code);
+        $this->assertSame('true', self::outputs($out)['rebuild']);
+    }
+
+    public function test_latest_kit_tag(): void
+    {
+        $this->assertSame('v1.3.0', ContractDrift::latestTag(["a\trefs/tags/v1.2.0", "b\trefs/tags/v1.3.0", "c\trefs/tags/v1.10.0-draft"], ContractDrift::KIT_TAG));
+    }
+
+    public function test_title_and_body_name_the_kit(): void
+    {
+        $moves = ['contract' => ['3.4.2-draft', '3.5.0-draft'], 'kit' => ['1.3.0', '1.4.0']];
+        $this->assertSame('contract: 3.4.2-draft → 3.5.0-draft, kit: 1.3.0 → 1.4.0', ContractDrift::title($moves));
+        $body = ContractDrift::prBody($moves, self::CHANGELOG, '3.5.0-draft', '3.5.0-draft', []);
+        $this->assertStringContainsString(ContractDrift::KIT_REPO . '/compare/v1.3.0...v1.4.0', $body);
+    }
+
+    public function test_apply_kit_moves_only_the_kit_value(): void
+    {
+        $repo = $this->plugin();
+
+        ContractDrift::applyKit($repo, '1.4.0');
+
+        $this->assertSame(str_replace('"kit": "1.3.0"', '"kit": "1.4.0"', self::MANIFEST), file_get_contents("$repo/tribunedesk.json"));
+    }
+
+    public function test_run_moves_three_pins(): void
+    {
+        $repo = $this->plugin();
+        self::write($repo, ['tribunedesk.json' => str_replace('"kit": "1.3.0"', '"kit": "1.2.0"', self::MANIFEST)]);
+        $out = $this->tempDir() . '/output';
+        putenv("GITHUB_OUTPUT=$out");
+        $calls = [];
+
+        $this->expectOutputRegex('/moved/');
+        $code = ContractDrift::run(['x', '--body-out', "$repo/body.md"], $repo, self::fakeGit(self::NEWEST, $calls));
+
+        $this->assertSame(0, $code);
+        $this->assertSame('contract: 3.4.1-draft → 3.4.2-draft, protocol: 1.1.0 → 1.1.1, kit: 1.2.0 → 1.3.0', self::outputs($out)['title']);
+        $this->assertStringContainsString('"kit": "1.3.0"', (string) file_get_contents("$repo/tribunedesk.json"));
+        $this->assertCount(5, $calls, 'three ls-remote, two clones: the kit pin needs no clone');
     }
 
     // -- .github/workflows/contract-drift.yml ---------------------------------------------------

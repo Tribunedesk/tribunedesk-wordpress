@@ -63,6 +63,9 @@ class Test_Contract extends WP_UnitTestCase
         $this->assertSame($manifest['contract'], self::json('openapi.json')['info']['version']);
         $this->assertSame($manifest['contract'], \TribuneDesk\Protocol\ContractVersion::TESTED, 'src/Protocol is tested on the same contract');
         $this->assertMatchesRegularExpression('/^\d+\.\d+\.\d+$/', (string) ($manifest['protocol'] ?? ''));
+        // "kit": the tdkit the CI job `tdkit check` runs (a tag of tribunedesk-cms-kit, without v);
+        // `tdkit manifest validate` requires it.
+        $this->assertMatchesRegularExpression('/^\d+\.\d+\.\d+$/', (string) ($manifest['kit'] ?? ''));
     }
 
     public function test_sample_delivery_creates_a_draft_and_answers_in_contract_keys(): void
