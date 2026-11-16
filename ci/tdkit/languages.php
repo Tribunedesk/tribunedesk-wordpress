@@ -4,7 +4,7 @@
  * (`language` of the contract's sample is `en`). CI only.
  */
 
-declare(strict_types=1);
+// No declare(strict_types=1): `wp eval-file` evals this file, where it is a fatal error.
 
 if (!function_exists('PLL')) {
     WP_CLI::error('Polylang is not active');
