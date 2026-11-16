@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!-- The CI scripts' tests without WordPress, for a laptop without wp-env:
+     php vendor/bin/phpunit -c ci/phpunit.xml. The full suite (wp-env) runs them too. -->
+<phpunit
+    bootstrap="../vendor/autoload.php"
+    colors="true"
+    convertErrorsToExceptions="true"
+    convertNoticesToExceptions="true"
+    convertWarningsToExceptions="true">
+    <testsuites>
+        <testsuite name="ci">
+            <file>../tests/test-guide-anchors.php</file>
+        </testsuite>
+    </testsuites>
+</phpunit>

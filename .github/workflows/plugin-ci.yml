@@ -11,6 +11,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # contract-drift.yml starts this on contract/latest: a pull request opened with GITHUB_TOKEN
+  # starts no workflow, workflow_dispatch is the exception GitHub allows.
+  workflow_dispatch:
 
 jobs:
   php:
@@ -34,12 +37,15 @@ jobs:
 
       # Kopie kontraktu w tests/contract musza byc bajt w bajt tym, co lezy pod tagiem
       # repo publicznego z pola "contract" manifestu tribunedesk.json. Testy czytaja kopie
-      # (bez sieci), a ten krok pilnuje, ze kopie to opublikowany kontrakt.
+      # (bez sieci), a ten krok pilnuje, ze kopie to opublikowany kontrakt. Kopia guide/
+      # sluzy mapie funkcji docs/contract-map.json (tests/test-contract-map.php).
       - name: Kontrakt z otagowanej wersji tribunedesk-cms-api
         run: |
-          base="https://raw.githubusercontent.com/Tribunedesk/tribunedesk-cms-api/v$(php -r 'echo json_decode(file_get_contents("tribunedesk.json"))->contract;')"
-          curl -fsS "$base/openapi.json" | cmp - tests/contract/openapi.json
-          curl -fsS "$base/examples/payloads/article-delivered.json" | cmp - tests/contract/article-delivered.json
+          tag="v$(php -r 'echo json_decode(file_get_contents("tribunedesk.json"))->contract;')"
+          git -c core.autocrlf=false clone -q --depth 1 --branch "$tag" https://github.com/Tribunedesk/tribunedesk-cms-api /tmp/api
+          cmp /tmp/api/openapi.json tests/contract/openapi.json
+          cmp /tmp/api/examples/payloads/article-delivered.json tests/contract/article-delivered.json
+          diff -r /tmp/api/guide tests/contract/guide
 
       # src/Protocol to kopia biblioteki tribunedesk/cms-protocol z tagu z pola "protocol"
       # manifestu: zmiana regul protokolu idzie najpierw do biblioteki, potem kopia tutaj.
