@@ -64,23 +64,23 @@ class Test_Media_Push extends WP_UnitTestCase
         $this->assertContains($id, MediaPush::candidates(50));
     }
 
-    public function test_bez_rodzica_1h_nie_25h_tak(): void
+    public function test_bez_rodzica_jest_kandydatem_od_razu(): void
     {
-        $young = $this->attachment([], 3600);
-        $old   = $this->attachment([], 25 * 3600);
-        $c     = MediaPush::candidates(50);
-        $this->assertNotContains($young, $c);
-        $this->assertContains($old, $c);
+        // 16.11 (owner, etap 5b "kontrakt najpierw"): guide 4 "New files ... reach Tribune Desk";
+        // no day of waiting for a file without a published parent (tdkit l4-cms-new-file).
+        $fresh = $this->attachment([], 60);
+        $this->assertContains($fresh, MediaPush::candidates(50));
     }
 
-    public function test_rodzic_w_koszu_25h_jest_1h_nie_ma(): void
+    public function test_rodzic_w_szkicu_lub_koszu_nie_wstrzymuje_pliku(): void
     {
-        $parent = self::factory()->post->create(['post_status' => 'trash']);
-        $old    = $this->attachment(['post_parent' => $parent], 25 * 3600);
-        $young  = $this->attachment(['post_parent' => $parent], 3600);
-        $c      = MediaPush::candidates(50);
-        $this->assertContains($old, $c);
-        $this->assertNotContains($young, $c);
+        $draft = self::factory()->post->create(['post_status' => 'draft']);
+        $trash = self::factory()->post->create(['post_status' => 'trash']);
+        $on_draft = $this->attachment(['post_parent' => $draft], 60);
+        $on_trash = $this->attachment(['post_parent' => $trash], 60);
+        $c = MediaPush::candidates(50);
+        $this->assertContains($on_draft, $c);
+        $this->assertContains($on_trash, $c);
     }
 
     public function test_pominiecia_z_td_asset_source_url_pdf_i_floor(): void

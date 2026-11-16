@@ -341,6 +341,9 @@ class CmsSync
             if (is_wp_error($page)) {
                 if ($page->get_error_code() === 'cursor_expired') {
                     update_option(self::OPTION_NEEDS_RESYNC, 1, false);
+                    // guide 4: an expired cursor leads to a resync, not to a fresh start. The
+                    // td_to_cms preview starts now; an operator still confirms it on the screen.
+                    CmsResync::start_preview('td_to_cms');
                 }
 
                 return self::failure($page);

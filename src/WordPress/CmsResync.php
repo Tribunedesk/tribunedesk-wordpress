@@ -40,14 +40,28 @@ class CmsResync
         $direction = isset($_POST['hf_cms_direction']) ? sanitize_key(wp_unslash((string) $_POST['hf_cms_direction'])) : '';
         if (!in_array($direction, self::DIRECTIONS, true)) {
             CmsSettingsScreen::flash('notice-error', __('Choose the sync direction.', 'tribune-desk'));
-        } elseif (self::state() !== null) {
+        } elseif (!self::start_preview($direction)) {
             CmsSettingsScreen::flash('notice-error', __('A sync is already running.', 'tribune-desk'));
         } else {
-            update_option(self::OPTION_STATE, ['direction' => $direction, 'status' => 'collecting', 'last_id' => 0, 'error' => ''], false);
-            self::schedule(0);
             CmsSettingsScreen::flash('notice-success', __('Sync started: fields are sent to Tribune Desk in batches in the background.', 'tribune-desk'));
         }
         self::back();
+    }
+
+    /**
+     * Starts collecting a preview in `$direction` (one of Resync::DIRECTIONS), unless a resync is
+     * already under way. A preview changes nothing: only an operator's confirmation applies it.
+     * Called from the screen and, with td_to_cms, by CmsSync when the cursor expires (16.11).
+     */
+    public static function start_preview(string $direction): bool
+    {
+        if (!in_array($direction, self::DIRECTIONS, true) || self::state() !== null) {
+            return false;
+        }
+        update_option(self::OPTION_STATE, ['direction' => $direction, 'status' => 'collecting', 'last_id' => 0, 'error' => ''], false);
+        self::schedule(0);
+
+        return true;
     }
 
     public static function handle_resume(): void

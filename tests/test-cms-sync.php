@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 use TribuneDesk\WordPress\Activator;
 use TribuneDesk\WordPress\CmsApiClient;
+use TribuneDesk\WordPress\CmsResync;
 use TribuneDesk\WordPress\CmsSettingsScreen;
 use TribuneDesk\WordPress\CmsSync;
 use TribuneDesk\WordPress\MediaMetaSync;
@@ -309,6 +310,33 @@ class Test_Cms_Sync extends WP_UnitTestCase
         $this->requests = [];
         CmsSync::run_poll();
         $this->assertSame([], $this->calls('/v3/cms/changes'));
+    }
+
+    public function test_410_starts_a_td_to_cms_preview(): void
+    {
+        // 16.11 (owner, etap 5b): guide 4 "An expired cursor (410) leads to a resync, not to a
+        // fresh start from now". The preview starts on its own; confirming it stays with a person.
+        update_option(CmsSync::OPTION_CURSOR, 'c1');
+        $this->routes['GET /v3/cms/changes'] = [410, ['code' => 'cursor_expired', 'message' => 'x']];
+
+        CmsSync::run_poll();
+
+        $state = get_option(CmsResync::OPTION_STATE);
+        $this->assertSame('td_to_cms', $state['direction'] ?? null);
+        $this->assertSame('collecting', $state['status'] ?? null);
+        $this->assertNotFalse(wp_next_scheduled(CmsResync::HOOK_PAGE));
+    }
+
+    public function test_410_keeps_a_resync_already_running(): void
+    {
+        update_option(CmsSync::OPTION_CURSOR, 'c1');
+        update_option(CmsResync::OPTION_STATE, ['direction' => 'cms_to_td', 'status' => 'ready', 'last_id' => 9, 'error' => '']);
+        $this->routes['GET /v3/cms/changes'] = [410, ['code' => 'cursor_expired', 'message' => 'x']];
+
+        CmsSync::run_poll();
+
+        $state = get_option(CmsResync::OPTION_STATE);
+        $this->assertSame(['cms_to_td', 'ready'], [$state['direction'], $state['status']]);
     }
 
     public function test_poll_reads_at_most_three_pages(): void

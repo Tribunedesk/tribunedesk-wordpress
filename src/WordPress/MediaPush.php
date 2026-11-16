@@ -10,13 +10,13 @@ if (!defined('ABSPATH')) {
 /**
  * Candidates for sending new photos to the Tribune Desk library: attachments not from TD, newer than
  * the `floor` threshold. CmsSync sends them via /v3, and the per-photo result goes to the _hf_media_pushed meta.
- * The hourly cron is this send's safety net: it moves a photo without a parent after a day
- * and the deletion queue after a 501. The hooks are registered by the main plugin file.
+ * A new photo goes at the next send, with or without a published post (16.11, guide 4: new
+ * files reach Tribune Desk; until then a photo without a published parent waited a day). The
+ * hourly cron is this send's safety net, also for the deletion queue after a 501. The hooks are registered by the main plugin file.
  */
 class MediaPush
 {
     public const HOOK            = 'headlinesforge_media_push';
-    public const READY_AFTER     = DAY_IN_SECONDS;
     public const HOST_RETRY      = 7 * DAY_IN_SECONDS;
     public const OPTION_FLOOR    = 'headlinesforge_media_push_floor';
     public const META_PUSHED     = '_hf_media_pushed';
@@ -49,15 +49,11 @@ class MediaPush
 
         global $wpdb;
         $now       = time();
-        $ready_cut = gmdate('Y-m-d H:i:s', $now - self::READY_AFTER);
         $host_cut  = $now - self::HOST_RETRY;
         $mimes     = implode(',', array_fill(0, count(self::MIMES), '%s'));
 
-        // Parent published (join on publish) or the attachment older than READY_AFTER;
-        // a parent in trash or deleted does not enter the join, so it counts as none.
         // Sent earlier: skipped, unless rejected for host or missing dimensions longer ago than HOST_RETRY.
         $sql = "SELECT p.ID FROM {$wpdb->posts} p
-            LEFT JOIN {$wpdb->posts} par ON par.ID = p.post_parent AND par.post_status = 'publish'
             LEFT JOIN {$wpdb->postmeta} pm ON pm.post_id = p.ID AND pm.meta_key = %s
             WHERE p.post_type = 'attachment'
               AND p.post_status = 'inherit'
@@ -66,7 +62,6 @@ class MediaPush
               AND NOT EXISTS (SELECT 1 FROM {$wpdb->postmeta} x WHERE x.post_id = p.ID AND x.meta_key IN (%s, %s, %s))
               AND (pm.meta_id IS NULL
                    OR ((pm.meta_value LIKE %s OR pm.meta_value LIKE %s) AND CAST(SUBSTRING_INDEX(pm.meta_value, '@', -1) AS UNSIGNED) < %d))
-              AND (par.ID IS NOT NULL OR p.post_date_gmt < %s)
             GROUP BY p.ID
             ORDER BY p.ID ASC
             LIMIT %d";
@@ -82,7 +77,6 @@ class MediaPush
                 $wpdb->esc_like('rejected:host@') . '%',
                 $wpdb->esc_like('rejected:missing_metadata@') . '%',
                 $host_cut,
-                $ready_cut,
                 $limit,
             ]
         );
