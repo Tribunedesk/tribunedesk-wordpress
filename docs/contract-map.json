@@ -1,0 +1,128 @@
+{
+    "classes": [
+        {
+            "class": "Activator",
+            "wp_only": "activation, database tables and upgrades of the plugin"
+        },
+        {
+            "class": "AuthorResolver",
+            "guide": "3-full-content.md#seo-author-and-language"
+        },
+        {
+            "class": "Backfill",
+            "guide": "2-link-back.md#reporting-the-published-address"
+        },
+        {
+            "class": "Backlinks",
+            "guide": "3-full-content.md#the-read-more-box"
+        },
+        {
+            "class": "CmsApiClient",
+            "wp_only": "HTTP transport to /v3/cms over the WordPress HTTP API; the routes it calls are mapped by the classes that call them"
+        },
+        {
+            "class": "CmsBackfill",
+            "guide": "4-media-library.md#historical-import"
+        },
+        {
+            "class": "CmsDeletions",
+            "guide": "4-media-library.md#deletions"
+        },
+        {
+            "class": "CmsResync",
+            "guide": "4-media-library.md#cursors-and-expiry"
+        },
+        {
+            "class": "CmsSettingsScreen",
+            "guide": "4-media-library.md#settings"
+        },
+        {
+            "class": "CmsSync",
+            "guide": "4-media-library.md#the-sync-cycle"
+        },
+        {
+            "class": "DeliveriesLog",
+            "wp_only": "the log of deliveries shown in wp-admin"
+        },
+        {
+            "class": "Hooks",
+            "wp_only": "names of the plugin's WordPress filters, old and new"
+        },
+        {
+            "class": "ImageHosts",
+            "guide": "1-article-delivery.md#where-images-come-from"
+        },
+        {
+            "class": "Language",
+            "guide": "3-full-content.md#seo-author-and-language"
+        },
+        {
+            "class": "LinkResolver",
+            "guide": "3-full-content.md#internal-links"
+        },
+        {
+            "class": "MediaHandler",
+            "guide": "1-article-delivery.md#where-images-come-from"
+        },
+        {
+            "class": "MediaMetaSync",
+            "guide": "4-media-library.md#conflicts-and-base_version"
+        },
+        {
+            "class": "MediaPush",
+            "guide": "4-media-library.md#sending-new-files"
+        },
+        {
+            "class": "PostWriter",
+            "guide": "1-article-delivery.md#fields-of-the-request"
+        },
+        {
+            "class": "ProvenanceMeta",
+            "guide": "3-full-content.md#the-ai-label"
+        },
+        {
+            "class": "PublishNotifier",
+            "guide": "2-link-back.md#reporting-the-published-address"
+        },
+        {
+            "class": "PublishedUrlsClient",
+            "guide": "2-link-back.md#reporting-the-published-address"
+        },
+        {
+            "class": "ReadMore",
+            "guide": "3-full-content.md#the-read-more-box"
+        },
+        {
+            "class": "RestEndpoint",
+            "guide": "1-article-delivery.md#article-delivery-webhook"
+        },
+        {
+            "class": "Sanitizer",
+            "guide": "1-article-delivery.md#the-html-body"
+        },
+        {
+            "class": "SeoMeta",
+            "guide": "3-full-content.md#seo-author-and-language"
+        },
+        {
+            "class": "Settings",
+            "wp_only": "the plugin's settings screen in wp-admin"
+        },
+        {
+            "class": "SocialQueueFlag",
+            "guide": "2-link-back.md#keeping-a-post-off-facebook"
+        },
+        {
+            "class": "UpdateManifest",
+            "wp_only": "self-update of the plugin from the Tribune Desk manifest"
+        },
+        {
+            "class": "Updater",
+            "wp_only": "self-update of the plugin from the Tribune Desk manifest"
+        },
+        {
+            "class": "WriteResult",
+            "guide": "1-article-delivery.md#fields-of-your-answer"
+        }
+    ]
+}

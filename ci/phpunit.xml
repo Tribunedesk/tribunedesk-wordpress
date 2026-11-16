@@ -10,6 +10,7 @@
     <testsuites>
         <testsuite name="ci">
             <file>../tests/test-guide-anchors.php</file>
+            <file>../tests/test-contract-map.php</file>
         </testsuite>
     </testsuites>
 </phpunit>
