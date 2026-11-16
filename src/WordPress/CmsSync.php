@@ -449,6 +449,9 @@ class CmsSync
         if ($kind === 'settings') {
             delete_transient(self::TRANSIENT_ACTIVE);
             delete_transient(self::TRANSIENT_SETTINGS);
+            // guide 4, "The sync cycle": a settings change carries no values, read them again now.
+            // A failed read is not an error here: keep_nonempty() reads them before it needs them.
+            self::keep_nonempty();
             self::return_disabled_files();
             return true;
         }

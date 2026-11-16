@@ -68,8 +68,66 @@ class PostWriter
         }
     }
 
-    /** @param array<string, mixed> $payload */
+    /** `sent_at` of the last send applied to the post (guide 1, "Order of sends"). */
+    public const META_SENT_AT = '_hf_sent_at';
+
+    /** Seconds a delivery waits for another attempt of the same article; Tribune Desk waits 30. */
+    public const LOCK_WAIT = 20;
+
+    /** Name of the MySQL lock that serialises the writes of one article. */
+    public static function lock_name(string $article_id): string
+    {
+        return 'td_article_' . md5($article_id);
+    }
+
+    /**
+     * Writes the delivery under a lock on its article_id: two overlapping attempts of one send
+     * (guide 1, "Store under a unique key") are written one after the other, so the second finds
+     * the post the first made. A lock not free in time ends with an exception, which the endpoint
+     * answers with a 5xx, so Tribune Desk tries again.
+     *
+     * @param array<string, mixed> $payload
+     */
     public static function write(array $payload, int $author_id, bool $publish = false): array
+    {
+        global $wpdb;
+        $name = self::lock_name((string) $payload['article_id']);
+        $wait = (int) Hooks::filter('delivery_lock_wait', self::LOCK_WAIT);
+        if ((string) $wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s, %d)', $name, $wait)) !== '1') {
+            throw new \RuntimeException('another attempt of this article is still being written');
+        }
+        try {
+            return self::write_locked($payload, $author_id, $publish);
+        } finally {
+            $wpdb->query($wpdb->prepare('SELECT RELEASE_LOCK(%s)', $name));
+        }
+    }
+
+    /**
+     * Whether the delivery is an attempt of a send older than the one last applied to the post.
+     * A missing or unreadable `sent_at` on either side counts as not older.
+     *
+     * @param array<string, mixed> $payload
+     */
+    private static function is_older_send(array $payload, int $post_id): bool
+    {
+        $new = strtotime((string) ($payload['sent_at'] ?? ''));
+        $old = strtotime((string) get_post_meta($post_id, self::META_SENT_AT, true));
+
+        return $new !== false && $old !== false && $new < $old;
+    }
+
+    /** @param array<string, mixed> $payload */
+    private static function remember_sent_at(int $post_id, array $payload): void
+    {
+        $sent_at = (string) ($payload['sent_at'] ?? '');
+        if ($sent_at !== '' && strtotime($sent_at) !== false) {
+            update_post_meta($post_id, self::META_SENT_AT, $sent_at);
+        }
+    }
+
+    /** @param array<string, mixed> $payload */
+    private static function write_locked(array $payload, int $author_id, bool $publish): array
     {
         $article_id = (string) $payload['article_id'];
         $title = DraftRules::title($payload);
@@ -85,6 +143,10 @@ class PostWriter
         $html = LinkResolver::resolve(Sanitizer::sanitize($raw_html), $links);
 
         $existing = self::find_by_article_id($article_id);
+        if ($existing !== null && self::is_older_send($payload, (int) $existing->ID)) {
+            // Nothing of an older send is applied, not even the metadata of a published post.
+            return ['post_id' => (int) $existing->ID, 'status' => WriteResult::SkippedOlderSend];
+        }
         $action   = DraftRules::action($existing === null ? null : (string) $existing->post_status);
 
         $excerpt = self::excerpt_for_post($payload);
@@ -108,6 +170,7 @@ class PostWriter
             ProvenanceMeta::sync((int) $post_id, $raw_html);
             // Language only on creation: an existing post may have been moved by hand.
             Language::apply((int) $post_id, $payload);
+            self::remember_sent_at((int) $post_id, $payload);
 
             return ['post_id' => (int) $post_id, 'status' => WriteResult::Created];
         }
@@ -127,6 +190,7 @@ class PostWriter
                 && isset(Backlinks::meta_from_payload($payload)[Backlinks::META_SOURCES])) {
                 Backlinks::sync_rows($existing);
             }
+            self::remember_sent_at((int) $existing->ID, $payload);
             return ['post_id' => (int) $existing->ID, 'status' => WriteResult::SkippedAlreadyPublished];
         }
 
@@ -160,6 +224,7 @@ class PostWriter
         // On the SkippedAlreadyPublished path we deliberately do NOT do this — there the content
         // stays untouched, so the old signature is the right one.
         ProvenanceMeta::sync((int) $existing->ID, $raw_html);
+        self::remember_sent_at((int) $existing->ID, $payload);
 
         return ['post_id' => (int) $existing->ID, 'status' => WriteResult::Updated];
     }

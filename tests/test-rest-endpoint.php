@@ -102,6 +102,57 @@ class Test_RestEndpoint extends WP_UnitTestCase
             . '"html":"<p>Łódź / Kraków</p>","title":"Zażółć"}';
     }
 
+    /** @return array<string, mixed> a minimal delivery of `$uuid` sent at `$sent_at` */
+    private function delivery(string $uuid, string $title, string $sent_at): array
+    {
+        return ['article_id' => $uuid, 'topic' => 't', 'title' => $title, 'html' => '<p>x</p>', 'sent_at' => $sent_at];
+    }
+
+    public function test_older_send_does_not_overwrite_the_post(): void
+    {
+        // guide 1, "Order of sends": skip a body whose sent_at is older than the one you applied.
+        $uuid = '1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f';
+        $this->assertSame(200, $this->send($this->delivery($uuid, 'Newer', '2026-11-16T10:00:00+00:00'))->get_status());
+
+        $older = $this->send($this->delivery($uuid, 'Older', '2026-11-16T09:00:00+00:00'));
+
+        $this->assertSame(200, $older->get_status());
+        $this->assertSame('Newer', PostWriter::find_by_article_id($uuid)->post_title);
+        $this->assertSame('updated', $older->get_data()['status'], 'the contract has no status for a skipped older send');
+    }
+
+    public function test_newer_and_repeated_sends_update_the_post(): void
+    {
+        $uuid = '2c3d4e5f-6a7b-4c8d-9e0f-1a2b3c4d5e6f';
+        $this->send($this->delivery($uuid, 'First', '2026-11-16T09:00:00+00:00'));
+        $this->send($this->delivery($uuid, 'Second', '2026-11-16T09:00:00+00:00'));
+        $this->assertSame('Second', PostWriter::find_by_article_id($uuid)->post_title);
+
+        $this->send($this->delivery($uuid, 'Third', '2026-11-16T10:00:00+00:00'));
+        $this->assertSame('Third', PostWriter::find_by_article_id($uuid)->post_title);
+    }
+
+    public function test_delivery_waits_for_the_article_lock(): void
+    {
+        // guide 1, "Store under a unique key": overlapping attempts of one send must not make two posts.
+        $uuid = '3c4d5e6f-7a8b-4c9d-8e0f-2a3b4c5d6e7f';
+        [$host, $port] = array_pad(explode(':', DB_HOST, 2), 2, '3306');
+        $other = new mysqli($host, DB_USER, DB_PASSWORD, DB_NAME, (int) $port);
+        $other->query("SELECT GET_LOCK('" . $other->real_escape_string(PostWriter::lock_name($uuid)) . "', 0)");
+        $wait = static fn (): int => 1;
+        add_filter('tribune_desk_delivery_lock_wait', $wait);
+        try {
+            $busy = $this->send($this->delivery($uuid, 'While locked', '2026-11-16T09:00:00+00:00'));
+            $this->assertSame(500, $busy->get_status(), 'a retryable answer: Tribune Desk tries again');
+            $this->assertNull(PostWriter::find_by_article_id($uuid));
+        } finally {
+            remove_filter('tribune_desk_delivery_lock_wait', $wait);
+            $other->close();
+        }
+
+        $this->assertSame(200, $this->send($this->delivery($uuid, 'After', '2026-11-16T09:00:00+00:00'))->get_status());
+    }
+
     public function test_signed_delivery_is_accepted_when_signing_secret_set(): void
     {
         update_option(RestEndpoint::OPTION_SIGNING_SECRET, self::SIGNING_SECRET);

@@ -953,6 +953,21 @@ class Test_Cms_Sync extends WP_UnitTestCase
         $this->assertFalse(wp_next_scheduled(CmsSync::HOOK_SEND));
     }
 
+    public function test_settings_row_reads_settings_again(): void
+    {
+        // guide 4, "The sync cycle": a kind="settings" change has no values; read GET /settings again.
+        update_option(CmsSync::OPTION_CURSOR, 'c1');
+        $this->routes['GET /v3/cms/settings'] = [200, $this->settings(true)];
+        set_transient(CmsSync::TRANSIENT_SETTINGS, 'overwrite', HOUR_IN_SECONDS);
+        $this->feed([['cursor' => 'c', 'kind' => 'settings', 'changed_at' => 'x']]);
+
+        CmsSync::run_poll();
+
+        $reads = array_filter($this->requests, static fn (array $r): bool => str_contains($r['url'], '/v3/cms/settings'));
+        $this->assertCount(1, $reads);
+        $this->assertSame('keep', get_transient(CmsSync::TRANSIENT_SETTINGS));
+    }
+
     public function test_settings_row_returns_files_rejected_as_disabled(): void
     {
         update_option(MediaPush::OPTION_FLOOR, 0);

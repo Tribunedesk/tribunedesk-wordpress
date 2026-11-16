@@ -110,7 +110,7 @@ class RestEndpoint
             $public = get_post_status($result['post_id']) === 'publish';
             $response = DeliveryAnswer::build(
                 $result['post_id'],
-                $result['status']->value,
+                $result['status']->answer(),
                 $edit_url,
                 $public ? (string) get_permalink($result['post_id']) : null,
                 $featured,
