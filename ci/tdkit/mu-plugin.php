@@ -25,4 +25,14 @@ if ($tdkit_ca !== '' && is_file($tdkit_ca)) {
     add_filter('http_request_host_is_external', static function (bool $external, string $host): bool {
         return $external || $host === '127.0.0.1';
     }, 10, 2);
+    // wp_safe_remote_* also allows only ports 80, 443 and 8080; the mock's files are on a free
+    // port of its own.
+    add_filter('http_allowed_safe_ports', static function (array $ports, string $host, string $url): array {
+        $port = (int) wp_parse_url($url, PHP_URL_PORT);
+        if ($host === '127.0.0.1' && $port > 0) {
+            $ports[] = $port;
+        }
+
+        return $ports;
+    }, 10, 3);
 }
