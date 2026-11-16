@@ -11,6 +11,7 @@
         <testsuite name="ci">
             <file>../tests/test-guide-anchors.php</file>
             <file>../tests/test-contract-map.php</file>
+            <file>../tests/test-contract-drift.php</file>
         </testsuite>
     </testsuites>
 </phpunit>
