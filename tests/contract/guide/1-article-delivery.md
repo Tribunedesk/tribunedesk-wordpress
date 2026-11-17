@@ -89,6 +89,7 @@ Fields marked as omitted are absent from the body, not `null`, when they do not 
 - **Usual elements:** `h2`, `h3`, `p`, `strong`, `b`, `em`, `i`, `br`, `ul`, `ol`, `li`, `blockquote` and `a`. The headline is not in `html`: it is `title`.
 - **Links:** `<a href="…">`; when the newsroom opens links in a new tab, `target="_blank" rel="noopener"`; a sponsored link carries `rel="sponsored"`. Links to other articles of the newsroom are described in level 3.
 - **No media in the body:** Tribune Desk puts no `img`, `figure` or `iframe` in `html`; images come as `featured_image` and `generated_images`. An editor may still paste an embed by hand.
+- **Embeds:** keep an `iframe` only when its `src` starts with the address of a video or social player you trust (the WordPress plugin keeps players from YouTube, Vimeo, X, Instagram, TikTok and Facebook), and keep only its `src`, `width`, `height`, `frameborder`, `allowfullscreen`, `allow` and `title`. Remove every other `iframe`, and every other `script` together with its content (the AI label block below is the one script you may keep). A delivery arrives with no editor logged in: if your CMS filters content by the rights of the current user, check that this filter keeps the embeds you trust.
 - **The AI label block:** when the newsroom marks AI content, `html` ends with `<script type="application/ld+json" data-hf-provenance>…</script>`, the same statement as `ai_provenance` (see level 3). Keep it if your CMS allows it, or drop it and render `ai_provenance` in the page head instead.
 
 ## Fields of your answer
@@ -123,6 +124,7 @@ A working receiver in Python, with no dependencies, is in [`examples/python/leve
 - An attempt of an older send that arrives after a newer one does not overwrite the post.
 - Two attempts of one send that overlap make one post, not two.
 - Images are downloaded only from the hosts in `image_hosts`; an image on any other host is not fetched.
+- A `script` in `html` other than the AI label block is removed with its content; an `iframe` of a YouTube player is kept and an `iframe` from a host you do not trust is removed.
 
 In read mode, also:
 

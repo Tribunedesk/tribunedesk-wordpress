@@ -6,6 +6,8 @@ When a post made from a delivered article goes public, call `POST /v3/cms/articl
 
 Answering a delivery with `permalink` (and `social_queue_exclude`, below) does the same for a post published at once; use this route for posts published later. When a post is unpublished, Tribune Desk keeps the last address: no route takes it back today, so send the new address when the post comes back or moves.
 
+**When a report fails.** A report that ends with a network error, `429` or a `5xx` is sent again later (after `Retry-After` when there is one); the WordPress plugin tries once more after 5 minutes. Posts that were public before your integration had its token are reported once it has one, up to 100 per request.
+
 ## Keeping a post off Facebook
 
 If your CMS has a setting that keeps a post off Facebook, send it in each item as `social_queue_exclude`. With `true`, Tribune Desk does not add the article to its Facebook queue, and an article already waiting there is taken off every queue; posts already published stay. With `false`, the post may go to Facebook again: an article that never reached the queue and was published at most 48 hours ago joins it as a new article, anything else only when an editor adds it. An editor can still add an excluded article by hand. Leaving the field out keeps the stored value, so a client that does not know the field never clears it. Once your CMS has the setting, send the field every time, also as `false`; otherwise clearing the setting never reaches Tribune Desk. Send the item again when the setting changes on a published post; the same address changes nothing else.
@@ -16,5 +18,6 @@ A working client in Python is in [`examples/python/level2_link_back.py`](../exam
 
 - Every post made from a delivered article is reported once it is public, either by `permalink` in the delivery answer or by `POST /v3/cms/articles/published`.
 - Reporting the same post again does no harm, and an item answered `not_found` or `invalid_url` is logged, not retried unchanged.
+- A report that fails with a network error, `429` or `5xx` is sent again later, not dropped.
 - Your token for this route is a `tdcms_` token with `articles:write`, not the webhook secret.
 - If your CMS has a setting that keeps a post off Facebook, every report carries `social_queue_exclude`, `false` included.

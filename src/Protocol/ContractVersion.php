@@ -9,5 +9,5 @@ namespace TribuneDesk\Protocol;
  */
 final class ContractVersion
 {
-    public const TESTED = '3.4.2-draft';
+    public const TESTED = '3.5.1-draft';
 }

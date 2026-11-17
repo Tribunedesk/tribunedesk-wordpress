@@ -79,6 +79,8 @@ A file is matched by `cms_media_id`. One that is unknown, trashed or belongs to 
 
 `POST /v3/cms/media` takes up to 100 items. Each needs `cms_media_id`, a publicly fetchable `file_url`, `width`, `height` and `mime_type`; the schema marks the last three optional, but an item without them is `rejected` with reason `missing_metadata`. Optional are `sha256` (accepted, not used: the import computes its own), `created_at`, `credit`, `post_title`, `iptc_caption`, `iptc_title` and initial `fields`. Any other property gives `422`. Tribune Desk downloads the file later, at its own pace, up to a daily limit on describing new files.
 
+Send only files added after you turned level 4 on. Files that were already in your library reach Tribune Desk through a historical import (see Historical import), not as new files: a whole library sent at once would use up the daily limit on describing new files.
+
 - **Identifiers are yours.** `cms_media_id` is any text of 1 to 255 characters, here and on every route. Unique within your organization.
 - Per item: `ok` accepted, `known` already received, or `rejected` with a reason: `missing_metadata`; `new_files_disabled`; `before_since` and `below_min_width` (the filters below; `before_since` needs `created_at`); `host` (see Allowed file hosts); `too_small` (under 800 pixels wide; height does not count); `mime` (other than `image/jpeg`, `image/png`, `image/webp`); or `excluded_agency` (`credit`, or the `caption` field when `credit` is empty, names an agency excluded under the agreement of your organization; there is no public list, and most organizations have no such rule).
 - **A refusal is not remembered.** Nothing is stored for a rejected item, so you may send it again at any time, and it gets the same answer until the settings change. A `kind="settings"` change is the moment to retry; retrying sooner is harmless and useless.
@@ -173,6 +175,7 @@ A request closes after its last page and also as soon as it reaches `max_files`;
 
 - Your CMS polls `GET /v3/cms/changes` and stores the cursor only after applying the changes it returned.
 - New files, field changes and deletions on your side reach Tribune Desk, and a repeated request creates no duplicates.
+- Files that were in your library before level 4 was turned on are not sent as new files.
 - A field result `conflict` (in a `200` answer) is resolved by adopting `winning_value`, not by sending yours again.
 - An expired cursor (`410`) leads to a resync, not to a fresh start from now.
 - Held batches are shown to a person who decides them.
