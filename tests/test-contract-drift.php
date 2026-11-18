@@ -555,7 +555,7 @@ MD;
 
     public function test_workflow_commits_no_workflow_file(): void
     {
-        $this->assertSame(1, preg_match('/^\s*git add (.+)$/m', self::workflow(), $m));
+        $this->assertSame(1, preg_match('/^\s*OPEN_PR=.*ci\/drift-branch\.sh (.+)$/m', self::workflow(), $m));
         $this->assertStringNotContainsString('.github', $m[1]);
         foreach (['tribunedesk.json', 'tests/contract', 'src/Protocol', 'README.md'] as $place) {
             $this->assertStringContainsString($place, $m[1], "the drift changes $place, so the workflow must commit it");

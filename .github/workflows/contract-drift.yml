@@ -13,11 +13,12 @@ name: contract-drift
 # not release the plugin: the version, the changelog and a vX.Y.Z tag are a separate decision.
 #
 # GITHUB_TOKEN only. It may not push changes under .github/workflows/; the pins live outside it.
-# A pull request opened with it starts no workflow, so CI is started with `gh workflow run`
-# (workflow_dispatch is the exception GitHub allows). Opening the pull request needs the
-# repository setting "Allow GitHub Actions to create and approve pull requests". While its pull
-# request is open, the branch is rebuilt only when a newer tag replaces one it pins: commits
-# pushed onto it survive.
+# CI is started with `gh workflow run` (workflow_dispatch is the exception GitHub allows); the
+# `pull_request` run of a push made with it waits in `action_required` until someone approves
+# it, so the last step approves the runs of the commit it pushed. Opening the pull request
+# needs the repository setting "Allow GitHub Actions to create and approve pull requests".
+# While its pull request is open, the branch is rebuilt only when a newer tag replaces one it
+# pins, and then ci/drift-branch.sh carries the commits pushed onto it onto the rebuilt branch.
 
 on:
   schedule:
@@ -38,6 +39,8 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # ci/drift-branch.sh finds where the open branch left main
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -72,19 +75,34 @@ jobs:
           TITLE: ${{ steps.drift.outputs.title }}
         run: |
           branch="contract/latest"
-          git config user.name "tribunedesk-contract-drift"
-          git config user.email "tribunedesk-contract-drift@users.noreply.github.com"
-          git checkout -B "$branch"
-          git add -A tribunedesk.json tests/contract src/Protocol README.md
-          git commit -q -m "$TITLE"
-          git push --force origin "$branch"
           open="$(gh pr list --head "$branch" --state open --json number --jq '.[0].number')"
+          # Commits pushed onto an open pull request's branch are carried, not dropped.
+          OPEN_PR="$open" bash ci/drift-branch.sh "$TITLE" tribunedesk.json tests/contract src/Protocol README.md
           if [ -z "$open" ]; then
             gh pr create --base main --head "$branch" --title "$TITLE" --body-file "$RUNNER_TEMP/body.md"
           else
             gh pr edit "$open" --title "$TITLE" --body-file "$RUNNER_TEMP/body.md"
           fi
           gh workflow run plugin-ci.yml --ref "$branch"
+
+      - name: Approve the pull request's runs of the pushed commit
+        if: steps.drift.outputs.rebuild == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha="$(git rev-parse HEAD)"
+          ids=""
+          for _ in $(seq 1 12); do
+            ids="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$sha&event=pull_request" \
+              --jq '.workflow_runs[] | select(.conclusion == "action_required") | .id')"
+            [ -n "$ids" ] && break
+            sleep 5
+          done
+          [ -z "$ids" ] && echo "no pull_request run of $sha waits for approval"
+          for id in $ids; do
+            gh api -X POST "repos/$GITHUB_REPOSITORY/actions/runs/$id/approve" \
+              || echo "::warning::could not approve run $id: approve it in the Actions tab"
+          done
 
       - name: Stay red while a pin is behind
         if: steps.drift.outputs.behind == 'true'
