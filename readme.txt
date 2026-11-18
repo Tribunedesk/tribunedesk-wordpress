@@ -4,7 +4,7 @@ Tags: webhook, automation, content
 Requires at least: 5.6
 Tested up to: 7.1
 Requires PHP: 8.3
-Stable tag: 2.4.0
+Stable tag: 2.4.1
 License: MIT
 
 Receives finished articles from Tribune Desk (ArticleWriter) and creates them as drafts in WordPress.
@@ -33,6 +33,11 @@ Features:
 3. Go to `Ustawienia → Tribune Desk`, paste the signing secret (`whsec_…`) and the CMS API token you got from Tribune Desk, pick the default author, and copy the Webhook URL into Tribune Desk Settings → Integracje.
 
 == Changelog ==
+
+= 2.4.1 =
+* An article without a topic is created as a draft; before, the plugin answered 400 and the send stopped for good (the topic is optional in the contract).
+* When the address of a published post changes (its slug is edited), the plugin reports the new address to Tribune Desk; before, Tribune Desk kept linking to the old one.
+* Contract 3.5.1-draft, protocol 1.1.2, `tdkit` 1.4.0 (the embed filter is now in the contract and checked by `tdkit check`).
 
 = 2.4.0 =
 * An attempt of an older send that arrives after a newer one no longer overwrites the post (the plugin keeps the `sent_at` it last applied).
