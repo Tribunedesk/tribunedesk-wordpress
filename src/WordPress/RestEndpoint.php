@@ -68,8 +68,9 @@ class RestEndpoint
         }
 
         $payload = $request->get_json_params();
-        if (!is_array($payload) || !isset($payload['article_id'], $payload['topic'], $payload['html'])) {
-            return new \WP_REST_Response(['error' => 'missing required fields: article_id, topic, html'], 400);
+        // `topic` is optional (guide 1): it only stands in for a missing `title` (DraftRules::title).
+        if (!is_array($payload) || !isset($payload['article_id'], $payload['html'])) {
+            return new \WP_REST_Response(['error' => 'missing required fields: article_id, html'], 400);
         }
 
         // Author from the people sent by Tribune Desk, or the default author without them (1.2.0).

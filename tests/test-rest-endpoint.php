@@ -293,6 +293,24 @@ class Test_RestEndpoint extends WP_UnitTestCase
         $this->assertSame(400, $res->get_status());
     }
 
+    /** Guide 1 lists `topic` as optional: a delivery without it is a draft like any other. */
+    public function test_delivery_without_topic_creates_draft(): void
+    {
+        $res = $this->send(['article_id' => 'art-no-topic', 'title' => 'Bez tematu', 'html' => '<p>x</p>']);
+        $this->assertSame(200, $res->get_status());
+        $data = $res->get_data();
+        $this->assertSame('created', $data['status']);
+        $post = get_post((int) $data['cms_post_id']);
+        $this->assertSame('draft', $post->post_status);
+        $this->assertSame('Bez tematu', $post->post_title);
+    }
+
+    public function test_rejects_missing_article_id_or_html(): void
+    {
+        $this->assertSame(400, $this->send(['title' => 't', 'html' => '<p>x</p>'])->get_status());
+        $this->assertSame(400, $this->send(['article_id' => 'a2', 'title' => 't'])->get_status());
+    }
+
     public function test_creates_draft_post(): void
     {
         $res = $this->send([
