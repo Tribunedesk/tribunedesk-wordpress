@@ -187,6 +187,35 @@ class Test_Publish_Notifier extends WP_UnitTestCase
         $this->assertCount(0, $this->requests);
     }
 
+    /** Przewodnik 2: wpis, ktory zmienil adres, wysyla nowy adres. */
+    public function test_zmiana_sluga_opublikowanego_wysyla_nowy_adres(): void
+    {
+        $this->set_permalink_structure('/%postname%/');
+        $id = $this->make_post(self::UUID_A, 'publish');
+        $old_url = get_permalink($id);
+        $this->requests = [];
+
+        wp_update_post(['ID' => $id, 'post_name' => 'nowy-adres']);
+
+        $this->assertCount(1, $this->requests);
+        $body = json_decode((string) $this->requests[0]['args']['body'], true);
+        $this->assertSame(self::UUID_A, $body['items'][0]['article_id']);
+        $this->assertSame(get_permalink($id), $body['items'][0]['url']);
+        $this->assertStringContainsString('/nowy-adres/', $body['items'][0]['url']);
+        $this->assertNotSame($old_url, $body['items'][0]['url']);
+    }
+
+    public function test_zapis_bez_zmiany_adresu_przy_ladnych_linkach_nie_wysyla(): void
+    {
+        $this->set_permalink_structure('/%postname%/');
+        $id = $this->make_post(self::UUID_A, 'publish');
+        $this->requests = [];
+
+        wp_update_post(['ID' => $id, 'post_title' => 'inny tytul', 'post_content' => 'inna tresc']);
+
+        $this->assertCount(0, $this->requests);
+    }
+
     public function test_wpis_bez_uuid_i_inny_post_type_nie_wysylaja(): void
     {
         wp_publish_post($this->make_post('art-100'));

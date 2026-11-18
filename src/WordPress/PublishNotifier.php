@@ -22,6 +22,7 @@ if (!defined('ABSPATH')) {
  * field (SocialQueueFlag) would not be saved yet. The first publication is told by $post_before.
  * A change of that field on a published post is reported once more, once per post and request:
  * here when the change came with a post save, otherwise at shutdown (REST, WP-CLI, other code).
+ * A published post whose address changes in a save (new slug or date) is reported again too.
  */
 class PublishNotifier
 {
@@ -51,7 +52,7 @@ class PublishNotifier
             return;
         }
         $first = !$post_before instanceof \WP_Post || $post_before->post_status !== 'publish';
-        if (!$first && !SocialQueueFlag::changed($post->ID)) {
+        if (!$first && !SocialQueueFlag::changed($post->ID) && !self::moved($post, $post_before)) {
             return;
         }
         $article_id = PostWriter::article_id_of($post);
@@ -59,6 +60,16 @@ class PublishNotifier
             return;
         }
         self::dispatch($post, $article_id);
+    }
+
+    /**
+     * A published post whose address changed in this save (a new slug or date): guide 2 asks
+     * for the new address, otherwise Tribune Desk keeps linking to the old one. A save that
+     * leaves the address as it was reports nothing.
+     */
+    private static function moved(\WP_Post $post, \WP_Post $post_before): bool
+    {
+        return get_permalink($post_before) !== get_permalink($post);
     }
 
     /**
