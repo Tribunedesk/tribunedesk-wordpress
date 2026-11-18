@@ -23,6 +23,12 @@ class Test_Media_Handler extends WP_UnitTestCase
     public function tear_down(): void
     {
         remove_filter('pre_http_request', [$this, 'fake_image'], 10);
+        // Rollback bazy nie kasuje plikow w uploads: bez tego powtorny lokalny przebieg w wp-env
+        // zastaje stary plik i WordPress dokleja do nazwy sufiks -1.
+        $ids = get_posts(['post_type' => 'attachment', 'post_status' => 'any', 'numberposts' => -1, 'fields' => 'ids']);
+        foreach ($ids as $id) {
+            wp_delete_attachment((int) $id, true);
+        }
         parent::tear_down();
     }
 
