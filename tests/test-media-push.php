@@ -130,6 +130,28 @@ class Test_Media_Push extends WP_UnitTestCase
         $this->assertNotContains($small, $c);
     }
 
+    public function test_odmowa_importu_nie_jest_kandydatem(): void
+    {
+        // guide 4 (3.6.0-draft): a file answered `rejected` with `collage`, `screenshot`, `graphic`
+        // or `import_failed` is not sent to POST /media again, however long ago. A host refusal
+        // still comes back after HOST_RETRY (the control: the query can return a rejected file).
+        $parent  = $this->published_parent();
+        $refused = [];
+        foreach (['collage' => 0, 'screenshot' => 1, 'graphic' => 8, 'import_failed' => 8] as $reason => $days) {
+            $id = $this->attachment(['post_parent' => $parent]);
+            update_post_meta($id, MediaPush::META_PUSHED, "rejected:$reason@" . (time() - $days * DAY_IN_SECONDS));
+            $refused[$reason] = $id;
+        }
+        $host_old = $this->attachment(['post_parent' => $parent]);
+        update_post_meta($host_old, MediaPush::META_PUSHED, 'rejected:host@' . (time() - 8 * DAY_IN_SECONDS));
+
+        $c = MediaPush::candidates(50);
+        $this->assertContains($host_old, $c);
+        foreach ($refused as $reason => $id) {
+            $this->assertNotContains($id, $c, $reason);
+        }
+    }
+
     public function test_przyjety_bez_asset_id_wraca_przez_3_dni(): void
     {
         // guide 4 "When a file you sent becomes paired": send the item again to learn asset_id;
