@@ -3252,7 +3252,7 @@
   "info": {
     "description": "Contract between a CMS and Tribune Desk. The CMS is the client: it polls changes with a cursor (`GET /changes`) and sends its own.\n\n**Authentication:** `Authorization: Bearer tdcms_...`. A super admin issues the token for one organization with scopes `media:read`, `media:write`, `settings:read`, `settings:write`, `backfill:write`, `articles:read`, `articles:write`.\n\n**Limits:** 600 requests per minute per token (`429` with `Retry-After`).\n\n**Errors:** every error of every route has the body `ApiError` (`code`, `message`, `retry_after`).\n\nOperations marked `x-status: planned` require their scope but answer `501 not_implemented`.",
     "title": "Tribune Desk CMS API",
-    "version": "3.5.1-draft"
+    "version": "3.6.0-draft"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -4426,7 +4426,7 @@
     },
     "/v3/cms/media": {
       "post": {
-        "description": "Up to 100 items, downloaded later at their own pace; `cms_media_id` is any text of yours. `ok`: accepted; `known`: already received. Both carry `asset_id` once the file exists in Tribune Desk. An accepted item has no file yet: the pair appears after the import, and until then `POST /media/fields`, `POST /media/deletions` and `POST /resync` treat the id as unknown. Repeat the item to learn the `asset_id`; it stays `null` if the import refused the file. `rejected` with `reason`: `new_files_disabled`, `before_since`, `below_min_width`, `missing_metadata` (`width`, `height` and `mime_type` are required here), `host` (the URL is not `https` on a host allowed for the organization), `too_small` (under 800 pixels wide), `mime` (not JPEG, PNG or WebP), `excluded_agency`. A refusal is not remembered: send the item again after the settings change. New files are not subject to `mass_change_threshold`; initial `fields` only help describe the file (see the schema). `409 state_conflict` when the integration or the media library is not enabled.",
+        "description": "Up to 100 items, downloaded later at their own pace; `cms_media_id` is any text of yours. `ok`: accepted; `known`: already received. Both carry `asset_id` once the file exists in Tribune Desk. An accepted item has no file yet: the pair appears after the import, and until then `POST /media/fields`, `POST /media/deletions` and `POST /resync` treat the id as unknown. Repeat the item to learn the `asset_id`; it stays `null` while the import runs. `rejected` with `reason`: `new_files_disabled`, `before_since`, `below_min_width`, `missing_metadata` (`width`, `height` and `mime_type` are required here), `host` (the URL is not `https` on a host allowed for the organization), `too_small` (under 800 pixels wide), `mime` (not JPEG, PNG or WebP), `excluded_agency`; `collage`, `screenshot`, `graphic`, `import_failed` (the import refused a file it already received). A refusal by the settings is not remembered: send the item again after the settings change. A refusal by the import is final. New files are not subject to `mass_change_threshold`; initial `fields` only help describe the file (see the schema). `409 state_conflict` when the integration or the media library is not enabled.",
         "operationId": "postMedia",
         "requestBody": {
           "content": {
