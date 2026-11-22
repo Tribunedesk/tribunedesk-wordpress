@@ -2,11 +2,11 @@
 
 A WordPress plugin that receives finished articles from [Tribune Desk](https://tribunedesk.com) (a newsroom tool) and creates them in wp-admin, as drafts or, with **Publish immediately**, as published posts. It implements the public Tribune Desk CMS API at levels 1-4: article delivery, link back, full content and the media library.
 
-**Version:** v2.4.1
+**Version:** v2.4.2
 
-**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.4.1.zip**
+**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.4.2.zip**
 
-> Version 2.4.1 follows contract 3.5.1-draft and passes `tdkit check` (levels 1-4) in CI: an article without a topic becomes a draft, and a published post whose address changes is reported again with the new address. See the changelog in `readme.txt`.
+> Version 2.4.2 follows contract 3.6.0-draft and passes `tdkit check` (levels 1-4) in CI: a photo Tribune Desk refuses to import comes back as rejected with its reason and is not sent again. See the changelog in `readme.txt`.
 
 > Version 2.3.0 downloads images only from the hosts Tribune Desk lists (read from `GET /v3/cms/status`), or without a token only from the Tribune Desk storage and the site itself, never from any https host; a resync from WordPress no longer clears alt texts and captions in Tribune Desk. Protocol rules come from [tribunedesk/cms-protocol](https://github.com/Tribunedesk/tribunedesk-cms-php) 1.1.0.
 
@@ -73,7 +73,7 @@ A step-by-step guide for someone who has never installed a plugin by hand. Every
 
 Download **one file** from our server. You do not need a GitHub account and you **do not rename the folder**; the archive is already packed correctly:
 
-**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.4.1.zip**
+**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.4.2.zip**
 
 **Do not unpack it.** WordPress does that itself.
 
