@@ -2,11 +2,11 @@
 
 A WordPress plugin that receives finished articles from [Tribune Desk](https://tribunedesk.com) (a newsroom tool) and creates them in wp-admin, as drafts or, with **Publish immediately**, as published posts. It implements the public Tribune Desk CMS API at levels 1-4: article delivery, link back, full content and the media library.
 
-**Version:** v2.4.2
+**Version:** v2.5.0
 
-**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.4.2.zip**
+**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.5.0.zip**
 
-> Version 2.4.2 follows contract 3.6.0-draft and passes `tdkit check` (levels 1-4) in CI: a photo Tribune Desk refuses to import comes back as rejected with its reason and is not sent again. See the changelog in `readme.txt`.
+> Version 2.5.0 follows contract 3.6.1-draft ("Images in the body"): photos from the Tribune Desk library in the article body become native WordPress images. It passes `tdkit check` (levels 1-4) in CI. See the changelog in `readme.txt`.
 
 > Version 2.3.0 downloads images only from the hosts Tribune Desk lists (read from `GET /v3/cms/status`), or without a token only from the Tribune Desk storage and the site itself, never from any https host; a resync from WordPress no longer clears alt texts and captions in Tribune Desk. Protocol rules come from [tribunedesk/cms-protocol](https://github.com/Tribunedesk/tribunedesk-cms-php) 1.1.0.
 
@@ -73,7 +73,7 @@ A step-by-step guide for someone who has never installed a plugin by hand. Every
 
 Download **one file** from our server. You do not need a GitHub account and you **do not rename the folder**; the archive is already packed correctly:
 
-**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.4.2.zip**
+**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.5.0.zip**
 
 **Do not unpack it.** WordPress does that itself.
 
@@ -177,6 +177,16 @@ Optional fields in `generated_images[0]`: `asset_id` (string, the photo's ID in 
 The 200 answer to every delivery, when the post's featured image has `_hf_asset_id`, contains
 `"featured_image": {"asset_id": "…", "attachment_id": 123, "url": "https://…/file.jpg"}`
 (`url` is the original, not the `-scaled` variant). Without `_hf_asset_id` the key is absent.
+
+### Photos in the body (since 2.5.0)
+
+A figure from the Tribune Desk library in the article body (`<figure data-td-…>`) becomes a native WordPress image. With a caption it is a `[caption]` block built by `get_image_send_to_editor`; without one, a plain `<img>`. Alt text and caption come from the figure.
+
+- A photo already in the media library (matched by `asset_id`, as for the featured image) is reused, with no download.
+- Otherwise the photo is downloaded, only from the hosts in `image_hosts` (see above) and within a 10 s budget per delivery.
+- A photo that could not be imported (host outside `image_hosts`, download error, budget used up) stays as it was in the body and leaves a row in the deliveries log. One retry runs after a minute and touches only the figures that carry a hint from the first pass.
+
+The parsing and replacing of figures does not depend on WordPress: it is `src/Protocol/BodyFigures.php`, a copy of tribunedesk/cms-protocol 1.2.0.
 
 ---
 

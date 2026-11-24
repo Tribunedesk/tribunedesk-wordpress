@@ -652,6 +652,12 @@ msgstr ""
 msgid "image skipped: host not in the Tribune Desk image_hosts list or address without https: %s"
 msgstr ""
 
+#. translators: %s: image host name
+#: src/WordPress/BodyImages.php:136
+#, php-format
+msgid "body image not imported (host outside image_hosts, download error or time budget used up): %s"
+msgstr ""
+
 #: src/WordPress/PublishedUrlsClient.php:62
 msgid "no posts with a UUID to send"
 msgstr ""

@@ -651,6 +651,12 @@ msgstr "naprawiono %d wpisow linkujacych - limit na jedna publikacje osiagniety,
 msgid "image skipped: host not in the Tribune Desk image_hosts list or address without https: %s"
 msgstr "obrazek pominięty: host spoza image_hosts Tribune Desk albo adres bez https: %s"
 
+#. translators: %s: image host name
+#: src/WordPress/BodyImages.php:136
+#, php-format
+msgid "body image not imported (host outside image_hosts, download error or time budget used up): %s"
+msgstr "zdjęcie w treści nie zaimportowane (host spoza image_hosts, błąd pobrania albo wyczerpany limit czasu): %s"
+
 #: src/WordPress/PublishedUrlsClient.php:62
 msgid "no posts with a UUID to send"
 msgstr "brak wpisów z UUID do wysłania"

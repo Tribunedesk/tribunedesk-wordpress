@@ -4,7 +4,7 @@ Tags: webhook, automation, content
 Requires at least: 5.6
 Tested up to: 7.1
 Requires PHP: 8.3
-Stable tag: 2.4.2
+Stable tag: 2.5.0
 License: MIT
 
 Receives finished articles from Tribune Desk (ArticleWriter) and creates them as drafts in WordPress.
@@ -33,6 +33,13 @@ Features:
 3. Go to `Ustawienia → Tribune Desk`, paste the signing secret (`whsec_…`) and the CMS API token you got from Tribune Desk, pick the default author, and copy the Webhook URL into Tribune Desk Settings → Integracje.
 
 == Changelog ==
+
+= 2.5.0 =
+* Photos from the Tribune Desk library placed in the article body now become native WordPress images: a captioned figure is a `[caption]` block built by `get_image_send_to_editor`, an uncaptioned one a plain `<img>`; before, the body kept the raw library markup.
+* A photo already in the media library (by `asset_id`) is reused without a download. Otherwise it is downloaded, only from `image_hosts`, within a 10 s budget per delivery.
+* A photo that could not be imported stays as it was and is logged in the deliveries log; one retry runs after a minute and touches only the figures that carry a hint.
+* The part that does not depend on WordPress lives in `src/Protocol/BodyFigures.php` (library tribunedesk/cms-protocol 1.2.0).
+* Implements contract 3.6.1-draft, "Images in the body"; protocol 1.2.0.
 
 = 2.4.2 =
 * A photo that Tribune Desk refuses to import (a collage, a screenshot, a graphic, or a failed download) now comes back as rejected with that reason and is not sent again; before, it stayed "known" without a pair.
