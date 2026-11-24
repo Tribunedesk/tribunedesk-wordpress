@@ -140,11 +140,15 @@ class Test_Body_Images_Delivery extends WP_UnitTestCase
 
     public function test_retry_converts_only_hinted_figures_and_keeps_editor_changes(): void
     {
-        $plain         = '<figure><img src="https://storage.tribunedesk.com/abc/plain.png" alt="x"></figure>';
+        $this->make_plain_attachment();
+        $plain         = '<figure><img src="' . wp_upload_dir()['baseurl'] . '/2026/10/plain.png" alt="x"></figure>';
         $this->http_ok = false;
-        $r    = PostWriter::write($this->payload('<p>a</p>' . $this->figure() . $plain), $this->author);
+        $r    = PostWriter::write($this->payload(), $this->author);
         $post = get_post($r['post_id']);
-        wp_update_post(['ID' => $post->ID, 'post_content' => str_replace('<p>a</p>', '<p>zmiana redaktora</p>', $post->post_content)]);
+        // The editor changes a paragraph and pastes a figure of an upload that has an attachment.
+        global $wpdb;
+        $wpdb->update($wpdb->posts, ['post_content' => str_replace('<p>a</p>', '<p>zmiana redaktora</p>', $post->post_content) . $plain], ['ID' => $post->ID]);
+        clean_post_cache($post->ID);
         $this->http_ok = true;
 
         PostWriter::retry_body_images($post->ID);
@@ -154,6 +158,84 @@ class Test_Body_Images_Delivery extends WP_UnitTestCase
         $this->assertStringContainsString('[caption id="attachment_', $content);
         $this->assertStringContainsString('plain.png', $content);
         $this->assertSame(1, substr_count($content, '<figure'), 'figura bez wskazowki zostaje');
+    }
+
+    /** Attachment for plain.png without TD hints: a hinted_only=false run would convert the plain figure. */
+    private function make_plain_attachment(): void
+    {
+        $rel = '2026/10/plain.png';
+        $abs = wp_upload_dir()['basedir'] . '/' . $rel;
+        wp_mkdir_p(dirname($abs));
+        file_put_contents($abs, base64_decode(self::PNG_1X1));
+        $id = (int) wp_insert_attachment(['post_mime_type' => 'image/png', 'post_status' => 'inherit'], $abs);
+        update_post_meta($id, '_wp_attached_file', $rel);
+        wp_update_attachment_metadata($id, ['width' => 10, 'height' => 10, 'file' => $rel, 'sizes' => []]);
+    }
+
+    public function test_retry_editor_save_during_download_survives(): void
+    {
+        $this->http_ok = false;
+        $r = PostWriter::write($this->payload(), $this->author);
+        $this->http_ok = true;
+        $post_id = $r['post_id'];
+        $saved   = false;
+        $editor  = function ($pre) use ($post_id, &$saved) {
+            if (!$saved) {
+                $saved = true;
+                global $wpdb;
+                $wpdb->update($wpdb->posts, ['post_content' => '<p>edit w trakcie</p>' . $this->figure()], ['ID' => $post_id]);
+                clean_post_cache($post_id);
+            }
+            return $pre;
+        };
+        add_filter('pre_http_request', $editor, 5);
+
+        PostWriter::retry_body_images($post_id);
+        remove_filter('pre_http_request', $editor, 5);
+
+        $content = get_post($post_id)->post_content;
+        $this->assertTrue($saved);
+        $this->assertStringContainsString('<p>edit w trakcie</p>', $content);
+        $this->assertStringContainsString('[caption id="attachment_', $content);
+        $this->assertStringNotContainsString('<figure', $content);
+    }
+
+    public function test_retry_keeps_published_status_and_dates(): void
+    {
+        $this->http_ok = false;
+        $r = PostWriter::write($this->payload(), $this->author);
+        $this->http_ok = true;
+        wp_update_post(['ID' => $r['post_id'], 'post_status' => 'publish', 'post_date' => '2026-01-02 03:04:05', 'post_date_gmt' => '2026-01-02 03:04:05']);
+        $before = get_post($r['post_id']);
+
+        PostWriter::retry_body_images($r['post_id']);
+
+        $after = get_post($r['post_id']);
+        $this->assertStringContainsString('[caption id="attachment_', $after->post_content);
+        $this->assertSame('publish', $after->post_status);
+        $this->assertSame($before->post_date, $after->post_date);
+        $this->assertSame($before->post_date_gmt, $after->post_date_gmt);
+    }
+
+    public function test_retry_does_not_filter_content_through_kses(): void
+    {
+        $this->http_ok = false;
+        $r = PostWriter::write($this->payload(), $this->author);
+        $this->http_ok = true;
+        $extra = '<p style="color:red">x</p><iframe src="https://evil.example/e"></iframe>';
+        global $wpdb;
+        $wpdb->update($wpdb->posts, ['post_content' => $extra . $this->figure()], ['ID' => $r['post_id']]);
+        clean_post_cache($r['post_id']);
+        wp_set_current_user(0);
+        kses_init_filters();
+
+        PostWriter::retry_body_images($r['post_id']);
+
+        $content = get_post($r['post_id'])->post_content;
+        $this->assertStringContainsString('<p style="color:red">x</p>', $content);
+        $this->assertStringContainsString('<iframe src="https://evil.example/e">', $content);
+        $this->assertStringContainsString('[caption id="attachment_', $content);
+        $this->assertNotFalse(has_filter('content_save_pre', 'wp_filter_post_kses'), 'kses filters restored');
     }
 
     public function test_retry_does_not_reschedule(): void

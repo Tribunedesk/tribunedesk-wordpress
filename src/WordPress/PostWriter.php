@@ -377,14 +377,67 @@ class PostWriter
      */
     public static function retry_body_images(int $post_id): void
     {
+        global $wpdb;
         $post = get_post($post_id);
         if ($post === null) {
             return;
         }
-        $body = BodyImages::convert((string) $post->post_content, $post_id, (float) MediaHandler::BACKGROUND_TIMEOUT, true);
-        if ($body['html'] === $post->post_content) {
-            return;
+        // The same lock as a delivery: the retry downloads for up to a minute and must not
+        // overwrite a newer send. Not free in time: skip, the next send converts the figures anyway.
+        $article_id = (string) get_post_meta($post_id, self::META_ARTICLE_ID, true);
+        $name       = $article_id !== '' ? self::lock_name($article_id) : '';
+        if ($name !== '') {
+            $wait = (int) Hooks::filter('delivery_lock_wait', self::LOCK_WAIT);
+            if ((string) $wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s, %d)', $name, $wait)) !== '1') {
+                return;
+            }
         }
-        self::with_embeds(static fn () => wp_update_post(['ID' => $post_id, 'post_content' => wp_slash($body['html'])]));
+        try {
+            $snapshot = (string) $post->post_content;
+            $body     = BodyImages::convert($snapshot, $post_id, (float) MediaHandler::BACKGROUND_TIMEOUT, true);
+            // Re-read: the editor or a delivery may have saved while the images were downloading.
+            clean_post_cache($post_id);
+            $fresh = get_post($post_id);
+            if ($fresh === null) {
+                return;
+            }
+            $html = $body['html'];
+            if ((string) $fresh->post_content !== $snapshot) {
+                $html = BodyImages::convert((string) $fresh->post_content, $post_id, 1.0, true)['html'];
+            }
+            if ($html === (string) $fresh->post_content) {
+                return;
+            }
+            self::save_retry_content($fresh, $html, $article_id);
+        } finally {
+            if ($name !== '') {
+                $wpdb->query($wpdb->prepare('SELECT RELEASE_LOCK(%s)', $name));
+            }
+        }
+    }
+
+    /** One write of the retry: the content comes from the database, so kses must not filter it again. */
+    private static function save_retry_content(\WP_Post $post, string $html, string $article_id): void
+    {
+        $kses_active = has_filter('content_save_pre', 'wp_filter_post_kses') !== false;
+        if ($kses_active) {
+            kses_remove_filters();
+        }
+        try {
+            $result = self::with_embeds(static fn () => wp_update_post([
+                'ID'            => $post->ID,
+                'post_content'  => wp_slash($html),
+                // Without an explicit date core recomputes the status from post_date (see LinkResolver::resolve_own).
+                'post_date'     => $post->post_date,
+                'post_date_gmt' => $post->post_date_gmt,
+            ], true));
+        } finally {
+            if ($kses_active) {
+                kses_init_filters();
+            }
+        }
+        if (is_wp_error($result)) {
+            DeliveriesLog::record($article_id, (int) $post->ID, (string) $result->get_error_code(), $result->get_error_message(), DeliveriesLog::KIND_MEDIA);
+        }
     }
 }
