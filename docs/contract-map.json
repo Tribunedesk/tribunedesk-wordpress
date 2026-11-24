@@ -13,6 +13,10 @@
             "guide": "2-link-back.md#reporting-the-published-address"
         },
         {
+            "class": "BodyImages",
+            "guide": "1-article-delivery.md#the-html-body"
+        },
+        {
             "class": "Backlinks",
             "guide": "3-full-content.md#the-read-more-box"
         },

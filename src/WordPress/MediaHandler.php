@@ -166,6 +166,21 @@ class MediaHandler
             }
         }
 
+        // A file downloaded earlier from this (foreign) address: no second download.
+        if ($url !== '') {
+            $found = get_posts([
+                'post_type'     => 'attachment',
+                'post_status'   => 'any',
+                'meta_query'    => [['key' => '_source_url', 'value' => $url]],
+                'fields'        => 'ids',
+                'numberposts'   => 1,
+                'no_found_rows' => true,
+            ]);
+            if ($found !== []) {
+                return (int) $found[0];
+            }
+        }
+
         $rel = self::upload_relative_path($url);
         if ($rel === null) {
             return null;
@@ -177,6 +192,20 @@ class MediaHandler
         }
 
         return self::attach_existing_file($rel);
+    }
+
+    /**
+     * An existing attachment for an address under our own uploads — and nothing else: no download,
+     * no new attachment for a file that has none.
+     */
+    public static function find_by_url_only(string $url): ?int
+    {
+        if (self::upload_relative_path($url) === null) {
+            return null;
+        }
+        $id = attachment_url_to_postid($url);
+
+        return $id > 0 ? $id : null;
     }
 
     /** @param array<string, mixed> $hints */
