@@ -68,6 +68,8 @@ add_action('shutdown', [\TribuneDesk\WordPress\PublishNotifier::class, 'flush_pe
 add_action(\TribuneDesk\WordPress\PublishNotifier::RETRY_HOOK, [\TribuneDesk\WordPress\PublishNotifier::class, 'retry']);
 // 2.2.2: a featured image a delivery could not download within its time limit.
 add_action(\TribuneDesk\WordPress\MediaHandler::RETRY_HOOK, [\TribuneDesk\WordPress\PostWriter::class, 'retry_featured_image'], 10, 3);
+// 2.5.0: body photos a delivery could not download within its time limit.
+add_action(\TribuneDesk\WordPress\BodyImages::RETRY_HOOK, [\TribuneDesk\WordPress\PostWriter::class, 'retry_body_images']);
 add_action('admin_post_' . \TribuneDesk\WordPress\Backfill::ACTION, [\TribuneDesk\WordPress\Backfill::class, 'handle_admin_post']);
 
 // Hourly safety net for sending via /v3 and the threshold of new images.
@@ -110,6 +112,7 @@ register_deactivation_hook(__FILE__, static function (): void {
     // which wp_clear_scheduled_hook() without arguments does not match.
     wp_unschedule_hook(\TribuneDesk\WordPress\PublishNotifier::RETRY_HOOK);
     wp_unschedule_hook(\TribuneDesk\WordPress\MediaHandler::RETRY_HOOK);
+    wp_unschedule_hook(\TribuneDesk\WordPress\BodyImages::RETRY_HOOK);
 });
 
 \TribuneDesk\WordPress\Updater::init();

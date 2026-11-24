@@ -152,6 +152,8 @@ class PostWriter
         $excerpt = self::excerpt_for_post($payload);
 
         if ($existing === null) {
+            $body    = BodyImages::convert($html, 0, (float) BodyImages::DELIVERY_BUDGET);
+            $html    = $body['html'];
             $post_id = self::with_embeds(static fn () => wp_insert_post([
                 'post_status'  => $publish ? 'publish' : 'draft',
                 'post_author'  => $author_id,
@@ -165,6 +167,7 @@ class PostWriter
                 throw new \RuntimeException('wp_insert_post failed: ' . $post_id->get_error_message());
             }
 
+            self::adopt_body_images((int) $post_id, $body);
             self::sync_featured_image((int) $post_id, $payload);
             SeoMeta::sync((int) $post_id, $payload);
             ProvenanceMeta::sync((int) $post_id, $raw_html);
@@ -199,6 +202,9 @@ class PostWriter
         LinkResolver::store_links((int) $existing->ID, $links);
         Backlinks::store_meta((int) $existing->ID, $payload);
 
+        $body = BodyImages::convert($html, (int) $existing->ID, (float) BodyImages::DELIVERY_BUDGET);
+        $html = $body['html'];
+
         $postarr = [
             'ID'           => $existing->ID,
             // A draft gets new content anyway, so also the author from the latest send (1.2.0).
@@ -217,6 +223,7 @@ class PostWriter
             throw new \RuntimeException('wp_update_post failed: ' . $update->get_error_message());
         }
 
+        self::adopt_body_images((int) $existing->ID, $body);
         self::sync_featured_image((int) $existing->ID, $payload);
         SeoMeta::sync((int) $existing->ID, $payload);
         // The content was replaced, so the labelling must follow it: it describes
@@ -343,5 +350,41 @@ class PostWriter
             return;
         }
         self::sync_featured_image($post_id, ['generated_images' => [$image], 'title' => $title], false);
+    }
+
+    /**
+     * Body photos downloaded before the post existed get it as their parent; a figure left
+     * unconverted (time budget, failed download) gets one retry a minute later.
+     *
+     * @param array{html: string, pending: bool, created: int[]} $body
+     */
+    private static function adopt_body_images(int $post_id, array $body): void
+    {
+        foreach ($body['created'] as $attachment_id) {
+            if ((int) get_post_field('post_parent', $attachment_id) !== $post_id) {
+                wp_update_post(['ID' => $attachment_id, 'post_parent' => $post_id]);
+            }
+        }
+        if ($body['pending'] && wp_next_scheduled(BodyImages::RETRY_HOOK, [$post_id]) === false) {
+            wp_schedule_single_event(time() + 60, BodyImages::RETRY_HOOK, [$post_id]);
+        }
+    }
+
+    /**
+     * `BodyImages::RETRY_HOOK`: converts the figures with `data-td-asset-id` a delivery could not
+     * download in time. Works on the content as it is now (the editor may have changed it) and
+     * does not schedule another retry.
+     */
+    public static function retry_body_images(int $post_id): void
+    {
+        $post = get_post($post_id);
+        if ($post === null) {
+            return;
+        }
+        $body = BodyImages::convert((string) $post->post_content, $post_id, (float) MediaHandler::BACKGROUND_TIMEOUT, true);
+        if ($body['html'] === $post->post_content) {
+            return;
+        }
+        self::with_embeds(static fn () => wp_update_post(['ID' => $post_id, 'post_content' => wp_slash($body['html'])]));
     }
 }
