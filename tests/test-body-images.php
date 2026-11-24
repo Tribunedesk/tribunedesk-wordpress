@@ -154,7 +154,7 @@ class Test_Body_Images extends WP_UnitTestCase
         $this->assertSame([], $this->http_urls);
     }
 
-    public function test_hinted_unknown_file_sideloaded_once_then_found_by_source_url(): void
+    public function test_hinted_unknown_file_sideloaded_once_then_found_by_asset_id(): void
     {
         $html = $this->figure(self::SRC, ' data-td-asset-id="' . self::ASSET . '"', 'Podpis');
 
@@ -173,6 +173,27 @@ class Test_Body_Images extends WP_UnitTestCase
         $this->assertSame('Podpis', get_post($id)->post_excerpt);
         $this->assertSame('Ksiądz', get_post_meta($id, '_wp_attachment_image_alt', true));
         $this->assertFalse($first['pending']);
+    }
+
+    public function test_same_src_with_other_asset_id_found_only_by_source_url(): void
+    {
+        $first  = $this->convert($this->figure(self::SRC, ' data-td-asset-id="' . self::ASSET . '"'));
+        $second = $this->convert($this->figure(self::SRC, ' data-td-asset-id="22222222-2222-2222-2222-222222222222"'));
+
+        $this->assertCount(1, $this->http_urls);
+        $this->assertSame([], $second['created']);
+        $this->assertStringContainsString('wp-image-' . $first['created'][0] . '"', $second['html']);
+    }
+
+    public function test_cms_media_id_without_asset_id_and_foreign_src_untouched(): void
+    {
+        $id   = $this->make_attachment('2026/10/obcy-id.png');
+        $html = $this->figure('https://obcy.example.com/a.jpg', ' data-td-cms-media-id="' . $id . '"', 'Podpis');
+
+        $out = $this->convert($html);
+
+        $this->assertSame($html, $out['html']);
+        $this->assertFalse($out['pending']);
     }
 
     public function test_find_existing_uses_source_url_meta(): void

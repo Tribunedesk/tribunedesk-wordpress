@@ -14,6 +14,7 @@ namespace TribuneDesk\Protocol;
  * rewrite the rest of the document, and everything outside a replaced figure stays byte for byte.
  * Tags are matched with their quotes in mind: a `>` inside an attribute value does not end a tag.
  * A figure with no `<img>`, or with two (an embed, a gallery), is not a photo and is not returned.
+ * Tags inside HTML comments or `<script>` are not excluded, and nested figures are not supported.
  */
 final class BodyFigures
 {

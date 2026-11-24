@@ -69,8 +69,6 @@ final class BodyImages
                 $hints['cms_attachment_id'] = $cms_id;
             }
             $id = MediaHandler::find_existing($src, $hints);
-        } elseif ($cms_id > 0 && get_post_type($cms_id) === 'attachment') {
-            $id = $cms_id;
         } elseif ($src !== '') {
             // No hint: only an attachment that already exists — never a new one for a file nobody pointed at.
             $id = MediaHandler::find_by_url_only($src);
