@@ -263,7 +263,7 @@ class Test_Body_Images extends WP_UnitTestCase
         $out = $this->convert($html);
 
         $this->assertSame($html, $out['html']);
-        $this->assertTrue($out['pending']);
+        $this->assertFalse($out['pending'], 'a refused host cannot succeed on a retry');
         $this->assertSame([], $this->http_urls);
         $rows = array_values(array_filter(DeliveriesLog::recent(), static fn (array $r): bool => $r['article_id'] === 'body_images'));
         $this->assertNotEmpty($rows);

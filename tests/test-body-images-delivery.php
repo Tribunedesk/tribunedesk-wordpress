@@ -122,6 +122,16 @@ class Test_Body_Images_Delivery extends WP_UnitTestCase
         $this->assertSame($r['post_id'], (int) get_post((int) $m[1])->post_parent);
     }
 
+    public function test_refused_host_figure_schedules_no_retry(): void
+    {
+        $html = '<p>a</p><figure><img src="https://obcy.example.com/a.png" alt="x" data-td-asset-id="' . self::ASSET . '"><figcaption>p</figcaption></figure>';
+
+        $r = PostWriter::write($this->payload($html), $this->author);
+
+        $this->assertStringContainsString('<figure', get_post($r['post_id'])->post_content);
+        $this->assertFalse(wp_next_scheduled(BodyImages::RETRY_HOOK, [$r['post_id']]));
+    }
+
     public function test_pending_schedules_single_retry(): void
     {
         $this->http_ok = false;

@@ -79,6 +79,12 @@ final class BodyImages
                 update_post_meta($id, MediaHandler::META_ASSET_ID, $asset_id);
             }
         } elseif ($hinted) {
+            if (!ImageHosts::allows($src, ImageHosts::current())) {
+                // A refused host fails the same way on every retry: log it once, do not schedule one.
+                self::log_failure($src, $post_id);
+
+                return null;
+            }
             $id = self::download($src, $alt, $caption, $asset_id, $post_id, $deadline);
             if ($id === null) {
                 $pending = true;

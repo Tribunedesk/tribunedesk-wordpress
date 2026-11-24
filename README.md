@@ -184,7 +184,9 @@ A figure from the Tribune Desk library in the article body (`<figure data-td-…
 
 - A photo already in the media library (matched by `asset_id`, as for the featured image) is reused, with no download.
 - Otherwise the photo is downloaded, only from the hosts in `image_hosts` (see above) and within a 10 s budget per delivery.
-- A photo that could not be imported (host outside `image_hosts`, download error, budget used up) stays as it was in the body and leaves a row in the deliveries log. One retry runs after a minute and touches only the figures that carry a hint from the first pass.
+- A figure without `data-td-asset-id` is converted only when its address already belongs to an attachment; otherwise it is left alone and nothing is downloaded.
+- An existing attachment's own texts (alt, caption, description) are never changed; alt and caption of the figure apply only to the inserted image or to a newly created attachment.
+- A photo that could not be imported (host outside `image_hosts`, download error, budget used up) stays as it was in the body and leaves a row in the deliveries log. One retry runs after a minute and touches only the figures that carry `data-td-asset-id`; a host outside `image_hosts` is logged once and not retried.
 
 The parsing and replacing of figures does not depend on WordPress: it is `src/Protocol/BodyFigures.php`, a copy of tribunedesk/cms-protocol 1.2.0.
 

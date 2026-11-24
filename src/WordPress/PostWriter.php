@@ -437,7 +437,7 @@ class PostWriter
             }
         }
         if (is_wp_error($result)) {
-            DeliveriesLog::record($article_id, (int) $post->ID, (string) $result->get_error_code(), $result->get_error_message(), DeliveriesLog::KIND_MEDIA);
+            DeliveriesLog::record($article_id, (int) $post->ID, 'error', $result->get_error_code() . ': ' . $result->get_error_message(), DeliveriesLog::KIND_MEDIA);
         }
     }
 }
