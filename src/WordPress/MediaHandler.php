@@ -267,6 +267,10 @@ class MediaHandler
         $attachment_id = (int) $attachment_id;
         update_post_meta($attachment_id, '_wp_attached_file', $rel);
         update_post_meta($attachment_id, self::META_FROM_TD, 1);
+        // A REST delivery (BodyImages::convert) runs without wp-admin/includes/image.php; without
+        // it this line ended the delivery with 500 and left the attachment without metadata (2.6.1).
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        require_once ABSPATH . 'wp-admin/includes/image.php';
         wp_update_attachment_metadata($attachment_id, wp_generate_attachment_metadata($attachment_id, $abs));
 
         return $attachment_id;
