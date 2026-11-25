@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace TribuneDesk\WordPress;
 
 use TribuneDesk\Protocol\DraftRules;
+use TribuneDesk\Protocol\Publication;
 
 if (!defined('ABSPATH')) {
     exit;
@@ -150,18 +151,26 @@ class PostWriter
         $action   = DraftRules::action($existing === null ? null : (string) $existing->post_status);
 
         $excerpt = self::excerpt_for_post($payload);
+        // Publication mode (contract 3.7): draft, scheduled for `at`, or published now; without
+        // the field a new post follows the site's option and an existing one keeps its status.
+        $publication = is_array($payload['publication'] ?? null) ? $payload['publication'] : null;
+        $target = Publication::target(
+            $existing === null ? null : (string) $existing->post_status,
+            $publication,
+            $publish,
+            time()
+        );
 
         if ($existing === null) {
             $body    = BodyImages::convert($html, 0, (float) BodyImages::DELIVERY_BUDGET);
             $html    = $body['html'];
             $post_id = self::with_embeds(static fn () => wp_insert_post([
-                'post_status'  => $publish ? 'publish' : 'draft',
                 'post_author'  => $author_id,
                 'post_title'   => $title,
                 'post_content' => $html,
                 'post_excerpt' => $excerpt,
                 'meta_input'   => self::meta_input($article_id, $links, $payload),
-            ], true));
+            ] + self::publication_fields($target), true));
 
             if (is_wp_error($post_id)) {
                 throw new \RuntimeException('wp_insert_post failed: ' . $post_id->get_error_message());
@@ -217,6 +226,7 @@ class PostWriter
         if (DraftRules::fills_excerpt($excerpt, (string) $existing->post_excerpt)) {
             $postarr['post_excerpt'] = $excerpt;
         }
+        $postarr += self::publication_fields($target);
         $update = self::with_embeds(static fn () => wp_update_post($postarr, true));
 
         if (is_wp_error($update)) {
@@ -234,6 +244,58 @@ class PostWriter
         self::remember_sent_at((int) $existing->ID, $payload);
 
         return ['post_id' => (int) $existing->ID, 'status' => WriteResult::Updated];
+    }
+
+    /**
+     * Post fields for the status Publication::target() chose. `future`: the GMT moment and the
+     * same moment in the site's time zone, with edit_date so WordPress keeps them. `publish`: now
+     * (a post moving from `future` would otherwise keep its later date and stay scheduled).
+     * `draft`: no date of its own, like a new draft. `keep`: nothing.
+     *
+     * @param array{status: string, date_gmt: int|null} $target
+     * @return array<string, mixed>
+     */
+    private static function publication_fields(array $target): array
+    {
+        if ($target['status'] === 'future' && $target['date_gmt'] !== null) {
+            $gmt = gmdate('Y-m-d H:i:s', $target['date_gmt']);
+
+            return [
+                'post_status'   => 'future',
+                'post_date_gmt' => $gmt,
+                'post_date'     => get_date_from_gmt($gmt),
+                'edit_date'     => true,
+            ];
+        }
+        if ($target['status'] === 'publish') {
+            return [
+                'post_status'   => 'publish',
+                'post_date'     => current_time('mysql'),
+                'post_date_gmt' => current_time('mysql', true),
+                'edit_date'     => true,
+            ];
+        }
+        if ($target['status'] === 'draft') {
+            return ['post_status' => 'draft', 'post_date_gmt' => '0000-00-00 00:00:00'];
+        }
+
+        return [];
+    }
+
+    /**
+     * The answer's `publication`: the state of the post after this delivery.
+     *
+     * @return array{status: string, at: string|null}|null
+     */
+    public static function publication_of(int $post_id): ?array
+    {
+        $post = get_post($post_id);
+        if (!$post instanceof \WP_Post) {
+            return null;
+        }
+        $gmt = $post->post_date_gmt === '0000-00-00 00:00:00' ? false : strtotime($post->post_date_gmt . ' UTC');
+
+        return Publication::answer($post->post_status, $gmt === false ? null : $gmt);
     }
 
     /**

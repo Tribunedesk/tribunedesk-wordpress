@@ -9,14 +9,15 @@ namespace TribuneDesk\Protocol;
  * Level: 1 · Routes: webhook article.delivered · Guide: guide/1-article-delivery.md#article-delivery-webhook
  *
  * The same article_id comes again when an editor sends the article again. No post yet: create
- * one (a draft, or published when the site publishes at once). A draft: replace title, content
- * and author with the new send. Anything else (published, scheduled, private): leave title and
- * content alone, the newsroom may have edited them, and answer skipped_already_published; only
- * late metadata (featured image, SEO, read-more sources) still follows.
+ * one (a draft, or published when the site publishes at once). A post nobody published yet (a
+ * draft, one waiting for review, one scheduled for later: contract 3.7, not public yet): replace
+ * title, content and author with the new send. Anything else (published, private): leave title
+ * and content alone, the newsroom may have edited them, and answer skipped_already_published;
+ * only late metadata (featured image, SEO, read-more sources) still follows.
  *
  * The guide asks to update the post made the first time and allows skipped_already_published
  * for a post already published; leaving a published post alone is this library's policy, not a
- * rule of the contract. The statuses are WordPress's (`draft`, `pending`): another CMS maps its
+ * rule of the contract. The statuses are WordPress's (`draft`, `pending`, `future`): another CMS maps its
  * own states to them before calling action().
  */
 final class DraftRules
@@ -26,7 +27,7 @@ final class DraftRules
     public const SKIP   = 'skipped_already_published';
 
     /** Statuses of a post that a new send of the article updates. */
-    public const UPDATABLE = ['draft', 'pending'];
+    public const UPDATABLE = ['draft', 'pending', 'future'];
 
     /** @param string|null $existing_status status of the post with this article_id, null = none */
     public static function action(?string $existing_status): string
@@ -35,8 +36,8 @@ final class DraftRules
             return self::CREATE;
         }
 
-        // A post nobody published yet (a draft or one waiting for review) takes the
-        // new send; a published, scheduled or private one is left alone.
+        // A post nobody published yet (a draft, one waiting for review or a scheduled one)
+        // takes the new send; a published or private one is left alone.
         return in_array($existing_status, self::UPDATABLE, true) ? self::UPDATE : self::SKIP;
     }
 

@@ -168,7 +168,10 @@ class Test_Backlinks_Resend extends WP_UnitTestCase
 
         $data = $this->send(['backlink_sources' => $this->sources([self::UUID_S1])]);
 
-        $this->assertSame('skipped_already_published', $data['status']);
+        // 2.6.0 (contract 3.7, spec D4): a scheduled post takes a new send like a draft; it stays
+        // scheduled, and the rows come from the publish hook, not from the send.
+        $this->assertSame('updated', $data['status']);
+        $this->assertSame('future', get_post($id)->post_status);
         $this->assertNotNull(Backlinks::sources_of($id));
         $this->assertSame([], $this->rows_of($id));
 

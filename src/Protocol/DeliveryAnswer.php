@@ -16,7 +16,8 @@ namespace TribuneDesk\Protocol;
  * (text, contract 3.4.0) and, when that id is a positive number, also as `attachment_id` (for
  * older Tribune Desk). `social_queue_exclude` goes with `permalink` when the "do not publish on
  * Facebook" field is configured, so a flagged post published at once never enters the Facebook
- * queue (3.4.0).
+ * queue (3.4.0). `publication` is the post's state after the delivery, from Publication::answer()
+ * (3.7.0).
  */
 final class DeliveryAnswer
 {
@@ -27,11 +28,12 @@ final class DeliveryAnswer
     /**
      * @param array{asset_id: string, url: string, cms_media_id?: string, attachment_id?: int}|null $featured_image
      *        The media id as `cms_media_id` (text) or `attachment_id` (positive number); one of them is required.
+     * @param array{status: string, at: string|null}|null $publication
      * @return array<string, mixed>
      * @throws \InvalidArgumentException When featured_image has no media id, or an id is not UTF-8 or is
      *         longer than the contract allows (cms_post_id: 128 characters, cms_media_id: 255).
      */
-    public static function build(int|string $cms_post_id, string $status, ?string $edit_url, ?string $permalink, ?array $featured_image, ?bool $social_queue_exclude = null): array
+    public static function build(int|string $cms_post_id, string $status, ?string $edit_url, ?string $permalink, ?array $featured_image, ?bool $social_queue_exclude = null, ?array $publication = null): array
     {
         $answer = [
             'cms_post_id' => self::checked('cms_post_id', (string) $cms_post_id, self::MAX_POST_ID),
@@ -67,6 +69,9 @@ final class DeliveryAnswer
                 $featured_image['attachment_id'] = $attachment_id;
             }
             $answer['featured_image'] = ['cms_media_id' => self::checked('cms_media_id', $media_id, self::MAX_MEDIA_ID)] + $featured_image;
+        }
+        if ($publication !== null) {
+            $answer['publication'] = $publication;
         }
 
         return $answer;

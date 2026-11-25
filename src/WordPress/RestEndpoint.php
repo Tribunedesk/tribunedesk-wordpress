@@ -116,7 +116,9 @@ class RestEndpoint
                 $public ? (string) get_permalink($result['post_id']) : null,
                 $featured,
                 // The flag as it is after the save; null when the field is not configured.
-                $public ? SocialQueueFlag::value_of((int) $result['post_id']) : null
+                $public ? SocialQueueFlag::value_of((int) $result['post_id']) : null,
+                // The post's state after the save (contract 3.7), also for a skipped send.
+                PostWriter::publication_of((int) $result['post_id'])
             );
 
             return new \WP_REST_Response($response, 200);

@@ -21,6 +21,8 @@ This is the one call Tribune Desk makes to you: when an editor clicks “Send to
 
 **Store under a unique key.** Two attempts of one send can overlap (Tribune Desk gives up waiting after 30 seconds and tries again later while your first answer is still being made). Keep `article_id` unique in your database and lock the row while you write, or you get two posts.
 
+**Publication mode.** An editor can choose how the post is published: the optional `publication` field carries `mode` `draft` (keep it unpublished), `publish` (publish now) or `schedule` (publish at `at`, ISO 8601 in UTC). Without the field, publish as your CMS does today. A scheduled post is not public yet, so a new send of the same article updates it like a draft, and may move it to another time, back to a draft or publish it now. Never unpublish a post that is already published because of this field. A `schedule` whose `at` has already passed when it reaches you is published at once; Tribune Desk itself turns a send that is late into a `draft` before it leaves, so this is rare. Answer with `publication` (see below), so the editor sees what really happened.
+
 **Levels.** You do not need every field, and each level works without the ones above it. Level 1 (receive article) makes a draft post from `title`, `html`, `excerpt` and `featured_image`. Level 2 (link back) tells Tribune Desk where the post was published, so other articles can link to it: answer with `permalink`. Level 3 (full content) uses the same deliveries with more fields: internal links and the “read more” box, SEO, author, AI provenance. Level 4 (media library) reuses files your CMS already holds. Fields marked *optional* are editorial extras (social posts, alternative titles, facts) that you may use or ignore. New fields may appear in a minor version, so ignore the ones you do not know.
 
 ## Level 1 without a public endpoint: read mode
@@ -88,7 +90,7 @@ Fields marked as omitted are absent from the body, not `null`, when they do not 
 
 - **Usual elements:** `h2`, `h3`, `p`, `strong`, `b`, `em`, `i`, `br`, `ul`, `ol`, `li`, `blockquote` and `a`. The headline is not in `html`: it is `title`.
 - **Links:** `<a href="…">`; when the newsroom opens links in a new tab, `target="_blank" rel="noopener"`; a sponsored link carries `rel="sponsored"`. Links to other articles of the newsroom are described in level 3.
-- **No media in the body:** Tribune Desk puts no `img`, `figure` or `iframe` in `html`; images come as `featured_image` and `generated_images`. An editor may still paste an embed by hand.
+- **Images in the body:** `html` may hold a `figure` that usually has one `<img src alt>` and an optional `figcaption`; `src` is a public address, and the `figure` may carry one of the classes `alignleft`, `alignright`, `aligncenter` and `alignwide`. An image from the media library has `data-td-asset-id` on the `img` (the file id of level 4) and, when the file comes from your CMS, `data-td-cms-media-id` (your id of the file, the same as `cms_media_id`). Keep `figure` and `img` through your content filter, including the `data-td-*` attributes on `img`: a sanitizer that drops unknown `data-*` attributes breaks level 4. Use them to insert your CMS's native image instead of downloading the file, so that a new send of the same article makes no second copy of it; without them, keep the `figure` as it is, or download the file only from `image_hosts`. Tribune Desk puts no `iframe` in `html`, but an editor may paste an embed by hand.
 - **Embeds:** keep an `iframe` only when its `src` starts with the address of a video or social player you trust (the WordPress plugin keeps players from YouTube, Vimeo, X, Instagram, TikTok and Facebook), and keep only its `src`, `width`, `height`, `frameborder`, `allowfullscreen`, `allow` and `title`. Remove every other `iframe`, and every other `script` together with its content (the AI label block below is the one script you may keep). A delivery arrives with no editor logged in: if your CMS filters content by the rights of the current user, check that this filter keeps the embeds you trust.
 - **The AI label block:** when the newsroom marks AI content, `html` ends with `<script type="application/ld+json" data-hf-provenance>…</script>`, the same statement as `ai_provenance` (see level 3). Keep it if your CMS allows it, or drop it and render `ai_provenance` in the page head instead.
 
@@ -104,6 +106,7 @@ The body of your answer (`ArticleDeliveryResult`) is optional: a `2xx` alone mea
 | `permalink` | 2 | The public address of the post. Tribune Desk uses it to link to this article from other articles. |
 | `featured_image` | 4 | The attachment made from the featured image, so Tribune Desk can reuse it next time. |
 | `social_queue_exclude` | 2 | `true` keeps the post off the Tribune Desk Facebook queue, `false` puts it back; the same flag as in the link back. Send it together with `permalink` when you publish at once, so a flagged post never enters the queue. Leave it out to keep the stored value. |
+| `publication` | optional | The state of the post after this delivery: `status` `draft`, `scheduled` or `published`, and `at`, when it is or was published (UTC; null for a draft). Tribune Desk shows it to the editor. Leave it out for any other state (for example a private post). |
 | `post_id` | – | Deprecated: the same as `cms_post_id`, read only when that is absent. |
 
 ## Where images come from
@@ -125,6 +128,7 @@ A working receiver in Python, with no dependencies, is in [`examples/python/leve
 - Two attempts of one send that overlap make one post, not two.
 - Images are downloaded only from the hosts in `image_hosts`; an image on any other host is not fetched.
 - A `script` in `html` other than the AI label block is removed with its content; an `iframe` of a YouTube player is kept and an `iframe` from a host you do not trust is removed.
+- A delivery with `publication` makes a draft, a post scheduled for `at`, or a published post; a scheduled post takes a new send like a draft, and a published one is never unpublished. Your answer carries `publication` with the resulting state.
 
 In read mode, also:
 

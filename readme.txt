@@ -4,7 +4,7 @@ Tags: webhook, automation, content
 Requires at least: 5.6
 Tested up to: 7.1
 Requires PHP: 8.3
-Stable tag: 2.5.0
+Stable tag: 2.6.0
 License: MIT
 
 Receives finished articles from Tribune Desk (ArticleWriter) and creates them as drafts in WordPress.
@@ -33,6 +33,13 @@ Features:
 3. Go to `Ustawienia → Tribune Desk`, paste the signing secret (`whsec_…`) and the CMS API token you got from Tribune Desk, pick the default author, and copy the Webhook URL into Tribune Desk Settings → Integracje.
 
 == Changelog ==
+
+= 2.6.0 =
+* The editor chooses the publication mode in Tribune Desk: a draft, a post scheduled for a date and time, or published now. A scheduled post gets the `future` status at that moment (`post_date_gmt`), shown in the site time zone; a time already past publishes at once.
+* A scheduled post is not public yet, so a new send updates its content, title and author like a draft, and may move it, turn it back into a draft or publish it. A published or private post is never changed by the mode.
+* Without the mode a new post follows the "Publish immediately" option, as before. The answer to every delivery tells Tribune Desk the post state (`publication`).
+* The rules live in `src/Protocol/Publication.php` (library tribunedesk/cms-protocol 1.3.0).
+* Implements contract 3.7.1-draft; protocol 1.3.0.
 
 = 2.5.0 =
 * Photos from the Tribune Desk library placed in the article body now become native WordPress images: a captioned figure is a `[caption]` block built by `get_image_send_to_editor`, an uncaptioned one a plain `<img>`; before, the body kept the raw library markup.

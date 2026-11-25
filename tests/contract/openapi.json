@@ -218,7 +218,7 @@
             "type": "array"
           },
           "html": {
-            "description": "Level 1 (receive article). The article body as HTML, without the headline. Internal links are already resolved (see `internal_links`).",
+            "description": "Level 1 (receive article). The article body as HTML, without the headline. Internal links are already resolved (see `internal_links`). May contain images from the media library as `figure`; see guide 1.",
             "title": "Html",
             "type": "string"
           },
@@ -267,6 +267,17 @@
             "description": "Level 1 (receive article). The newsroom's code in Tribune Desk.",
             "title": "Org Code",
             "type": "string"
+          },
+          "publication": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeliveryPublication"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional (editorial extras). How to publish the post: as a draft, now, or at a set time. Omitted = publish as your CMS does today. A scheduled post is not public yet: a new send updates it like a draft. Never unpublish a published post because of this field."
           },
           "raw_facts": {
             "description": "Optional (editorial extras). Facts the article was written from, one per line.",
@@ -437,6 +448,17 @@
             "description": "Deprecated: the same as `cms_post_id`, read only when that is absent.",
             "title": "Post Id"
           },
+          "publication": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicationResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional (editorial extras). The state of the post after this delivery, so the editor sees whether it is a draft, scheduled or published. Leave it out for any other state."
+          },
           "social_queue_exclude": {
             "anyOf": [
               {
@@ -594,6 +616,17 @@
             ],
             "description": "Deprecated: the same as `cms_post_id`, read only when that is absent.",
             "title": "Post Id"
+          },
+          "publication": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicationResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional (editorial extras). The state of the post after this delivery, so the editor sees whether it is a draft, scheduled or published. Leave it out for any other state."
           },
           "social_queue_exclude": {
             "anyOf": [
@@ -1563,6 +1596,38 @@
         "title": "DeliveryPerson",
         "type": "object"
       },
+      "DeliveryPublication": {
+        "description": "How the newsroom wants the post published (spec 2026-11-24 tryb publikacji, D1).",
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When to publish, ISO 8601 in UTC (ending in `Z`). Present only with `schedule`.",
+            "title": "At"
+          },
+          "mode": {
+            "description": "`draft` keeps the post unpublished, `publish` publishes it now, `schedule` publishes it at `at`.",
+            "enum": [
+              "draft",
+              "schedule",
+              "publish"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "title": "DeliveryPublication",
+        "type": "object"
+      },
       "FeaturedImageResult": {
         "description": "The attachment your CMS made from `featured_image` (level 4). Give `cms_media_id`;\n`attachment_id` is the older numeric form, read only when `cms_media_id` is absent.",
         "properties": {
@@ -2403,6 +2468,39 @@
           "digital_source_type"
         ],
         "title": "ProvenanceClaims",
+        "type": "object"
+      },
+      "PublicationResult": {
+        "description": "The state of the post after your CMS applied the delivery (spec tryb publikacji, D1).",
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the post is or was published, ISO 8601 with a time zone (UTC preferred); required with `scheduled`, null for a draft.",
+            "title": "At"
+          },
+          "status": {
+            "description": "`draft`, `scheduled` (waiting for its time) or `published`.",
+            "enum": [
+              "draft",
+              "scheduled",
+              "published"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "PublicationResult",
         "type": "object"
       },
       "PublishedArticleItem": {
@@ -3252,7 +3350,7 @@
   "info": {
     "description": "Contract between a CMS and Tribune Desk. The CMS is the client: it polls changes with a cursor (`GET /changes`) and sends its own.\n\n**Authentication:** `Authorization: Bearer tdcms_...`. A super admin issues the token for one organization with scopes `media:read`, `media:write`, `settings:read`, `settings:write`, `backfill:write`, `articles:read`, `articles:write`.\n\n**Limits:** 600 requests per minute per token (`429` with `Retry-After`).\n\n**Errors:** every error of every route has the body `ApiError` (`code`, `message`, `retry_after`).\n\nOperations marked `x-status: planned` require their scope but answer `501 not_implemented`.",
     "title": "Tribune Desk CMS API",
-    "version": "3.6.0-draft"
+    "version": "3.7.1-draft"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -3650,7 +3748,7 @@
     },
     "/v3/cms/articles/{article_id}/result": {
       "post": {
-        "description": "Read mode: the body your webhook would answer with, plus `delivery_id` and `error` (`ArticleResultReport`). Tribune Desk stores `social_queue_exclude`, `permalink`, `cms_post_id` and `edit_url` and marks the send as delivered; with `error` it marks the send as failed and stores nothing else. Unlike a webhook answer, this request is validated: a field of the wrong type gives `422 validation_error`. A field of the right type that is not stored (an `edit_url` that is not `http(s)`, a `permalink` that is not a public address) is listed in `ignored_fields`. Repeating the result is safe. `404 not_found`: no such article in the organization. `409 state_conflict`: the article was never sent to the CMS, or `delivery_id` names a send that a newer send replaced (fetch the article again); nothing is stored.",
+        "description": "Read mode: the body your webhook would answer with, plus `delivery_id` and `error` (`ArticleResultReport`). Tribune Desk stores `social_queue_exclude`, `permalink`, `cms_post_id`, `edit_url` and `publication` and marks the send as delivered; with `error` it marks the send as failed and stores nothing else. Unlike a webhook answer, this request is validated: a field of the wrong type gives `422 validation_error`. A field of the right type that is not stored (an `edit_url` that is not `http(s)`, a `permalink` that is not a public address) is listed in `ignored_fields`. Repeating the result is safe. `404 not_found`: no such article in the organization. `409 state_conflict`: the article was never sent to the CMS, or `delivery_id` names a send that a newer send replaced (fetch the article again); nothing is stored.",
         "operationId": "reportArticleResult",
         "parameters": [
           {
