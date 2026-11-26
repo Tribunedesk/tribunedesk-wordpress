@@ -65,7 +65,7 @@ class Test_TaxonomyDelivery extends WP_UnitTestCase
      * @param array<string, mixed>|null $taxonomy null = no `taxonomy` in the delivery
      * @return array<string, mixed> the answer
      */
-    private function deliver(string $article_id, ?array $taxonomy, int $sent_offset = 0): array
+    private function deliver(string $article_id, ?array $taxonomy, int $sent_offset = 0, array $extra = []): array
     {
         $this->sends++;
         $body = [
@@ -77,6 +77,7 @@ class Test_TaxonomyDelivery extends WP_UnitTestCase
         if ($taxonomy !== null) {
             $body['taxonomy'] = $taxonomy;
         }
+        $body += $extra;
         $req = new WP_REST_Request('POST', '/' . RestEndpoint::NAMESPACE . RestEndpoint::ROUTE);
         $req->set_body((string) json_encode($body));
         $req->set_header('Content-Type', 'application/json');
@@ -158,13 +159,78 @@ class Test_TaxonomyDelivery extends WP_UnitTestCase
         $this->assertSame($before, $this->term_count(), 'no term was created');
         $this->assertSame(0, $this->created_terms, 'created_term never fired');
         $this->assertSame([$this->theatre], self::ids($post_id, 'post_tag'));
-        // All categories unknown: WordPress keeps the default category.
+        // No category found: the categories are left alone, so the new post has the default one.
         $this->assertSame([(int) get_option('default_category')], self::ids($post_id, 'category'));
         $this->assertSame([
             ['name' => 'Nie ma takiej', 'reason' => 'unknown_term'],
             ['name' => 'Halinka Mlynkova', 'reason' => 'unknown_term'],
             ['name' => 'Sport', 'reason' => 'wrong_taxonomy'],
         ], $answer['taxonomy']['ignored']);
+    }
+
+    /** A non-empty list of which nothing is found leaves that taxonomy of a draft alone. */
+    public function test_nothing_found_leaves_draft_terms_alone(): void
+    {
+        $first   = $this->deliver('art-tax-3b', [
+            'categories' => [self::ref($this->news, 'Newsy')],
+            'tags'       => [self::ref($this->theatre, 'Teatr')],
+        ]);
+        $post_id = (int) $first['cms_post_id'];
+
+        $answer = $this->deliver('art-tax-3b', [
+            'categories' => [['name' => 'Nie ma takiej']],
+            'tags'       => [['name' => 'Halinka Mlynkova'], self::ref($this->sport, 'Sport')],
+        ]);
+
+        $this->assertSame('updated', $answer['status']);
+        $this->assertSame([$this->news], self::ids($post_id, 'category'));
+        $this->assertSame([$this->theatre], self::ids($post_id, 'post_tag'));
+        $this->assertSame([self::ref($this->theatre, 'Teatr')], $answer['taxonomy']['tags']);
+        $this->assertSame([
+            ['name' => 'Nie ma takiej', 'reason' => 'unknown_term'],
+            ['name' => 'Halinka Mlynkova', 'reason' => 'unknown_term'],
+            ['name' => 'Sport', 'reason' => 'wrong_taxonomy'],
+        ], $answer['taxonomy']['ignored']);
+    }
+
+    /** The publish hooks inside the save see the delivered category (a theme builds permalinks from it). */
+    public function test_publish_hooks_see_the_delivered_category(): void
+    {
+        $seen = [];
+        $on_transition = static function (string $new, string $old, WP_Post $post) use (&$seen): void {
+            if ($new === 'publish') {
+                $seen['transition'] = array_map('intval', wp_get_post_categories($post->ID));
+                $seen['transition_tags'] = array_map('intval', wp_get_post_tags($post->ID, ['fields' => 'ids']));
+            }
+        };
+        $on_after = static function (int $post_id, WP_Post $post) use (&$seen): void {
+            if ($post->post_status === 'publish') {
+                $seen['after_insert'] = array_map('intval', wp_get_post_categories($post_id));
+            }
+        };
+        add_action('transition_post_status', $on_transition, 1, 3);
+        add_action('wp_after_insert_post', $on_after, 1, 2);
+        try {
+            $answer = $this->deliver('art-tax-9', [
+                'categories' => [self::ref($this->sport, 'Sport')],
+                'tags'       => [self::ref($this->theatre, 'Teatr')],
+            ], 0, ['publication' => ['mode' => 'publish']]);
+            // A draft published by its next send: the update path.
+            $this->deliver('art-tax-10', ['categories' => [self::ref($this->news, 'Newsy')]]);
+            $seen_new = $seen;
+            $seen = [];
+            $this->deliver('art-tax-10', ['categories' => [self::ref($this->sport, 'Sport')]], 0, ['publication' => ['mode' => 'publish']]);
+        } finally {
+            remove_action('transition_post_status', $on_transition, 1);
+            remove_action('wp_after_insert_post', $on_after, 1);
+        }
+
+        $this->assertSame('publish', get_post_status((int) $answer['cms_post_id']));
+        $this->assertSame([$this->sport], $seen_new['transition'] ?? null, 'new post: transition_post_status');
+        $this->assertSame([$this->theatre], $seen_new['transition_tags'] ?? null, 'new post: tags at transition');
+        $this->assertSame([$this->sport], $seen_new['after_insert'] ?? null, 'new post: wp_after_insert_post');
+        $this->assertSame([$this->sport], $seen['transition'] ?? null, 'draft: transition_post_status');
+        $this->assertSame([$this->sport], $seen['after_insert'] ?? null, 'draft: wp_after_insert_post');
     }
 
     /** Review Focus 1: a re-send without `taxonomy` keeps the terms an editor set by hand. */
@@ -201,6 +267,14 @@ class Test_TaxonomyDelivery extends WP_UnitTestCase
         $this->assertSame([self::ref($this->news, 'Newsy')], $again['taxonomy']['categories']);
     }
 
+    public function test_unreadable_taxonomy_gives_no_answer_field(): void
+    {
+        $answer = $this->deliver('art-tax-11', ['tags' => 'Teatr', 'categories' => [['cms_term_id' => '1']]]);
+
+        $this->assertArrayNotHasKey('taxonomy', $answer);
+        $this->assertSame([], self::ids((int) $answer['cms_post_id'], 'post_tag'));
+    }
+
     public function test_empty_categories_fall_back_to_default_category(): void
     {
         $first   = $this->deliver('art-tax-6', ['categories' => [self::ref($this->news, 'Newsy')]]);
@@ -211,16 +285,23 @@ class Test_TaxonomyDelivery extends WP_UnitTestCase
         $this->assertSame([(int) get_option('default_category')], self::ids($post_id, 'category'));
     }
 
-    public function test_published_post_keeps_terms_and_answers_its_state(): void
+    /** @return array<string, array{0: string}> */
+    public function public_statuses(): array
     {
-        $first   = $this->deliver('art-tax-7', [
+        return ['publish' => ['publish'], 'private' => ['private']];
+    }
+
+    /** @dataProvider public_statuses */
+    public function test_public_post_keeps_terms_and_answers_its_state(string $status): void
+    {
+        $first   = $this->deliver('art-tax-7-' . $status, [
             'categories' => [self::ref($this->news, 'Newsy')],
             'tags'       => [self::ref($this->theatre, 'Teatr')],
         ]);
         $post_id = (int) $first['cms_post_id'];
-        wp_update_post(['ID' => $post_id, 'post_status' => 'publish']);
+        wp_update_post(['ID' => $post_id, 'post_status' => $status]);
 
-        $answer = $this->deliver('art-tax-7', [
+        $answer = $this->deliver('art-tax-7-' . $status, [
             'categories' => [self::ref($this->sport, 'Sport')],
             'tags'       => [],
         ]);

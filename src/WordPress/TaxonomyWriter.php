@@ -14,7 +14,13 @@ if (!defined('ABSPATH')) {
  *
  * Taxonomy::requested() decides what to set and Taxonomy::resolve() finds the terms; this class
  * only looks terms up in WordPress and sets them. It never creates a term (owner, 2026-11-25): a
- * term WordPress does not have goes to `ignored`. A taxonomy the delivery leaves out stays as it is.
+ * term WordPress does not have goes to `ignored`. A taxonomy the delivery leaves out stays as it
+ * is, and so does one whose non-empty list found nothing (only a genuine `[]` clears).
+ *
+ * The terms go on the post before it is saved (fields of wp_insert_post for a new post, a write
+ * before wp_update_post for an existing one): the publish hooks inside the save — the permalink
+ * other posts link to, the address reported to Tribune Desk — must see the delivered category,
+ * because a theme may build the permalink from it.
  */
 class TaxonomyWriter
 {
@@ -25,13 +31,15 @@ class TaxonomyWriter
     ];
 
     /**
-     * Sets the terms of `$requested` (Taxonomy::requested()) on the post.
+     * Finds the terms of `$requested` (Taxonomy::requested()) without writing anything.
      *
      * @param array{categories: list<array{cms_term_id: ?string, name: string}>|null, tags: list<array{cms_term_id: ?string, name: string}>|null} $requested
-     * @return list<array{name: string, reason: string}> the terms not set
+     * @return array{set: array{categories?: list<int>, tags?: list<int>}, ignored: list<array{name: string, reason: string}>}
+     *         `set` has a key only for a taxonomy to replace
      */
-    public static function apply(int $post_id, array $requested): array
+    public static function lookup(array $requested): array
     {
+        $set = [];
         $ignored = [];
         foreach (self::TAXONOMIES as $key => $taxonomy) {
             $refs = $requested[$key] ?? null;
@@ -44,16 +52,51 @@ class TaxonomyWriter
                 static fn (string $id): ?int => self::by_id($id, $taxonomy, $other),
                 static fn (string $name): ?int => self::by_name($name, $taxonomy, $other)
             );
-            if ($taxonomy === 'category') {
-                // An empty list falls back to the site's default category (guide 3).
-                wp_set_post_categories($post_id, $found['ids'], false);
-            } else {
-                wp_set_post_terms($post_id, $found['ids'], $taxonomy, false);
-            }
             $ignored = array_merge($ignored, $found['ignored']);
+            // A non-empty list of which nothing was found leaves the taxonomy alone.
+            if ($refs === [] || $found['ids'] !== []) {
+                $set[$key] = $found['ids'];
+            }
         }
 
-        return $ignored;
+        return ['set' => $set, 'ignored' => $ignored];
+    }
+
+    /**
+     * Fields of wp_insert_post() for a new post: core sets them before the status transition.
+     * No `tax_input`, which core drops for a user without assign_terms (a delivery runs as user 0).
+     *
+     * @param array{categories?: list<int>, tags?: list<int>} $set from lookup()
+     * @return array<string, list<int>>
+     */
+    public static function insert_fields(array $set): array
+    {
+        $fields = [];
+        // An empty category list: no field, and core gives the post the default category.
+        if (($set['categories'] ?? []) !== []) {
+            $fields['post_category'] = $set['categories'];
+        }
+        if (($set['tags'] ?? []) !== []) {
+            $fields['tags_input'] = $set['tags'];
+        }
+
+        return $fields;
+    }
+
+    /**
+     * Sets the terms of lookup() on an existing post, before wp_update_post().
+     *
+     * @param array{categories?: list<int>, tags?: list<int>} $set
+     */
+    public static function write(int $post_id, array $set): void
+    {
+        if (isset($set['categories'])) {
+            // An empty list falls back to the site's default category (guide 3).
+            wp_set_post_categories($post_id, $set['categories'], false);
+        }
+        if (isset($set['tags'])) {
+            wp_set_post_terms($post_id, $set['tags'], 'post_tag', false);
+        }
     }
 
     /** The term with this id in `$taxonomy`, OTHER_TAXONOMY when it is in `$other`, else null. */
@@ -75,7 +118,8 @@ class TaxonomyWriter
 
     /**
      * The term with this name in `$taxonomy`, OTHER_TAXONOMY when only `$other` has it, else null.
-     * get_term_by() compares in the database, whose collation ignores letter case.
+     * get_term_by() compares in the database: with the usual *_ci collation that ignores letter
+     * case and accents, and it returns one row when several terms match.
      */
     private static function by_name(string $name, string $taxonomy, string $other): ?int
     {

@@ -147,7 +147,7 @@ class PostWriter
         $existing = self::find_by_article_id($article_id);
         // `taxonomy_ignored` is null when the delivery has no `taxonomy` (the answer then has none),
         // [] when it has one but nothing of it was set or ignored here.
-        $no_terms = self::carries_taxonomy($payload) ? [] : null;
+        $no_terms = Taxonomy::requested(null, $payload['taxonomy'] ?? null) !== null ? [] : null;
         if ($existing !== null && self::is_older_send($payload, (int) $existing->ID)) {
             // Nothing of an older send is applied, not even the metadata of a published post.
             return ['post_id' => (int) $existing->ID, 'status' => WriteResult::SkippedOlderSend, 'taxonomy_ignored' => $no_terms];
@@ -165,6 +165,9 @@ class PostWriter
             time()
         );
 
+        // Terms before the save, so the publish hooks inside it see them (TaxonomyWriter).
+        $terms = self::lookup_taxonomy($existing === null ? null : (string) $existing->post_status, $payload);
+
         if ($existing === null) {
             $body    = BodyImages::convert($html, 0, (float) BodyImages::DELIVERY_BUDGET);
             $html    = $body['html'];
@@ -174,7 +177,7 @@ class PostWriter
                 'post_content' => $html,
                 'post_excerpt' => $excerpt,
                 'meta_input'   => self::meta_input($article_id, $links, $payload),
-            ] + self::publication_fields($target), true));
+            ] + self::publication_fields($target) + TaxonomyWriter::insert_fields($terms['set'] ?? []), true));
 
             if (is_wp_error($post_id)) {
                 throw new \RuntimeException('wp_insert_post failed: ' . $post_id->get_error_message());
@@ -183,13 +186,12 @@ class PostWriter
             self::adopt_body_images((int) $post_id, $body);
             self::sync_featured_image((int) $post_id, $payload);
             SeoMeta::sync((int) $post_id, $payload);
-            $ignored = self::apply_taxonomy((int) $post_id, null, $payload, $no_terms);
             ProvenanceMeta::sync((int) $post_id, $raw_html);
             // Language only on creation: an existing post may have been moved by hand.
             Language::apply((int) $post_id, $payload);
             self::remember_sent_at((int) $post_id, $payload);
 
-            return ['post_id' => (int) $post_id, 'status' => WriteResult::Created, 'taxonomy_ignored' => $ignored];
+            return ['post_id' => (int) $post_id, 'status' => WriteResult::Created, 'taxonomy_ignored' => $terms['ignored'] ?? $no_terms];
         }
 
         if ($action === DraftRules::SKIP) {
@@ -233,6 +235,11 @@ class PostWriter
             $postarr['post_excerpt'] = $excerpt;
         }
         $postarr += self::publication_fields($target);
+        // wp_update_post keeps the categories it finds on the post, so they are set first; an
+        // empty `post_category` in $postarr would be replaced by the old ones.
+        if ($terms !== null) {
+            TaxonomyWriter::write((int) $existing->ID, $terms['set']);
+        }
         $update = self::with_embeds(static fn () => wp_update_post($postarr, true));
 
         if (is_wp_error($update)) {
@@ -242,7 +249,6 @@ class PostWriter
         self::adopt_body_images((int) $existing->ID, $body);
         self::sync_featured_image((int) $existing->ID, $payload);
         SeoMeta::sync((int) $existing->ID, $payload);
-        $ignored = self::apply_taxonomy((int) $existing->ID, (string) $existing->post_status, $payload, $no_terms);
         // The content was replaced, so the labelling must follow it: it describes
         // the content hash, and an old signature next to new text looks like a forgery.
         // On the SkippedAlreadyPublished path we deliberately do NOT do this — there the content
@@ -250,7 +256,7 @@ class PostWriter
         ProvenanceMeta::sync((int) $existing->ID, $raw_html);
         self::remember_sent_at((int) $existing->ID, $payload);
 
-        return ['post_id' => (int) $existing->ID, 'status' => WriteResult::Updated, 'taxonomy_ignored' => $ignored];
+        return ['post_id' => (int) $existing->ID, 'status' => WriteResult::Updated, 'taxonomy_ignored' => $terms['ignored'] ?? $no_terms];
     }
 
     /**
@@ -289,27 +295,19 @@ class PostWriter
         return [];
     }
 
-    /** @param array<string, mixed> $payload */
-    private static function carries_taxonomy(array $payload): bool
-    {
-        $taxonomy = $payload['taxonomy'] ?? null;
-
-        return is_array($taxonomy) && $taxonomy !== [] && !array_is_list($taxonomy);
-    }
-
     /**
-     * The delivery's categories and tags on a new or not yet public post (contract 3.8).
+     * The delivery's categories and tags for a new or not yet public post (contract 3.8), looked
+     * up but not written; null when there is nothing to set (no field, or a public post).
      *
      * @param string|null $status the post's status before this delivery, null = new post
      * @param array<string, mixed> $payload
-     * @param list<array{name: string, reason: string}>|null $none what to return when nothing is set
-     * @return list<array{name: string, reason: string}>|null
+     * @return array{set: array{categories?: list<int>, tags?: list<int>}, ignored: list<array{name: string, reason: string}>}|null
      */
-    private static function apply_taxonomy(int $post_id, ?string $status, array $payload, ?array $none): ?array
+    private static function lookup_taxonomy(?string $status, array $payload): ?array
     {
         $requested = Taxonomy::requested($status, $payload['taxonomy'] ?? null);
 
-        return $requested === null ? $none : TaxonomyWriter::apply($post_id, $requested);
+        return $requested === null ? null : TaxonomyWriter::lookup($requested);
     }
 
     /**
