@@ -124,12 +124,23 @@ class Test_Dev_Commands extends WP_UnitTestCase
         DevCommands::publish($payload['article_id']);
 
         $post = DevCommands::inspect($payload['article_id']);
-        $this->assertSame('publish', $post['status']);
+        $this->assertSame('published', $post['status'], 'the contract word, not the WordPress one');
         $this->assertNotNull($post['permalink']);
         $sent = array_values(array_filter($this->requests, static fn (array $r): bool => str_contains($r['url'], '/v3/cms/articles/published')));
         $this->assertCount(1, $sent, 'the link back is sent before publish returns');
         $items = json_decode((string) $sent[0]['args']['body'], true)['items'];
         $this->assertSame([$payload['article_id'], $post['permalink']], [$items[0]['article_id'], $items[0]['url']]);
+    }
+
+    public function test_inspect_status_scheduled_and_pending_use_contract_words(): void
+    {
+        $payload = $this->deliver();
+        $post = PostWriter::find_by_article_id($payload['article_id']);
+        wp_update_post(['ID' => $post->ID, 'post_status' => 'future', 'edit_date' => true, 'post_date' => gmdate('Y-m-d H:i:s', time() + DAY_IN_SECONDS), 'post_date_gmt' => gmdate('Y-m-d H:i:s', time() + DAY_IN_SECONDS)]);
+        $this->assertSame('future', get_post_status($post->ID));
+        $this->assertSame('scheduled', DevCommands::inspect($payload['article_id'])['status']);
+        wp_update_post(['ID' => $post->ID, 'post_status' => 'pending']);
+        $this->assertSame('draft', DevCommands::inspect($payload['article_id'])['status']);
     }
 
     public function test_publish_unknown_article_throws(): void

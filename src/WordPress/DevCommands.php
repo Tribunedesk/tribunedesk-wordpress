@@ -46,7 +46,7 @@ final class DevCommands
             'title' => $post->post_title,
             'html' => $post->post_content,
             'excerpt' => $post->post_excerpt,
-            'status' => $post->post_status,
+            'status' => self::contract_status($post),
             'featured_image_url' => $thumbnail > 0 ? (string) wp_get_attachment_url($thumbnail) : null,
             'permalink' => $post->post_status === 'publish' ? (string) get_permalink($post) : null,
             'seo_title' => (string) get_post_meta($id, SeoMeta::META_TITLE, true),
@@ -58,6 +58,12 @@ final class DevCommands
             'categories' => self::term_names($id, 'category'),
             'tags' => self::term_names($id, 'post_tag'),
         ];
+    }
+
+    /** The post status in the words of the contract (`draft`, `scheduled`, `published`); a state it does not name stays WordPress's own. */
+    private static function contract_status(\WP_Post $post): string
+    {
+        return PostWriter::publication_of($post->ID)['status'] ?? $post->post_status;
     }
 
     /** @return list<string> names as plain text: WordPress keeps them HTML-escaped */
