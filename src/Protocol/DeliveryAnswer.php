@@ -17,7 +17,8 @@ namespace TribuneDesk\Protocol;
  * older Tribune Desk). `social_queue_exclude` goes with `permalink` when the "do not publish on
  * Facebook" field is configured, so a flagged post published at once never enters the Facebook
  * queue (3.4.0). `publication` is the post's state after the delivery, from Publication::answer()
- * (3.7.0).
+ * (3.7.0). `taxonomy` is the post's categories and tags after the delivery and the terms not set,
+ * from Taxonomy::answer(); leave it null when the delivery did not touch them (3.8.0).
  */
 final class DeliveryAnswer
 {
@@ -29,11 +30,12 @@ final class DeliveryAnswer
      * @param array{asset_id: string, url: string, cms_media_id?: string, attachment_id?: int}|null $featured_image
      *        The media id as `cms_media_id` (text) or `attachment_id` (positive number); one of them is required.
      * @param array{status: string, at: string|null}|null $publication
+     * @param array{categories: list<array{cms_term_id: ?string, name: string}>, tags: list<array{cms_term_id: ?string, name: string}>, ignored: list<array{name: string, reason: string}>}|null $taxonomy
      * @return array<string, mixed>
      * @throws \InvalidArgumentException When featured_image has no media id, or an id is not UTF-8 or is
      *         longer than the contract allows (cms_post_id: 128 characters, cms_media_id: 255).
      */
-    public static function build(int|string $cms_post_id, string $status, ?string $edit_url, ?string $permalink, ?array $featured_image, ?bool $social_queue_exclude = null, ?array $publication = null): array
+    public static function build(int|string $cms_post_id, string $status, ?string $edit_url, ?string $permalink, ?array $featured_image, ?bool $social_queue_exclude = null, ?array $publication = null, ?array $taxonomy = null): array
     {
         $answer = [
             'cms_post_id' => self::checked('cms_post_id', (string) $cms_post_id, self::MAX_POST_ID),
@@ -72,6 +74,9 @@ final class DeliveryAnswer
         }
         if ($publication !== null) {
             $answer['publication'] = $publication;
+        }
+        if ($taxonomy !== null) {
+            $answer['taxonomy'] = $taxonomy;
         }
 
         return $answer;

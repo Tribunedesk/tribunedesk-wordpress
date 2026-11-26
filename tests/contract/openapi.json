@@ -328,6 +328,17 @@
             "description": "Level 3 (full content). The chosen SEO title.",
             "title": "Seo Title"
           },
+          "taxonomy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeliveryTaxonomy"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional (editorial extras). The categories and tags the editor chose. Set them by `cms_term_id`, else by `name` (any letter case); never create a term. Omitted = leave the post's categories and tags alone; a missing `categories` or `tags` key inside it means the same for that taxonomy."
+          },
           "title": {
             "description": "Level 1 (receive article). The article's headline. Not repeated in `html`.",
             "title": "Title",
@@ -487,6 +498,17 @@
             ],
             "description": "Level 1 (receive article). `created`, `updated`, or `skipped_already_published` when you left an already published post alone. Informational: Tribune Desk does not act on it today.",
             "title": "Status"
+          },
+          "taxonomy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TaxonomyResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional (editorial extras). The categories and tags of the post after this delivery, and the terms you did not set. Leave it out when you did not touch them."
           }
         },
         "title": "ArticleDeliveryResult",
@@ -656,6 +678,17 @@
             ],
             "description": "Level 1 (receive article). `created`, `updated`, or `skipped_already_published` when you left an already published post alone. Informational: Tribune Desk does not act on it today.",
             "title": "Status"
+          },
+          "taxonomy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TaxonomyResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional (editorial extras). The categories and tags of the post after this delivery, and the terms you did not set. Leave it out when you did not touch them."
           }
         },
         "title": "ArticleResultReport",
@@ -1626,6 +1659,70 @@
           "mode"
         ],
         "title": "DeliveryPublication",
+        "type": "object"
+      },
+      "DeliveryTaxonomy": {
+        "description": "The categories and tags to set on the post. A key that is present means \"set exactly\nthis\" for that taxonomy (an empty list removes all terms); a missing key means \"leave it\nalone\".",
+        "properties": {
+          "categories": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/DeliveryTerm"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Categories to set. Omitted = leave the categories alone.",
+            "title": "Categories"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/DeliveryTerm"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tags to set. Omitted = leave the tags alone.",
+            "title": "Tags"
+          }
+        },
+        "title": "DeliveryTaxonomy",
+        "type": "object"
+      },
+      "DeliveryTerm": {
+        "description": "A category or tag the editor chose (spec 2026-11-25 kategorie i tagi CMS, D2).",
+        "properties": {
+          "cms_term_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Your identifier of the term, as text. Present when the term comes from the taxonomy you sent to `POST /v3/cms/taxonomy/terms`.",
+            "title": "Cms Term Id"
+          },
+          "name": {
+            "description": "The name of the term.",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "DeliveryTerm",
         "type": "object"
       },
       "FeaturedImageResult": {
@@ -2730,6 +2827,33 @@
         "title": "RelatedTopic",
         "type": "object"
       },
+      "ResultTerm": {
+        "description": "A category or tag now on the post.",
+        "properties": {
+          "cms_term_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Your identifier of the term, as text.",
+            "title": "Cms Term Id"
+          },
+          "name": {
+            "description": "The name of the term.",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "ResultTerm",
+        "type": "object"
+      },
       "ResyncConfirmRequest": {
         "additionalProperties": false,
         "description": "Apply a `ready` preview (valid for 24 hours). Impossible without a preview.",
@@ -3327,6 +3451,17 @@
             ],
             "title": "State",
             "type": "string"
+          },
+          "taxonomy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TaxonomyStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The categories and tags you sent with `POST /v3/cms/taxonomy/terms`. `null` until you send any."
           }
         },
         "required": [
@@ -3336,6 +3471,205 @@
           "state"
         ],
         "title": "StatusResponse",
+        "type": "object"
+      },
+      "TaxonomyIgnored": {
+        "description": "A term of the delivery your CMS did not set.",
+        "properties": {
+          "name": {
+            "description": "The `name` of the term as delivered.",
+            "title": "Name",
+            "type": "string"
+          },
+          "reason": {
+            "description": "Why the term was not set. Known values: `unknown_term` (no such term, and you must not create one) and `wrong_taxonomy` (a term of that name exists, but in the other taxonomy). New values may be added; treat an unknown value as not set.",
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "reason"
+        ],
+        "title": "TaxonomyIgnored",
+        "type": "object"
+      },
+      "TaxonomyPageRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "is_last": {
+            "default": false,
+            "description": "Last page of the full run; needs `run_id`.",
+            "title": "Is Last",
+            "type": "boolean"
+          },
+          "items": {
+            "description": "1 to 1000 terms. Empty only on the last page of a full run (`run_id` set, `is_last: true`), so a CMS that has no terms left can finish the run and clear them.",
+            "items": {
+              "$ref": "#/components/schemas/TaxonomyTerm"
+            },
+            "maxItems": 1000,
+            "title": "Items",
+            "type": "array"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set for a full run: the same value on every page of it. After the page with `is_last`, terms the run did not send are removed. `null` = single changes.",
+            "title": "Run Id"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "TaxonomyPageRequest",
+        "type": "object"
+      },
+      "TaxonomyResult": {
+        "description": "The categories and tags of the post after your CMS applied the delivery.",
+        "properties": {
+          "categories": {
+            "description": "The categories now on the post.",
+            "items": {
+              "$ref": "#/components/schemas/ResultTerm"
+            },
+            "title": "Categories",
+            "type": "array"
+          },
+          "ignored": {
+            "description": "Terms of the delivery you did not set, with the reason.",
+            "items": {
+              "$ref": "#/components/schemas/TaxonomyIgnored"
+            },
+            "title": "Ignored",
+            "type": "array"
+          },
+          "tags": {
+            "description": "The tags now on the post.",
+            "items": {
+              "$ref": "#/components/schemas/ResultTerm"
+            },
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "title": "TaxonomyResult",
+        "type": "object"
+      },
+      "TaxonomyStatus": {
+        "properties": {
+          "last_full_sync_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When a full run last finished. `null` if none has.",
+            "title": "Last Full Sync At"
+          },
+          "terms": {
+            "description": "Categories and tags Tribune Desk holds for you.",
+            "minimum": 0.0,
+            "title": "Terms",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "terms"
+        ],
+        "title": "TaxonomyStatus",
+        "type": "object"
+      },
+      "TaxonomyTerm": {
+        "additionalProperties": false,
+        "properties": {
+          "cms_term_id": {
+            "description": "Your identifier of the term, as text.",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Cms Term Id",
+            "type": "string"
+          },
+          "deleted": {
+            "default": false,
+            "description": "`true` when the term no longer exists in your CMS.",
+            "title": "Deleted",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "The name of the term: plain text, 1 to 5000 Unicode characters, stored as sent. An empty name fails the request with `422`.",
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`cms_term_id` of the parent, for a category.",
+            "title": "Parent Id"
+          },
+          "post_count": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How many posts carry the term.",
+            "title": "Post Count"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The slug of the term.",
+            "title": "Slug"
+          },
+          "taxonomy": {
+            "description": "Which taxonomy the term is in.",
+            "enum": [
+              "category",
+              "tag"
+            ],
+            "title": "Taxonomy",
+            "type": "string"
+          }
+        },
+        "required": [
+          "taxonomy",
+          "cms_term_id",
+          "name"
+        ],
+        "title": "TaxonomyTerm",
         "type": "object"
       }
     },
@@ -3350,7 +3684,7 @@
   "info": {
     "description": "Contract between a CMS and Tribune Desk. The CMS is the client: it polls changes with a cursor (`GET /changes`) and sends its own.\n\n**Authentication:** `Authorization: Bearer tdcms_...`. A super admin issues the token for one organization with scopes `media:read`, `media:write`, `settings:read`, `settings:write`, `backfill:write`, `articles:read`, `articles:write`.\n\n**Limits:** 600 requests per minute per token (`429` with `Retry-After`).\n\n**Errors:** every error of every route has the body `ApiError` (`code`, `message`, `retry_after`).\n\nOperations marked `x-status: planned` require their scope but answer `501 not_implemented`.",
     "title": "Tribune Desk CMS API",
-    "version": "3.7.1-draft"
+    "version": "3.8.0-draft"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -3748,7 +4082,7 @@
     },
     "/v3/cms/articles/{article_id}/result": {
       "post": {
-        "description": "Read mode: the body your webhook would answer with, plus `delivery_id` and `error` (`ArticleResultReport`). Tribune Desk stores `social_queue_exclude`, `permalink`, `cms_post_id`, `edit_url` and `publication` and marks the send as delivered; with `error` it marks the send as failed and stores nothing else. Unlike a webhook answer, this request is validated: a field of the wrong type gives `422 validation_error`. A field of the right type that is not stored (an `edit_url` that is not `http(s)`, a `permalink` that is not a public address) is listed in `ignored_fields`. Repeating the result is safe. `404 not_found`: no such article in the organization. `409 state_conflict`: the article was never sent to the CMS, or `delivery_id` names a send that a newer send replaced (fetch the article again); nothing is stored.",
+        "description": "Read mode: the body your webhook would answer with, plus `delivery_id` and `error` (`ArticleResultReport`). Tribune Desk stores `social_queue_exclude`, `permalink`, `cms_post_id`, `edit_url`, `publication` and `taxonomy` and marks the send as delivered; with `error` it marks the send as failed and stores nothing else. Unlike a webhook answer, this request is validated: a field of the wrong type gives `422 validation_error`. A field of the right type that is not stored (an `edit_url` that is not `http(s)`, a `permalink` that is not a public address) is listed in `ignored_fields`. Repeating the result is safe. `404 not_found`: no such article in the organization. `409 state_conflict`: the article was never sent to the CMS, or `delivery_id` names a send that a newer send replaced (fetch the article again); nothing is stored.",
         "operationId": "reportArticleResult",
         "parameters": [
           {
@@ -5642,6 +5976,129 @@
           }
         ],
         "summary": "Integration status",
+        "tags": [
+          "cms-v3"
+        ]
+      }
+    },
+    "/v3/cms/taxonomy/terms": {
+      "post": {
+        "description": "Level 3: send the categories and tags of your CMS, 1 to 1000 per request, so the editor can pick them and Tribune Desk can set them on a delivery. `run_id` marks a full run: send the same `run_id` on every page and `is_last: true` on the last; after that page the terms of your organization that the run did not send are removed. A run that never sends its last page removes nothing. Run one full run at a time; a page with a new `run_id` abandons the previous run. Without `run_id` the items are single changes (`deleted: true` removes a term; `unknown` when it was not there). Each item gets its own status. `409 state_conflict` when a full run was left open for more than 24 hours (nothing is applied; start a new run). `items` may be empty only on the last page of a full run, which then removes every term.",
+        "operationId": "postTaxonomyTerms",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaxonomyPageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unauthorized`: missing, unknown or revoked token."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`forbidden`: the token lacks the scope of this route."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`project_deactivated`: the organization is frozen and rejects writes. `state_conflict`: the object is not in a state that allows this; the route description says when."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`validation_error`: the request does not match the schema."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`rate_limited`: retry after `retry_after` seconds (the `Retry-After` header carries the same whole number of seconds).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`internal_error`."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description": "`unavailable`: temporary; retry after `retry_after` seconds (also `Retry-After`).",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds to wait before retrying; the same as `retry_after`.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Send categories and tags",
         "tags": [
           "cms-v3"
         ]

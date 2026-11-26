@@ -124,5 +124,19 @@
   ],
   "publication": {
     "mode": "draft"
+  },
+  "taxonomy": {
+    "categories": [
+      {
+        "cms_term_id": "12",
+        "name": "Local politics"
+      }
+    ],
+    "tags": [
+      {
+        "cms_term_id": "87",
+        "name": "City budget"
+      }
+    ]
   }
 }

@@ -56,9 +56,20 @@ Anyone can check the mark without a token, at `https://api.tribunedesk.com`:
 - `GET /.well-known/hf-provenance.json` returns the public key (a JWK Set) to verify `jws`, and who the producer is;
 - `POST /v2/verify` with `{"text": "..."}` answers whether the text came from Tribune Desk (`generated`) and the date it first did (`generated_at`). It never says which organization produced it. Send the article body: `html` as delivered or its plain text, without the headline (`title` is not part of `html`). Before the check Tribune Desk drops tags and `<script>` blocks, lowercases the text and collapses whitespace, so markup and the provenance block make no difference, but any change to the words does: an edited article answers `generated: false`. The route allows 30 requests per minute from one IP address and answers `429` above that; `503` means the registry is unavailable for a moment, so try again later.
 
+## Categories and tags
+
+If your CMS has categories and tags, send them to Tribune Desk, so the editor can pick from them and the writer can choose among them. Tribune Desk never creates a term in your CMS.
+
+Send the terms with `POST /v3/cms/taxonomy/terms` (needs `articles:write`), up to 1000 per request. Each item has `taxonomy` (`category` or `tag`), `cms_term_id` (your identifier, as text), `name`, and optionally `slug`, `parent_id`, `post_count` and `deleted`. Page through your terms in order of their id and send them once a day as a full run: the same `run_id` (a UUID you make up) on every page, and `is_last: true` on the last one. After that page Tribune Desk removes the terms of the organization that this run did not send. A run that never reaches its last page removes nothing (the last page may have no items, when your CMS has no terms left); a run left open for 24 hours is refused (`409`). Run one full run at a time; a page with a new `run_id` abandons the previous run. Send single changes as they happen without `run_id`: a new or renamed term as an item, a removed term with `deleted: true`. `GET /v3/cms/status` shows `taxonomy` (`terms` and `last_full_sync_at`).
+
+A delivery may carry `taxonomy` with `categories` and `tags`, each a list of `{cms_term_id, name}`. A key that is present means: set exactly these terms (an empty list removes all of them; your CMS then falls back to its default category); a missing key means: leave that taxonomy alone; a missing `taxonomy` means the same for both. Find a term by `cms_term_id`, and when your CMS does not know the id, by `name`, ignoring letter case. Never create a term. Change the terms only of a post that is new, a draft, pending or scheduled; leave a published post alone.
+
+Answer with `taxonomy`: the `categories` and `tags` now on the post, and `ignored`, the terms you did not set, each with `name` and `reason` (`unknown_term` when no such term exists, `wrong_taxonomy` when it exists in the other taxonomy; new reasons may be added, so Tribune Desk accepts any non-empty text).
+
 ## Done when
 
 - Placeholders are replaced with your addresses, or the link text is left without a link. Going back to earlier posts when a target is published is optional.
 - The “read more” box follows `backlink_sources`, including the missing-key and empty-list rules.
 - SEO fields, author and language are stored on the post.
 - The AI label is in the `<head>` of every public page made from a delivery whose `ai_provenance` is not `null`.
+- Categories and tags: your CMS sends its terms to `POST /v3/cms/taxonomy/terms`, sets the terms of `taxonomy` on a new or unpublished post, never creates a term, and answers with `taxonomy`.
