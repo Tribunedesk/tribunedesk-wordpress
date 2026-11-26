@@ -4,7 +4,7 @@ Tags: webhook, automation, content
 Requires at least: 5.6
 Tested up to: 7.1
 Requires PHP: 8.3
-Stable tag: 2.6.1
+Stable tag: 2.7.0
 License: MIT
 
 Receives finished articles from Tribune Desk (ArticleWriter) and creates them as drafts in WordPress.
@@ -33,6 +33,11 @@ Features:
 3. Go to `Ustawienia → Tribune Desk`, paste the signing secret (`whsec_…`) and the CMS API token you got from Tribune Desk, pick the default author, and copy the Webhook URL into Tribune Desk Settings → Integracje.
 
 == Changelog ==
+
+= 2.7.0 =
+* Categories and tags from Tribune Desk deliveries are set on a post that is new, a draft, pending or scheduled; a published or private post keeps its own terms. The plugin never creates a category or a tag: a term it does not know on this site is skipped and reported back to Tribune Desk in the answer to the delivery.
+* The categories and tags of the site go to Tribune Desk, so the editor picks from them: a full run once a day and each change as it happens (`POST /v3/cms/taxonomy/terms`, needs a CMS token with `articles:write`). `wp td taxonomy-sync` runs it by hand.
+* Implements contract 3.8.0-draft; protocol 1.4.0.
 
 = 2.6.1 =
 * Fix: a photo from the Tribune Desk library in the article body whose file already lay in the media folder without an attachment ended the delivery with an error 500 (since 2.5.0), and the next send inserted a bare image without its caption. The attachment is now made with its metadata, so the photo becomes a captioned WordPress image.

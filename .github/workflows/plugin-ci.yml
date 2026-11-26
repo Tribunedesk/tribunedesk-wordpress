@@ -179,6 +179,7 @@ jobs:
             --inspect-cmd "wp td inspect {article_id}" \
             --publish-cmd "wp --user=editor td publish {article_id}" \
             --sync-cmd "wp td sync --backfill" \
+            --taxonomy-sync-cmd "wp td taxonomy-sync" \
             --media-inspect-cmd "wp td media inspect {cms_media_id}" \
             --media-add-cmd "wp --user=editor td media add {file}" \
             --media-edit-cmd "wp --user=editor td media edit {cms_media_id} {field} {value}" \
