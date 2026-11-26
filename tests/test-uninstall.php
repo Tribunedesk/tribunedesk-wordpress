@@ -108,6 +108,24 @@ class Test_Uninstall extends WP_UnitTestCase
         $this->assertFalse(wp_next_scheduled('headlinesforge_cms_backfill'));
     }
 
+    public function test_uninstall_czysci_synchronizacje_taksonomii(): void
+    {
+        update_option('headlinesforge_cms_taxonomy_run', ['run_id' => 'x'], false);
+        update_option('headlinesforge_cms_taxonomy_queue', ['post_tag:1' => ['deleted' => false]], false);
+        update_option('headlinesforge_cms_taxonomy_lock', '1:x', false);
+        wp_schedule_event(time() + 300, 'daily', 'headlinesforge_cms_taxonomy_full');
+
+        if (!defined('WP_UNINSTALL_PLUGIN')) {
+            define('WP_UNINSTALL_PLUGIN', true);
+        }
+        require dirname(__DIR__) . '/uninstall.php';
+
+        $this->assertFalse(get_option('headlinesforge_cms_taxonomy_run'));
+        $this->assertFalse(get_option('headlinesforge_cms_taxonomy_queue'));
+        $this->assertFalse(get_option('headlinesforge_cms_taxonomy_lock'));
+        $this->assertFalse(wp_next_scheduled('headlinesforge_cms_taxonomy_full'));
+    }
+
     public function test_uninstall_usuwa_tabele_backlinks(): void
     {
         global $wpdb;

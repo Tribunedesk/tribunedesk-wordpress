@@ -20,6 +20,7 @@ if (!defined('ABSPATH')) {
  *     wp td media edit <id> <field> <value>   alt, caption, title or description
  *     wp td media delete <id>           delete an attachment as an editor would
  *     wp td reset                       clear the level 4 state (cursor, versions, queues, pairs)
+ *     wp td taxonomy-sync               one whole full run of categories and tags (level 3)
  */
 final class Cli
 {
@@ -33,6 +34,7 @@ final class Cli
         \WP_CLI::add_command('td media edit', [self::class, 'media_edit']);
         \WP_CLI::add_command('td media delete', [self::class, 'media_delete']);
         \WP_CLI::add_command('td reset', [self::class, 'reset']);
+        \WP_CLI::add_command('td taxonomy-sync', [self::class, 'taxonomy_sync']);
     }
 
     /** @param list<string> $args */
@@ -87,6 +89,11 @@ final class Cli
     public static function reset(): void
     {
         self::run(static fn () => DevCommands::reset());
+    }
+
+    public static function taxonomy_sync(): void
+    {
+        self::run(static fn () => DevCommands::taxonomySync());
     }
 
     /** @param list<string> $args */

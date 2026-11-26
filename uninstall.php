@@ -64,6 +64,11 @@ $backfill_positions = $wpdb->get_col($wpdb->prepare(
 foreach ($backfill_positions as $backfill_position) {
     delete_option($backfill_position);
 }
+// 2.7.0: categories and tags sync.
+delete_option('headlinesforge_cms_taxonomy_run');
+delete_option('headlinesforge_cms_taxonomy_queue');
+delete_option('headlinesforge_cms_taxonomy_lock');
+wp_clear_scheduled_hook('headlinesforge_cms_taxonomy_full');
 delete_post_meta_by_key('_hf_field_versions');
 delete_post_meta_by_key('_hf_meta_dirty');
 delete_post_meta_by_key('_hf_meta_dirty_at');

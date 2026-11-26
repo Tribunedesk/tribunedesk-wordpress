@@ -49,6 +49,10 @@
             "guide": "4-media-library.md#the-sync-cycle"
         },
         {
+            "class": "CmsTaxonomy",
+            "guide": "3-full-content.md#categories-and-tags"
+        },
+        {
             "class": "DeliveriesLog",
             "wp_only": "the log of deliveries shown in wp-admin"
         },

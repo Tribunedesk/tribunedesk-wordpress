@@ -215,6 +215,10 @@ class CmsSync
                 $deletions_error = CmsDeletions::send();
                 $error           = $error !== '' ? $error : $deletions_error;
             }
+            if (!get_transient(self::TRANSIENT_PAUSE)) {
+                $taxonomy_error = CmsTaxonomy::send_queue();
+                $error          = $error !== '' ? $error : $taxonomy_error;
+            }
         } catch (\Throwable $e) {
             $error = self::crash_message();
         } finally {

@@ -9,7 +9,7 @@ use TribuneDesk\WordPress\Hooks;
  */
 class Test_Hook_Names extends WP_UnitTestCase
 {
-    private const NAMES = ['backfill_pause_seconds', 'cms_backfill_budget', 'cms_poll_budget', 'read_more_html', 'reverse_limit'];
+    private const NAMES = ['backfill_pause_seconds', 'cms_backfill_budget', 'cms_poll_budget', 'cms_taxonomy_budget', 'read_more_html', 'reverse_limit'];
 
     public function test_new_name_alone_works(): void
     {

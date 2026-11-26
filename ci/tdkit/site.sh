@@ -33,6 +33,11 @@ wp eval-file "$plugin/ci/tdkit/languages.php"
 
 wp plugin activate headlinesforge-receiver --quiet
 editor="$(wp user create editor editor@example.test --role=editor --user_pass=editor --porcelain)"
+# l3-taxonomy-sync and l3-taxonomy: a category and two tags with different names. Made before the
+# token, so the term hooks queue nothing.
+wp term create category "Sport" --quiet
+wp term create post_tag "Ekstraklasa" --quiet
+wp term create post_tag "Reprezentacja" --quiet
 
 wp option update headlinesforge_signing_secret "$TD_WEBHOOK_SECRET" --quiet
 wp option update headlinesforge_cms_token tdcms_mock --quiet

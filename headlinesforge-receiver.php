@@ -102,12 +102,19 @@ add_action('admin_post_' . \TribuneDesk\WordPress\CmsResync::ACTION_START, [\Tri
 add_action('admin_post_' . \TribuneDesk\WordPress\CmsResync::ACTION_RESUME, [\TribuneDesk\WordPress\CmsResync::class, 'handle_resume']);
 add_action('admin_post_' . \TribuneDesk\WordPress\CmsResync::ACTION_CONFIRM, [\TribuneDesk\WordPress\CmsResync::class, 'handle_confirm']);
 add_action('admin_post_' . \TribuneDesk\WordPress\CmsResync::ACTION_ABANDON, [\TribuneDesk\WordPress\CmsResync::class, 'handle_abandon']);
+// 2.7.0: categories and tags to Tribune Desk: a daily full run, single changes through the send queue.
+add_action('init', [\TribuneDesk\WordPress\CmsTaxonomy::class, 'ensure_scheduled']);
+add_action(\TribuneDesk\WordPress\CmsTaxonomy::HOOK_FULL, [\TribuneDesk\WordPress\CmsTaxonomy::class, 'run_full']);
+add_action('created_term', [\TribuneDesk\WordPress\CmsTaxonomy::class, 'on_term_change'], 10, 3);
+add_action('edited_term', [\TribuneDesk\WordPress\CmsTaxonomy::class, 'on_term_change'], 10, 3);
+add_action('delete_term', [\TribuneDesk\WordPress\CmsTaxonomy::class, 'on_term_delete'], 10, 4);
 register_deactivation_hook(__FILE__, static function (): void {
     wp_clear_scheduled_hook(\TribuneDesk\WordPress\MediaPush::HOOK);
     wp_clear_scheduled_hook(\TribuneDesk\WordPress\CmsSync::HOOK_POLL);
     wp_clear_scheduled_hook(\TribuneDesk\WordPress\CmsSync::HOOK_SEND);
     wp_clear_scheduled_hook(\TribuneDesk\WordPress\CmsResync::HOOK_PAGE);
     wp_clear_scheduled_hook(\TribuneDesk\WordPress\CmsBackfill::HOOK);
+    wp_clear_scheduled_hook(\TribuneDesk\WordPress\CmsTaxonomy::HOOK_FULL);
     // 2.2.2: one-off retries left behind by link backs and deliveries. They carry arguments,
     // which wp_clear_scheduled_hook() without arguments does not match.
     wp_unschedule_hook(\TribuneDesk\WordPress\PublishNotifier::RETRY_HOOK);

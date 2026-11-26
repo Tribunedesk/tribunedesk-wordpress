@@ -55,7 +55,20 @@ final class DevCommands
             'author' => $author instanceof \WP_User ? $author->display_name : '',
             'read_more' => $read_more,
             'ai_provenance_jws' => is_array($provenance) && is_string($provenance['hfProvenanceJws'] ?? null) ? $provenance['hfProvenanceJws'] : null,
+            'categories' => self::term_names($id, 'category'),
+            'tags' => self::term_names($id, 'post_tag'),
         ];
+    }
+
+    /** @return list<string> names as plain text: WordPress keeps them HTML-escaped */
+    private static function term_names(int $post_id, string $taxonomy): array
+    {
+        $names = wp_get_post_terms($post_id, $taxonomy, ['fields' => 'names']);
+        if (!is_array($names)) {
+            return [];
+        }
+
+        return array_values(array_map(static fn ($name) => html_entity_decode((string) $name, ENT_QUOTES, 'UTF-8'), $names));
     }
 
     /**
@@ -86,6 +99,21 @@ final class DevCommands
             CmsBackfill::run();
         }
         CmsResync::run_page();
+    }
+
+    /**
+     * One whole full run of categories and tags (`--taxonomy-sync-cmd`), with a new `run_id`, not
+     * split by the cron time budget and regardless of when the last run finished.
+     */
+    public static function taxonomySync(): void
+    {
+        $error = CmsTaxonomy::sync_now();
+        if ($error === null) {
+            throw new \RuntimeException('another taxonomy sync is running');
+        }
+        if ($error !== '') {
+            throw new \RuntimeException($error);
+        }
     }
 
     /** @return array<string, mixed>|null the attachment in the keys of `--media-inspect-cmd` */
