@@ -125,6 +125,10 @@
             "guide": "2-link-back.md#keeping-a-post-off-facebook"
         },
         {
+            "class": "TaxonomyWriter",
+            "guide": "3-full-content.md#categories-and-tags"
+        },
+        {
             "class": "UpdateManifest",
             "wp_only": "self-update of the plugin from the Tribune Desk manifest"
         },

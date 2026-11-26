@@ -9,7 +9,7 @@ class Test_Protocol_Is_Portable extends WP_UnitTestCase
 {
     private const CLASSES = [
         'ApiErrors', 'AuthorOrder', 'BacklinkSources', 'BodyFigures', 'ChangesFeed', 'DeliveryAnswer', 'DraftRules',
-        'ImageHostRule', 'LinkBack', 'PlaceholderLinks', 'Resync', 'WebhookSignature',
+        'ImageHostRule', 'LinkBack', 'PlaceholderLinks', 'Resync', 'Taxonomy', 'WebhookSignature',
     ];
 
     private const WORDPRESS_CALLS = [

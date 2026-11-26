@@ -5,6 +5,7 @@ namespace TribuneDesk\WordPress;
 
 use TribuneDesk\Protocol\DraftRules;
 use TribuneDesk\Protocol\Publication;
+use TribuneDesk\Protocol\Taxonomy;
 
 if (!defined('ABSPATH')) {
     exit;
@@ -144,9 +145,12 @@ class PostWriter
         $html = LinkResolver::resolve(Sanitizer::sanitize($raw_html), $links);
 
         $existing = self::find_by_article_id($article_id);
+        // `taxonomy_ignored` is null when the delivery has no `taxonomy` (the answer then has none),
+        // [] when it has one but nothing of it was set or ignored here.
+        $no_terms = self::carries_taxonomy($payload) ? [] : null;
         if ($existing !== null && self::is_older_send($payload, (int) $existing->ID)) {
             // Nothing of an older send is applied, not even the metadata of a published post.
-            return ['post_id' => (int) $existing->ID, 'status' => WriteResult::SkippedOlderSend];
+            return ['post_id' => (int) $existing->ID, 'status' => WriteResult::SkippedOlderSend, 'taxonomy_ignored' => $no_terms];
         }
         $action   = DraftRules::action($existing === null ? null : (string) $existing->post_status);
 
@@ -179,12 +183,13 @@ class PostWriter
             self::adopt_body_images((int) $post_id, $body);
             self::sync_featured_image((int) $post_id, $payload);
             SeoMeta::sync((int) $post_id, $payload);
+            $ignored = self::apply_taxonomy((int) $post_id, null, $payload, $no_terms);
             ProvenanceMeta::sync((int) $post_id, $raw_html);
             // Language only on creation: an existing post may have been moved by hand.
             Language::apply((int) $post_id, $payload);
             self::remember_sent_at((int) $post_id, $payload);
 
-            return ['post_id' => (int) $post_id, 'status' => WriteResult::Created];
+            return ['post_id' => (int) $post_id, 'status' => WriteResult::Created, 'taxonomy_ignored' => $ignored];
         }
 
         if ($action === DraftRules::SKIP) {
@@ -203,7 +208,8 @@ class PostWriter
                 Backlinks::sync_rows($existing);
             }
             self::remember_sent_at((int) $existing->ID, $payload);
-            return ['post_id' => (int) $existing->ID, 'status' => WriteResult::SkippedAlreadyPublished];
+            // Terms of a published or private post stay as the newsroom left them.
+            return ['post_id' => (int) $existing->ID, 'status' => WriteResult::SkippedAlreadyPublished, 'taxonomy_ignored' => $no_terms];
         }
 
         // Meta BEFORE content: the wp_insert_post_data filter (Task 5) reads the list from meta during
@@ -236,6 +242,7 @@ class PostWriter
         self::adopt_body_images((int) $existing->ID, $body);
         self::sync_featured_image((int) $existing->ID, $payload);
         SeoMeta::sync((int) $existing->ID, $payload);
+        $ignored = self::apply_taxonomy((int) $existing->ID, (string) $existing->post_status, $payload, $no_terms);
         // The content was replaced, so the labelling must follow it: it describes
         // the content hash, and an old signature next to new text looks like a forgery.
         // On the SkippedAlreadyPublished path we deliberately do NOT do this — there the content
@@ -243,7 +250,7 @@ class PostWriter
         ProvenanceMeta::sync((int) $existing->ID, $raw_html);
         self::remember_sent_at((int) $existing->ID, $payload);
 
-        return ['post_id' => (int) $existing->ID, 'status' => WriteResult::Updated];
+        return ['post_id' => (int) $existing->ID, 'status' => WriteResult::Updated, 'taxonomy_ignored' => $ignored];
     }
 
     /**
@@ -280,6 +287,49 @@ class PostWriter
         }
 
         return [];
+    }
+
+    /** @param array<string, mixed> $payload */
+    private static function carries_taxonomy(array $payload): bool
+    {
+        $taxonomy = $payload['taxonomy'] ?? null;
+
+        return is_array($taxonomy) && $taxonomy !== [] && !array_is_list($taxonomy);
+    }
+
+    /**
+     * The delivery's categories and tags on a new or not yet public post (contract 3.8).
+     *
+     * @param string|null $status the post's status before this delivery, null = new post
+     * @param array<string, mixed> $payload
+     * @param list<array{name: string, reason: string}>|null $none what to return when nothing is set
+     * @return list<array{name: string, reason: string}>|null
+     */
+    private static function apply_taxonomy(int $post_id, ?string $status, array $payload, ?array $none): ?array
+    {
+        $requested = Taxonomy::requested($status, $payload['taxonomy'] ?? null);
+
+        return $requested === null ? $none : TaxonomyWriter::apply($post_id, $requested);
+    }
+
+    /**
+     * The answer's `taxonomy`: the categories and tags on the post after this delivery, also for a
+     * skipped send, and the terms of the delivery not set.
+     *
+     * @param list<array{name: string, reason: string}> $ignored
+     * @return array<string, mixed>|null
+     */
+    public static function taxonomy_of(int $post_id, array $ignored): ?array
+    {
+        if (!get_post($post_id) instanceof \WP_Post) {
+            return null;
+        }
+
+        return Taxonomy::answer(
+            TaxonomyWriter::terms_of($post_id, 'categories'),
+            TaxonomyWriter::terms_of($post_id, 'tags'),
+            $ignored
+        );
     }
 
     /**

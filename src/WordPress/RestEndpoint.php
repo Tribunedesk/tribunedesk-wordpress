@@ -118,7 +118,11 @@ class RestEndpoint
                 // The flag as it is after the save; null when the field is not configured.
                 $public ? SocialQueueFlag::value_of((int) $result['post_id']) : null,
                 // The post's state after the save (contract 3.7), also for a skipped send.
-                PostWriter::publication_of((int) $result['post_id'])
+                PostWriter::publication_of((int) $result['post_id']),
+                // The post's terms after the save (contract 3.8), only for a delivery with `taxonomy`.
+                $result['taxonomy_ignored'] === null
+                    ? null
+                    : PostWriter::taxonomy_of((int) $result['post_id'], $result['taxonomy_ignored'])
             );
 
             return new \WP_REST_Response($response, 200);
