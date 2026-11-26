@@ -20,6 +20,9 @@ class Test_Cms_Taxonomy extends WP_UnitTestCase
     /** @var array<string, array{0: int, 1: array|string}|\WP_Error> */
     private array $routes = [];
 
+    /** @var (callable(array<string, mixed>): void)|null runs when a page reaches the taxonomy route */
+    private $on_page = null;
+
     public function set_up(): void
     {
         parent::set_up();
@@ -36,6 +39,7 @@ class Test_Cms_Taxonomy extends WP_UnitTestCase
         wp_clear_scheduled_hook(CmsSync::HOOK_SEND);
         wp_clear_scheduled_hook(CmsTaxonomy::HOOK_FULL);
         $this->requests = [];
+        $this->on_page  = null;
         $this->routes   = ['GET /v3/cms/status' => [200, ['state' => 'active', 'recent_errors' => []]]];
         add_filter('pre_http_request', [$this, 'fake_http'], 10, 3);
     }
@@ -53,6 +57,9 @@ class Test_Cms_Taxonomy extends WP_UnitTestCase
         $path             = (string) wp_parse_url($url, PHP_URL_PATH);
         $body             = json_decode((string) ($args['body'] ?? '[]'), true) ?: [];
         $this->requests[] = ['method' => $args['method'], 'path' => $path, 'body' => $body];
+        if ($path === self::ROUTE && $this->on_page !== null) {
+            ($this->on_page)($body);
+        }
         $reply            = $this->routes[$args['method'] . ' ' . $path] ?? null;
         if ($reply instanceof \WP_Error) {
             return $reply;
@@ -272,9 +279,110 @@ class Test_Cms_Taxonomy extends WP_UnitTestCase
 
     public function test_daily_event_planned_before_the_token_runs_now_once_it_exists(): void
     {
+        delete_option(CmsApiClient::OPTION_TOKEN);
         wp_schedule_event(time() + DAY_IN_SECONDS, 'daily', CmsTaxonomy::HOOK_FULL);
         CmsTaxonomy::ensure_scheduled();
+        $this->assertGreaterThan(time() + HOUR_IN_SECONDS, wp_next_scheduled(CmsTaxonomy::HOOK_FULL));
+
+        update_option(CmsApiClient::OPTION_TOKEN, 'tok-nowy');
+
         $this->assertLessThanOrEqual(time(), wp_next_scheduled(CmsTaxonomy::HOOK_FULL));
+    }
+
+    public function test_token_saved_after_a_run_plans_nothing_extra(): void
+    {
+        update_option(CmsTaxonomy::OPTION_RUN, ['run_id' => wp_generate_uuid4(), 'last_term_id' => 0, 'started_at' => time(), 'finished_at' => time()], false);
+        update_option(CmsApiClient::OPTION_TOKEN, 'tok-inny');
+
+        $this->assertFalse(wp_next_scheduled(CmsTaxonomy::HOOK_FULL));
+    }
+
+    /** @return string the value of the full run's lock row */
+    private function lock_value(): string
+    {
+        global $wpdb;
+
+        return (string) $wpdb->get_var($wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", CmsTaxonomy::OPTION_LOCK));
+    }
+
+    public function test_lock_expiry_moves_forward_after_each_page(): void
+    {
+        $this->bulk_tags(2100);
+        $seen          = [];
+        $this->on_page = function () use (&$seen): void {
+            $seen[] = $this->lock_value();
+        };
+
+        DevCommands::taxonomySync();
+
+        $this->assertCount(3, $seen);
+        $this->assertCount(3, array_unique($seen), 'renewed after pages 1 and 2');
+        $this->assertGreaterThanOrEqual(time() + CmsSync::LOCK_TTL - 5, (int) explode(':', $seen[2])[0]);
+        $this->assertSame('', $this->lock_value(), 'released at the end');
+    }
+
+    public function test_run_stops_when_another_run_took_the_lock_over(): void
+    {
+        $this->bulk_tags(2100);
+        $this->on_page = function (): void {
+            global $wpdb;
+            $wpdb->update($wpdb->options, ['option_value' => (time() + 300) . ':obcy'], ['option_name' => CmsTaxonomy::OPTION_LOCK]);
+        };
+
+        try {
+            DevCommands::taxonomySync();
+            $this->fail('the run went on without its lock');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('lock', $e->getMessage());
+        }
+
+        $this->assertCount(1, $this->pages());
+        $this->assertSame(0, get_option(CmsTaxonomy::OPTION_RUN)['last_term_id'], 'the other run owns the state');
+        $this->assertSame((time() + 300) . ':obcy', $this->lock_value(), 'the other lock stays');
+    }
+
+    public function test_budget_filter_cannot_outlast_the_lock(): void
+    {
+        $this->assertSame(CmsTaxonomy::BUDGET, CmsTaxonomy::budget());
+        add_filter('tribune_desk_cms_taxonomy_budget', static fn () => 3600);
+        $this->assertSame(CmsSync::LOCK_TTL - MINUTE_IN_SECONDS, CmsTaxonomy::budget());
+    }
+
+    public function test_queue_is_sent_while_the_media_integration_is_disabled(): void
+    {
+        $tag = self::factory()->tag->create(['name' => 'Bez mediów']);
+        $this->routes['GET /v3/cms/status'] = [200, ['state' => 'disabled', 'recent_errors' => []]];
+
+        CmsSync::run_send();
+
+        $this->assertCount(1, $this->pages());
+        $this->assertSame((string) $tag, $this->pages()[0]['items'][0]['cms_term_id']);
+        $this->assertSame([], CmsTaxonomy::queue());
+        $this->assertSame('', CmsSync::last_runs()['send']['error']);
+        $this->assertSame(
+            [self::ROUTE],
+            array_values(array_unique(array_column(array_filter($this->requests, static fn ($r) => $r['method'] === 'POST'), 'path'))),
+            'nothing of the media library'
+        );
+    }
+
+    public function test_term_edited_during_the_send_stays_queued(): void
+    {
+        $tag  = self::factory()->tag->create(['name' => 'Przed']);
+        $once = false;
+        $this->on_page = static function () use ($tag, &$once): void {
+            if (!$once) {
+                $once = true;
+                wp_update_term($tag, 'post_tag', ['name' => 'Po']);
+            }
+        };
+
+        CmsSync::run_send();
+
+        $pages = $this->pages();
+        $this->assertSame('Przed', $pages[0]['items'][0]['name']);
+        $this->assertSame('Po', $pages[1]['items'][0]['name'] ?? null, 'the newer edit went in the next page');
+        $this->assertSame([], CmsTaxonomy::queue());
     }
 
     public function test_created_term_queues_only_categories_and_tags(): void

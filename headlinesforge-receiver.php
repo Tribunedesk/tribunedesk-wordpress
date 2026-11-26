@@ -105,6 +105,8 @@ add_action('admin_post_' . \TribuneDesk\WordPress\CmsResync::ACTION_ABANDON, [\T
 // 2.7.0: categories and tags to Tribune Desk: a daily full run, single changes through the send queue.
 add_action('init', [\TribuneDesk\WordPress\CmsTaxonomy::class, 'ensure_scheduled']);
 add_action(\TribuneDesk\WordPress\CmsTaxonomy::HOOK_FULL, [\TribuneDesk\WordPress\CmsTaxonomy::class, 'run_full']);
+add_action('add_option_' . \TribuneDesk\WordPress\CmsApiClient::OPTION_TOKEN, [\TribuneDesk\WordPress\CmsTaxonomy::class, 'on_token_saved'], 10, 0);
+add_action('update_option_' . \TribuneDesk\WordPress\CmsApiClient::OPTION_TOKEN, [\TribuneDesk\WordPress\CmsTaxonomy::class, 'on_token_saved'], 10, 0);
 add_action('created_term', [\TribuneDesk\WordPress\CmsTaxonomy::class, 'on_term_change'], 10, 3);
 add_action('edited_term', [\TribuneDesk\WordPress\CmsTaxonomy::class, 'on_term_change'], 10, 3);
 add_action('delete_term', [\TribuneDesk\WordPress\CmsTaxonomy::class, 'on_term_delete'], 10, 4);

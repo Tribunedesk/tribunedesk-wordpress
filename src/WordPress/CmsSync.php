@@ -49,7 +49,7 @@ class CmsSync
     public const POLL_BUDGET = 120;
 
     private const CACHE_TTL     = 5 * MINUTE_IN_SECONDS;
-    private const LOCK_TTL      = 5 * MINUTE_IN_SECONDS;
+    public const LOCK_TTL       = 5 * MINUTE_IN_SECONDS;
 
     /** @var array<string, string> option name => value of the lock this request holds */
     private static array $held_locks = [];
@@ -138,6 +138,33 @@ class CmsSync
         return $taken;
     }
 
+    /**
+     * Moves the expiry of a lock this request holds LOCK_TTL ahead, for a run longer than one
+     * lock. False when another run took the lock over: the caller must stop.
+     */
+    public static function renew_lock(string $option): bool
+    {
+        global $wpdb;
+        $held = self::$held_locks[$option] ?? null;
+        if ($held === null) {
+            return false;
+        }
+        $value = (time() + self::LOCK_TTL) . ':' . wp_generate_password(12, false);
+        $moved = (int) $wpdb->query($wpdb->prepare(
+            "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s",
+            $value,
+            $option,
+            $held
+        )) === 1;
+        if ($moved) {
+            self::$held_locks[$option] = $value;
+        } else {
+            unset(self::$held_locks[$option]);
+        }
+
+        return $moved;
+    }
+
     public static function release_lock(string $option = self::OPTION_LOCK): void
     {
         global $wpdb;
@@ -198,7 +225,11 @@ class CmsSync
 
     public static function run_send(): void
     {
-        if (get_transient(self::TRANSIENT_PAUSE) || !self::is_active()) {
+        if (get_transient(self::TRANSIENT_PAUSE)) {
+            return;
+        }
+        if (!self::is_active()) {
+            self::send_taxonomy_only();
             return;
         }
         if (!self::acquire_lock()) {
@@ -219,6 +250,29 @@ class CmsSync
                 $taxonomy_error = CmsTaxonomy::send_queue();
                 $error          = $error !== '' ? $error : $taxonomy_error;
             }
+        } catch (\Throwable $e) {
+            $error = self::crash_message();
+        } finally {
+            self::release_lock();
+        }
+        self::record('send', $error);
+    }
+
+    /**
+     * The taxonomy route works while the media library integration is disabled (guide 3), so
+     * term changes go out on their own, under the same lock.
+     */
+    private static function send_taxonomy_only(): void
+    {
+        if (!CmsApiClient::has_token() || CmsTaxonomy::queue() === []) {
+            return;
+        }
+        if (!self::acquire_lock()) {
+            self::schedule_send();
+            return;
+        }
+        try {
+            $error = CmsTaxonomy::send_queue();
         } catch (\Throwable $e) {
             $error = self::crash_message();
         } finally {

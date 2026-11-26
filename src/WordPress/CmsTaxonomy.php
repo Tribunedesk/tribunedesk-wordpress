@@ -40,16 +40,23 @@ class CmsTaxonomy
     private const FAILED = 'failed';
 
     /**
-     * Daily full run. Before the first one (no OPTION_RUN), it runs now: also when the daily event
-     * was planned before the token existed.
+     * Daily full run; before the first one (no OPTION_RUN) it runs now. OPTION_RUN is not
+     * autoloaded, so it is read only when the event is missing, not on every request.
      */
     public static function ensure_scheduled(): void
     {
-        $first = !is_array(get_option(self::OPTION_RUN));
-        $next  = wp_next_scheduled(self::HOOK_FULL);
-        if ($next === false) {
-            wp_schedule_event(time() + ($first ? 0 : DAY_IN_SECONDS), 'daily', self::HOOK_FULL);
-        } elseif ($first && CmsApiClient::has_token() && $next > time() + MINUTE_IN_SECONDS) {
+        if (wp_next_scheduled(self::HOOK_FULL) === false) {
+            wp_schedule_event(time() + (self::stored_run() === null ? 0 : DAY_IN_SECONDS), 'daily', self::HOOK_FULL);
+        }
+    }
+
+    /**
+     * The token saved: the first full run goes now, not with the daily event planned before the
+     * token existed.
+     */
+    public static function on_token_saved(): void
+    {
+        if (CmsApiClient::has_token() && self::stored_run() === null) {
             wp_schedule_single_event(time(), self::HOOK_FULL);
         }
     }
@@ -69,7 +76,7 @@ class CmsTaxonomy
         try {
             $run = self::current_run();
             if ($run !== null) {
-                $deadline  = microtime(true) + (int) Hooks::filter('cms_taxonomy_budget', self::BUDGET);
+                $deadline  = microtime(true) + self::budget();
                 [$outcome] = self::send_run($run, $deadline);
             }
         } catch (\Throwable $e) {
@@ -80,6 +87,15 @@ class CmsTaxonomy
         if ($outcome === self::MORE) {
             wp_schedule_single_event(time() + MINUTE_IN_SECONDS, self::HOOK_FULL);
         }
+    }
+
+    /**
+     * Seconds of one cron run. The lock is renewed after each page, but a page must not start
+     * on a lock about to expire, so the filter cannot go past the lock less a minute.
+     */
+    public static function budget(): int
+    {
+        return min((int) Hooks::filter('cms_taxonomy_budget', self::BUDGET), CmsSync::LOCK_TTL - MINUTE_IN_SECONDS);
     }
 
     /**
@@ -194,6 +210,10 @@ class CmsTaxonomy
 
                 return [self::DONE, ''];
             }
+            // Another run took an expired lock over and owns the run state now.
+            if (!CmsSync::renew_lock(self::OPTION_LOCK)) {
+                return [self::FAILED, 'another taxonomy sync took over the lock'];
+            }
             update_option(self::OPTION_RUN, $run, false);
         }
     }
@@ -279,7 +299,7 @@ class CmsTaxonomy
         self::enqueue($taxonomy, $term_id, ['deleted' => true, 'name' => trim($name) !== '' ? $name : (string) $term_id]);
     }
 
-    /** @param array{deleted: bool, name?: string} $row */
+    /** @param array{deleted: bool, name?: string, at?: float} $row */
     private static function enqueue(string $taxonomy, int $term_id, array $row): void
     {
         if (!isset(self::TAXONOMIES[$taxonomy]) || !CmsApiClient::has_token()) {
@@ -292,7 +312,8 @@ class CmsTaxonomy
             if (!isset($queue[$key]) && count($queue) >= self::MAX_QUEUE) {
                 return;
             }
-            $queue[$key] = $row;
+            // The time tells a newer edit of the same term from the row a send has just read.
+            $queue[$key] = $row + ['at' => microtime(true)];
             update_option(self::OPTION_QUEUE, $queue, false);
         });
         CmsSync::schedule_send();
@@ -301,7 +322,7 @@ class CmsTaxonomy
     /**
      * Oldest first: "taxonomy:term_id" => row.
      *
-     * @return array<string, array{deleted: bool, name?: string}>
+     * @return array<string, array{deleted: bool, name?: string, at?: float}>
      */
     public static function queue(): array
     {
@@ -341,7 +362,7 @@ class CmsTaxonomy
             }
             [$items, $keys, $gone] = self::queue_items($rows);
             if ($gone !== []) {
-                self::forget($gone);
+                self::forget(array_intersect_key($rows, array_flip($gone)));
             }
             if ($items === []) {
                 continue;
@@ -367,7 +388,7 @@ class CmsTaxonomy
             if ($done === []) {
                 return CmsSync::invalid_response();
             }
-            self::forget($done);
+            self::forget(array_intersect_key($rows, array_flip($done)));
         }
         if (self::queue() !== []) {
             CmsSync::schedule_send();
@@ -380,7 +401,7 @@ class CmsTaxonomy
      * A changed term is read now, so the newest name goes. One that no longer exists leaves the
      * queue: its deletion row took its place.
      *
-     * @param array<string, array{deleted: bool, name?: string}> $rows
+     * @param array<string, array{deleted: bool, name?: string, at?: float}> $rows
      * @return array{0: list<array<string, mixed>>, 1: array<string, string>, 2: list<string>} items; cms_term_id => key; keys to drop
      */
     private static function queue_items(array $rows): array
@@ -416,11 +437,19 @@ class CmsTaxonomy
         return [$items, $keys, $gone];
     }
 
-    /** @param list<string> $keys */
-    private static function forget(array $keys): void
+    /**
+     * A row changed by a hook after it was read stays: it carries a newer change.
+     *
+     * @param array<string, array{deleted: bool, name?: string, at?: float}> $read key => the row as read
+     */
+    private static function forget(array $read): void
     {
-        self::locked(static function () use ($keys): void {
-            $left = array_diff_key(self::queue(), array_flip($keys));
+        self::locked(static function () use ($read): void {
+            $left = array_filter(
+                self::queue(),
+                static fn ($row, $key) => !array_key_exists($key, $read) || $read[$key] !== $row,
+                ARRAY_FILTER_USE_BOTH
+            );
             if ($left === []) {
                 delete_option(self::OPTION_QUEUE);
             } else {
