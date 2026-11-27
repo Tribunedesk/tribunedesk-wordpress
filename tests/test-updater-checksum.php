@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 use TribuneDesk\WordPress\UpdateManifest;
 use TribuneDesk\WordPress\Updater;
+use TribuneDesk\WordPress\UpdateSignature;
 
 class Test_Updater_Checksum extends WP_UnitTestCase
 {
@@ -13,6 +14,10 @@ class Test_Updater_Checksum extends WP_UnitTestCase
     private string $served_sha = '';
     private string $served_package = '';
     private bool $manifest_unreachable = false;
+    private string $secret_key = '';
+    /** @var string|null null = no "signature" key in the manifest at all */
+    private ?string $served_signature = null;
+    private string $served_version = '99.0.0';
 
     public function set_up(): void
     {
@@ -25,6 +30,14 @@ class Test_Updater_Checksum extends WP_UnitTestCase
         $this->served_package  = $this->package;
         $this->fake_zip        = '';
         $this->manifest_unreachable = false;
+        $this->served_version  = '99.0.0';
+
+        // Throwaway key pair: the real private key lives only in the owner-approved
+        // GitHub environment, so the suite signs with its own and trusts only that one.
+        $pair             = sodium_crypto_sign_keypair();
+        $this->secret_key = sodium_crypto_sign_secretkey($pair);
+        UpdateSignature::use_keys_for_tests([base64_encode(sodium_crypto_sign_publickey($pair))]);
+        $this->served_signature = $this->sign('99.0.0', $this->sha);
 
         add_filter('pre_http_request', [$this, 'fake_http'], 10, 3);
     }
@@ -32,6 +45,7 @@ class Test_Updater_Checksum extends WP_UnitTestCase
     public function tear_down(): void
     {
         remove_filter('pre_http_request', [$this, 'fake_http'], 10);
+        UpdateSignature::use_keys_for_tests(null);
         UpdateManifest::flush();
         parent::tear_down();
     }
@@ -46,13 +60,18 @@ class Test_Updater_Checksum extends WP_UnitTestCase
                 return new WP_Error('http_request_failed', 'Symulowana awaria R2.');
             }
 
+            $manifest = [
+                'version' => $this->served_version,
+                'package' => $this->served_package,
+                'sha256'  => $this->served_sha,
+            ];
+            if ($this->served_signature !== null) {
+                $manifest['signature'] = $this->served_signature;
+            }
+
             return [
                 'headers'  => [],
-                'body'     => wp_json_encode([
-                    'version' => '99.0.0',
-                    'package' => $this->served_package,
-                    'sha256'  => $this->served_sha,
-                ]),
+                'body'     => wp_json_encode($manifest),
                 'response' => ['code' => 200, 'message' => 'OK'],
                 'cookies'  => [],
                 'filename' => null,
@@ -180,5 +199,85 @@ class Test_Updater_Checksum extends WP_UnitTestCase
         // empty($package) — wpis innej wtyczki z package => null (np.
         // plugin-update-checker bez licencji) dociera wiec tutaj jako null.
         $this->assertFalse(Updater::verify_package(false, null, null));
+    }
+    private function sign(string $version, string $sha256, ?string $secret = null): string
+    {
+        return base64_encode(sodium_crypto_sign_detached(
+            UpdateSignature::message(Updater::SLUG, $version, $sha256),
+            $secret ?? $this->secret_key
+        ));
+    }
+
+    /** @param mixed $got */
+    private function assert_signature_refused($got): void
+    {
+        $this->assertInstanceOf(WP_Error::class, $got);
+        $this->assertSame('headlinesforge_signature_invalid', $got->get_error_code());
+        $this->assertStringContainsString(HEADLINESFORGE_VERSION, $got->get_error_message());
+        $this->assertNotSame('', $this->fake_zip);
+        $this->assertFileDoesNotExist($this->fake_zip);
+    }
+
+    public function test_brak_podpisu_odrzuca_aktualizacje(): void
+    {
+        $this->served_signature = null;
+
+        $this->assert_signature_refused(Updater::verify_package(false, $this->package, null));
+    }
+
+    public function test_podpis_obcym_kluczem_odrzuca_aktualizacje(): void
+    {
+        $other = sodium_crypto_sign_secretkey(sodium_crypto_sign_keypair());
+        $this->served_signature = $this->sign('99.0.0', $this->sha, $other);
+
+        $this->assert_signature_refused(Updater::verify_package(false, $this->package, null));
+    }
+
+    public function test_smieciowy_podpis_odrzuca_aktualizacje(): void
+    {
+        $this->served_signature = 'to-nie-jest-podpis';
+
+        $this->assert_signature_refused(Updater::verify_package(false, $this->package, null));
+    }
+
+    public function test_podmieniona_paczka_z_poprawnym_sha256_odrzucona(): void
+    {
+        // The case the signature exists for: someone with write access to R2 swaps the ZIP
+        // and puts its REAL sha256 into the manifest. The checksum matches, the signature
+        // (made over the old checksum) does not.
+        $this->payload    = 'zlosliwy kod';
+        $this->served_sha = hash('sha256', $this->payload);
+
+        $this->assert_signature_refused(Updater::verify_package(false, $this->package, null));
+    }
+
+    public function test_podpis_starej_wersji_nie_pasuje_do_nowego_numeru(): void
+    {
+        // A signed 98.0.0 package relabelled as 99.0.0: the signature covers the version.
+        $this->served_signature = $this->sign('98.0.0', $this->sha);
+
+        $this->assert_signature_refused(Updater::verify_package(false, $this->package, null));
+    }
+
+    public function test_bez_zaufanych_kluczy_nic_nie_przechodzi(): void
+    {
+        UpdateSignature::use_keys_for_tests([]);
+
+        $this->assert_signature_refused(Updater::verify_package(false, $this->package, null));
+    }
+
+    public function test_drugi_klucz_rotacji_jest_honorowany(): void
+    {
+        $pair = sodium_crypto_sign_keypair();
+        UpdateSignature::use_keys_for_tests([
+            base64_encode(sodium_crypto_sign_publickey(sodium_crypto_sign_keypair())),
+            base64_encode(sodium_crypto_sign_publickey($pair)),
+        ]);
+        $this->served_signature = $this->sign('99.0.0', $this->sha, sodium_crypto_sign_secretkey($pair));
+
+        $got = Updater::verify_package(false, $this->package, null);
+
+        $this->assertIsString($got);
+        @unlink($got);
     }
 }

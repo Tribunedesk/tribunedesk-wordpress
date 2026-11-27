@@ -3,6 +3,10 @@ name: Release
 # Tag buduje i wgrywa ARTEFAKT. manifest.json podmienia dopiero publish-manifest.yml,
 # uruchamiany recznie — bo opublikowanie manifestu to deploy na wszystkie instalacje
 # klientow naraz, a wiki projektu mowi: push i deploy to dwie osobne, swiadome decyzje.
+#
+# Podpis Ed25519 (od 2.8.0, docs/update-signing.md): job `sign` jest jedynym miejscem z kluczem
+# prywatnym — w srodowisku `plugin-signing`, ktore czeka na akceptacje ownera. Klucze R2 sa
+# w jobie `upload`, klucza podpisu tam nie ma. Kto ma tylko R2, nie zrobi waznego podpisu.
 
 on:
   push:
@@ -35,13 +39,10 @@ jobs:
   build:
     needs: [verify, ci]
     runs-on: ubuntu-26.04
+    outputs:
+      sha256: ${{ steps.sha.outputs.sha256 }}
     steps:
       - uses: actions/checkout@v6
-
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          coverage: none
 
       - name: Ustal wersje
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
@@ -65,17 +66,79 @@ jobs:
           unzip -l "${PLUGIN_SLUG}-${VERSION}.zip"
 
       - name: Policz sha256
+        id: sha
         run: |
           set -euo pipefail
           SHA="$(sha256sum "${PLUGIN_SLUG}-${VERSION}.zip" | cut -d' ' -f1)"
-          echo "SHA256=${SHA}" >> "$GITHUB_ENV"
+          echo "sha256=${SHA}" >> "$GITHUB_OUTPUT"
           echo "sha256 = ${SHA}"
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin-zip
+          path: ${{ env.PLUGIN_SLUG }}-*.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  # Podpisuje sama sume (slug + wersja + sha256, UpdateSignature::message), nie dotyka ZIP-a
+  # ani R2. Srodowisko `plugin-signing`: wymagana akceptacja ownera, tylko tagi v*.
+  sign:
+    needs: build
+    runs-on: ubuntu-26.04
+    environment: plugin-signing
+    outputs:
+      signature: ${{ steps.sign.outputs.signature }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Podpisz
+        id: sign
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+          SHA256: ${{ needs.build.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          SIG="$(php bin/sign-update.php "${GITHUB_REF_NAME#v}" "${SHA256}")"
+          echo "signature=${SIG}" >> "$GITHUB_OUTPUT"
+          echo "podpis = ${SIG}"
+
+  upload:
+    needs: [build, sign]
+    runs-on: ubuntu-26.04
+    env:
+      SHA256: ${{ needs.build.outputs.sha256 }}
+      SIGNATURE: ${{ needs.sign.outputs.signature }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Ustal wersje
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: plugin-zip
+
+      - name: Sprawdz, ze ZIP to ten podpisany
+        run: |
+          set -euo pipefail
+          test "$(sha256sum "${PLUGIN_SLUG}-${VERSION}.zip" | cut -d' ' -f1)" = "${SHA256}"
+
+      # build-manifest.php odmawia, gdy podpis nie weryfikuje sie kluczem z UpdateSignature.
       - name: Zbuduj sidecar manifestu
         run: |
           set -euo pipefail
           PACKAGE="${{ vars.R2_PUBLIC_BASE_URL }}/wp-plugin/${PLUGIN_SLUG}-${VERSION}.zip"
-          php bin/build-manifest.php "${VERSION}" "${SHA256}" "${PACKAGE}" > "${PLUGIN_SLUG}-${VERSION}.json"
+          php bin/build-manifest.php "${VERSION}" "${SHA256}" "${PACKAGE}" "${SIGNATURE}" > "${PLUGIN_SLUG}-${VERSION}.json"
           cat "${PLUGIN_SLUG}-${VERSION}.json"
 
       - name: Wgraj na R2

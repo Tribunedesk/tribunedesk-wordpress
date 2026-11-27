@@ -6,15 +6,22 @@ declare(strict_types=1);
  * publish-manifest.yml tylko kopiuje wynik — dzieki temu nie ma drugiego miejsca,
  * w ktorym manifest moglby powstac inaczej.
  *
- * Uzycie: php bin/build-manifest.php <wersja> <sha256> <url-pakietu>
+ * Uzycie: php bin/build-manifest.php <wersja> <sha256> <url-pakietu> <podpis>
+ *
+ * <podpis> to wynik bin/sign-update.php. Manifest z podpisem, ktorego nie weryfikuje zaden
+ * klucz z UpdateSignature::PUBLIC_KEYS, nie powstaje — wtyczka i tak by go odrzucila.
  */
 
-$version = $argv[1] ?? '';
-$sha256  = $argv[2] ?? '';
-$package = $argv[3] ?? '';
+define('ABSPATH', __DIR__ . '/');
+require dirname(__DIR__) . '/src/WordPress/UpdateSignature.php';
 
-if ($version === '' || $sha256 === '' || $package === '') {
-    fwrite(STDERR, "Uzycie: php bin/build-manifest.php <wersja> <sha256> <url-pakietu>\n");
+$version   = $argv[1] ?? '';
+$sha256    = $argv[2] ?? '';
+$package   = $argv[3] ?? '';
+$signature = $argv[4] ?? '';
+
+if ($version === '' || $sha256 === '' || $package === '' || $signature === '') {
+    fwrite(STDERR, "Uzycie: php bin/build-manifest.php <wersja> <sha256> <url-pakietu> <podpis>\n");
     exit(2);
 }
 
@@ -124,6 +131,9 @@ $manifest = [
     'version'      => $version,
     'package'      => $package,
     'sha256'       => strtolower($sha256),
+    // Ed25519 nad slug + wersja + sha256 (UpdateSignature::message). Od wersji z weryfikacja
+    // wtyczka bez waznego podpisu aktualizacji nie instaluje.
+    'signature'    => $signature,
     'requires'     => $header('Requires at least'),
     'tested'       => $header('Tested up to'),
     'requires_php' => $header('Requires PHP'),
@@ -137,6 +147,11 @@ $manifest = [
         'changelog'   => $render($changelog),
     ],
 ];
+
+if (!\TribuneDesk\WordPress\UpdateSignature::is_valid($manifest, 'headlinesforge-receiver')) {
+    fwrite(STDERR, "Podpis nie weryfikuje sie zadnym kluczem z UpdateSignature::PUBLIC_KEYS.\n");
+    exit(1);
+}
 
 echo json_encode(
     $manifest,

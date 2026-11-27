@@ -192,7 +192,7 @@ class Updater
     }
 
     /**
-     * sha256 verification BEFORE unpacking.
+     * sha256 and Ed25519 signature verification BEFORE unpacking (signature: UpdateSignature).
      *
      * The hook is 'upgrader_pre_download', not 'upgrader_pre_install', because the latter
      * fires AFTER download and unpacking — there is no ZIP then and nothing to
@@ -279,18 +279,37 @@ class Updater
 
         $actual = (string) hash_file('sha256', $file);
 
-        if (hash_equals(strtolower((string) $manifest['sha256']), strtolower($actual))) {
+        if (!hash_equals(strtolower((string) $manifest['sha256']), strtolower($actual))) {
+            @unlink($file);
+
+            return new \WP_Error(
+                'headlinesforge_checksum_mismatch',
+                sprintf(
+                    /* translators: %s: installed plugin version */
+                    __(
+                        'The checksum of the downloaded Tribune Desk package does not match the manifest. The update was aborted, version %s remains installed.',
+                        'tribune-desk'
+                    ),
+                    HEADLINESFORGE_VERSION
+                )
+            );
+        }
+
+        // The sha256 alone proves only that the ZIP matches a manifest from the same R2
+        // bucket. The Ed25519 signature over version + sha256 proves that our release step
+        // (owner-approved, key outside R2) produced it. Hard refusal, no warning-only mode.
+        if (UpdateSignature::is_valid($manifest, self::SLUG)) {
             return $file;
         }
 
         @unlink($file);
 
         return new \WP_Error(
-            'headlinesforge_checksum_mismatch',
+            'headlinesforge_signature_invalid',
             sprintf(
                 /* translators: %s: installed plugin version */
                 __(
-                    'The checksum of the downloaded Tribune Desk package does not match the manifest. The update was aborted, version %s remains installed.',
+                    'The Tribune Desk package has no valid signature. The update was aborted, version %s remains installed.',
                     'tribune-desk'
                 ),
                 HEADLINESFORGE_VERSION

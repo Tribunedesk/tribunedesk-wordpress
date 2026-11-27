@@ -977,6 +977,12 @@ msgstr "Manifest Tribune Desk wskazuje inny pakiet niz ten, ktory probuje pobrac
 msgid "The checksum of the downloaded Tribune Desk package does not match the manifest. The update was aborted, version %s remains installed."
 msgstr "Suma kontrolna pobranego pakietu Tribune Desk nie zgadza sie z manifestem. Aktualizacja zostala przerwana, wersja %s pozostaje zainstalowana."
 
+#. translators: %s: installed plugin version
+#: src/WordPress/Updater.php:312
+#, php-format
+msgid "The Tribune Desk package has no valid signature. The update was aborted, version %s remains installed."
+msgstr "Pakiet Tribune Desk nie ma waznego podpisu. Aktualizacja zostala przerwana, wersja %s pozostaje zainstalowana."
+
 #: assets/read-more-block.js:18
 msgid "Read more (Tribune Desk)"
 msgstr "Czytaj więcej (Tribune Desk)"

@@ -351,6 +351,8 @@ After turning it off, WordPress still **shows** that a newer version is availabl
 
 **"The checksum of the downloaded package … does not match the manifest"** (Polish UI: "Suma kontrolna pobranego pakietu … nie zgadza sie z manifestem"): this is our release error, not your site's. The plugin deliberately **aborted** the update and left the working version untouched, so nothing stopped working. Report it to us; we fix the release and the update arrives by itself.
 
+**"The Tribune Desk package has no valid signature…"** (Polish UI: "Pakiet Tribune Desk nie ma waznego podpisu…"): since 2.8.0 every update must carry our Ed25519 signature, and this one did not, or the package was changed after signing. The plugin **refused** it and the working version stays untouched. Report it to us at once: it is either our release error or someone tampering with the update server.
+
 **Download error / timeout**: your server could not connect to `updates.headlinesforge.com`. The attempt failed, but nothing was replaced halfway; the working version stays untouched. It usually passes on the next attempt (WordPress checks for updates several times a day). If it repeats, ask your hosting to allow outgoing HTTPS connections to that address.
 
 **A new version does not appear at all**: nothing is broken, WordPress just has not checked yet. Click "Check again" on `Dashboard → Updates`. WordPress caches the check result for a few hours.
@@ -461,6 +463,8 @@ The job's report (`tdkit-report.json`) and the web server log are the run's arti
 
    Only this step is the deploy to all newsrooms.
 
+Since 2.8.0 the `Release` workflow stops at the `sign` job and waits for the owner's approval in the `plugin-signing` environment (Actions → the run → "Review deployments"). Without it nothing is uploaded. Key, environment and rotation: [docs/update-signing.md](docs/update-signing.md).
+
 ### Secrets that must be set in the repo
 
 | Name | Type | What it is |
@@ -470,6 +474,7 @@ The job's report (`tdkit-report.json`) and the web server log are the run's arti
 | `R2_PLUGIN_ACCESS_KEY_ID` | secret | R2 token for CI, Object Read & Write, this bucket only |
 | `R2_PLUGIN_SECRET_ACCESS_KEY` | secret | as above |
 | `R2_PUBLIC_BASE_URL` | variable | `https://updates.headlinesforge.com` |
+| `UPDATE_SIGNING_KEY` | secret of the `plugin-signing` **environment** (not the repo) | Ed25519 private key for update signatures, see [docs/update-signing.md](docs/update-signing.md) |
 
 ### Forcing an auto-update for a test (without waiting for cron)
 
