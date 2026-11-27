@@ -4,7 +4,7 @@ Tags: webhook, automation, content
 Requires at least: 5.6
 Tested up to: 7.1
 Requires PHP: 8.3
-Stable tag: 2.7.0
+Stable tag: 2.7.1
 License: MIT
 
 Receives finished articles from Tribune Desk (ArticleWriter) and creates them in WordPress: as drafts, published or scheduled, as the site and the newsroom choose.
@@ -33,6 +33,17 @@ Features:
 3. Go to `Ustawienia → Tribune Desk`, paste the signing secret (`whsec_…`) and the CMS API token you got from Tribune Desk, pick the default author, and copy the Webhook URL into Tribune Desk Settings → Integracje.
 
 == Changelog ==
+
+= 2.7.1 =
+* Embeds: every `iframe` is checked on its parsed address (exact host and path); an `iframe` without `</iframe>` from another host is removed, and an allowed one is closed so the rest of the post stays visible.
+* An image id from Tribune Desk (`cms_attachment_id`, `data-td-cms-media-id`) is used only for the file it belongs to: the same `asset_id`, the same address, or a file this site sent to Tribune Desk. Before, any id was taken, which could put another photo in the post.
+* New setting "Publishing from Tribune Desk": when ticked, a delivery cannot publish or schedule a post (the person who sends from Tribune Desk need not have a WordPress role that publishes). Off by default, so sites keep working as before.
+* A new send of an article whose post is in the trash restores that post as a draft instead of making a second one.
+* A delivery answers within Tribune Desk's 30 s: it waits at most 8 s for another attempt of the same article, and the body photos and the featured image share one 12 s budget. The retry of body photos no longer holds the article lock while it downloads.
+* The link back after a `429` waits as long as Tribune Desk asks (`retry_after`); a failed link back of a bulk publication now gets its retry too.
+* A new send of a draft replaces the featured image set by an earlier delivery, unless the newsroom chose another image.
+* Category and tag names in the answer to a delivery have no HTML entities (`&` instead of `&amp;`). A deliveries log line no longer says "HeadlinesForge".
+* Release builds pass the same checks as `main` (contract, protocol copy, PHPUnit on 8.3 and 8.5, `tdkit check`).
 
 = 2.7.0 =
 * Categories and tags from Tribune Desk deliveries are set on a post that is new, a draft, pending or scheduled; a published or private post keeps its own terms. The plugin never creates a category or a tag: a term it does not know on this site is skipped and reported back to Tribune Desk in the answer to the delivery.

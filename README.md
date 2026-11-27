@@ -2,9 +2,11 @@
 
 A WordPress plugin that receives finished articles from [Tribune Desk](https://tribunedesk.com) (a newsroom tool) and creates them in wp-admin, as drafts or, with **Publish immediately**, as published posts. It implements the public Tribune Desk CMS API at levels 1-4: article delivery, link back, full content and the media library.
 
-**Version:** v2.7.0
+**Version:** v2.7.1
 
-**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.7.0.zip**
+**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.7.1.zip**
+
+> Version 2.7.1 fixes security and data issues found in the audit of 27.11: embeds checked on the parsed address, image ids from Tribune Desk verified, an optional switch that stops Tribune Desk from publishing, no duplicate after the trash, answers within 30 s. See the changelog in `readme.txt`.
 
 > Version 2.7.0 follows contract 3.8.0-draft: categories and tags from Tribune Desk are set on new, draft, pending and scheduled posts (the plugin never creates a term), and the site's categories and tags are sent to Tribune Desk daily and on every change (`wp td taxonomy-sync`). It passes `tdkit check` (levels 1-4) in CI. See the changelog in `readme.txt`.
 
@@ -75,7 +77,7 @@ A step-by-step guide for someone who has never installed a plugin by hand. Every
 
 Download **one file** from our server. You do not need a GitHub account and you **do not rename the folder**; the archive is already packed correctly:
 
-**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.7.0.zip**
+**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.7.1.zip**
 
 **Do not unpack it.** WordPress does that itself.
 
@@ -144,6 +146,7 @@ This is the only manual install. From now on the plugin updates itself (see "Aut
 - **Signing secret** (since 1.17.0; required since 2.2.0): see "Delivery signature". Without it a red notice at the top of the page says every delivery is refused.
 - **Default author**: the WordPress account that gets all received articles. The list shows only Administrator and Editor accounts.
 - **Publish immediately** (Polish UI: "Publikuj od razu"): when ticked, articles are published at once instead of landing in drafts.
+- **Publishing from Tribune Desk** (Polish UI: "Publikowanie z Tribune Desk", since 2.7.1): when ticked, a delivery that asks to publish or schedule (`publication`) is treated as if it did not ask: a new post follows "Publish immediately", an existing one keeps its status; a request for a draft still applies. Tick it when only WordPress editors may publish, because the person who sends from Tribune Desk need not have a WordPress role that publishes. Off by default.
 - **Tribune Desk API base** (section "Tribune Desk API"): do **not** change. Default `https://api.tribunedesk.com` (an address saved by an earlier version, `https://api.headlinesforge.com`, reaches the same API and stays). Only an `https://` address is used: with any other the plugin does not send the token. The plugin reports the URLs of published posts there, so Tribune Desk can link to them in later articles.
 - **CMS token** (`tdcms_…`): token for `/v3/cms` (published-URL callback, media library, settings and image hosts). Without it the media library sync does not run and, since 2.2.0, no address of a post published by hand goes back to Tribune Desk.
 - **Author mapping**: maps authors from Tribune Desk to WordPress accounts; articles of a mapped author go to that account instead of the default author.
@@ -246,7 +249,7 @@ Full description: the Tribune Desk CMS API guide, chapter "Level 2 – Link back
 | `429` | request limit | wait and retry |
 | `5xx` | Tribune Desk failure | retry later |
 
-The plugin: on publishing, one item with a 5 s timeout and one retry after 5 min for a network error / `429` / `5xx`; backfill in batches of 100 with a 10 s timeout. The result of every call is in the "Recent deliveries" table (kind `URL sent` or `backfill`).
+The plugin: on publishing, one item with a 5 s timeout and one retry for a network error / `429` / `5xx`, after 5 min or, for a `429`, after the `retry_after` Tribune Desk gives (since 2.7.1); a bulk publication sends from WP-Cron half a minute later and gets the same retry; backfill in batches of 100 with a 10 s timeout. The result of every call is in the "Recent deliveries" table (kind `URL sent` or `backfill`).
 
 ---
 
