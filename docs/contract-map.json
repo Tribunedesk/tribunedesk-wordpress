@@ -141,6 +141,10 @@
             "wp_only": "self-update of the plugin from the Tribune Desk manifest"
         },
         {
+            "class": "UpdateSignature",
+            "wp_only": "Ed25519 signature check of plugin self-updates (docs/update-signing.md)"
+        },
+        {
             "class": "WriteResult",
             "guide": "1-article-delivery.md#fields-of-your-answer"
         }
