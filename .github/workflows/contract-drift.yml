@@ -78,10 +78,23 @@ jobs:
           open="$(gh pr list --head "$branch" --state open --json number --jq '.[0].number')"
           # Commits pushed onto an open pull request's branch are carried, not dropped.
           OPEN_PR="$open" bash ci/drift-branch.sh "$TITLE" tribunedesk.json tests/contract src/Protocol README.md
-          if [ -z "$open" ]; then
-            gh pr create --base main --head "$branch" --title "$TITLE" --body-file "$RUNNER_TEMP/body.md"
-          else
-            gh pr edit "$open" --title "$TITLE" --body-file "$RUNNER_TEMP/body.md"
+          # A failed `gh pr create` (2026-11-25: a GraphQL error) used to leave a run as red as a plain
+          # "pin behind", so nobody saw that no pull request existed. Three tries, then an error that
+          # says so; the morning loop of the harness also reports a red run with no open pull request.
+          pr_ok=""
+          for try in 1 2 3; do
+            if [ -z "$open" ]; then
+              gh pr create --base main --head "$branch" --title "$TITLE" --body-file "$RUNNER_TEMP/body.md" && pr_ok=1 && break
+            else
+              gh pr edit "$open" --title "$TITLE" --body-file "$RUNNER_TEMP/body.md" && pr_ok=1 && break
+            fi
+            [ "$try" -lt 3 ] && sleep 20
+          done
+          if [ -z "$pr_ok" ]; then
+            msg="$branch was pushed, but its pull request was NOT opened or updated: open it by hand (gh pr create --base main --head $branch) or run this workflow again"
+            echo "::error::$msg"
+            echo "### $msg" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
           fi
           gh workflow run plugin-ci.yml --ref "$branch"
 

@@ -561,4 +561,16 @@ MD;
             $this->assertStringContainsString($place, $m[1], "the drift changes $place, so the workflow must commit it");
         }
     }
+
+    /** 2026-11-25: a failed `gh pr create` left a run as red as a plain "pin behind". */
+    public function test_push_step_fails_loudly_without_its_pull_request(): void
+    {
+        $workflow = self::workflow();
+        $start = strpos($workflow, '- name: Push contract/latest');
+        $step = substr($workflow, $start, strpos($workflow, '- name: Approve') - $start);
+        $this->assertStringContainsString('for try in 1 2 3', $step);
+        $this->assertLessThan(strpos($step, 'exit 1'), strpos($step, 'NOT opened or updated'));
+        $this->assertLessThan(strpos($step, 'gh workflow run'), strpos($step, 'exit 1'));
+        $this->assertStringNotContainsString('/ship', $workflow);
+    }
 }

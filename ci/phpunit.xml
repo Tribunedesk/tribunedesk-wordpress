@@ -12,6 +12,7 @@
             <file>../tests/test-guide-anchors.php</file>
             <file>../tests/test-contract-map.php</file>
             <file>../tests/test-contract-drift.php</file>
+            <file>../tests/test-release-contract.php</file>
         </testsuite>
     </testsuites>
 </phpunit>

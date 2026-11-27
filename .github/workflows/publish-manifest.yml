@@ -1,4 +1,7 @@
 name: Publish manifest
+# Wersja w nazwie przebiegu: petla poranna harnessu czyta ja z API (GET), zeby porownac
+# opublikowany manifest z ostatnim tagiem i kopia w Styl.fm.
+run-name: Publish manifest ${{ inputs.version }}
 
 # To jest DEPLOY na wszystkie instalacje klientow. Dlatego osobno i recznie.
 # To samo uruchomienie z numerem poprzedniej wersji jest tama przy rollbacku:
