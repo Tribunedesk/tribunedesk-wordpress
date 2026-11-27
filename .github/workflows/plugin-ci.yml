@@ -14,6 +14,9 @@ on:
   # contract-drift.yml starts this on contract/latest: a pull request opened with GITHUB_TOKEN
   # starts no workflow, workflow_dispatch is the exception GitHub allows.
   workflow_dispatch:
+  # release.yml runs these very jobs before it builds a tag (2.7.1): a release passes exactly
+  # what main passes, not a weaker copy of it.
+  workflow_call:
 
 jobs:
   php:

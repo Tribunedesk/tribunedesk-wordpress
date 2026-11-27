@@ -1029,3 +1029,17 @@ msgstr ""
 #: assets/read-more-block.js:43
 msgid "Number of posts"
 msgstr ""
+
+#: src/WordPress/Settings.php
+msgid "Publishing from Tribune Desk"
+msgstr ""
+
+#: src/WordPress/Settings.php
+msgid "Do not let Tribune Desk publish or schedule posts. A request to publish or schedule is ignored: a new post follows the option above, an existing one keeps its status. Use it when only WordPress editors may publish."
+msgstr ""
+
+#. translators: %d: seconds until the retry
+#: src/WordPress/PublishNotifier.php
+#, php-format
+msgid "retry in %d s"
+msgstr ""

@@ -2,7 +2,9 @@
 declare(strict_types=1);
 
 use TribuneDesk\WordPress\BodyImages;
+use TribuneDesk\WordPress\MediaHandler;
 use TribuneDesk\WordPress\PostWriter;
+use TribuneDesk\WordPress\PublishNotifier;
 use TribuneDesk\WordPress\WriteResult;
 
 /**
@@ -225,6 +227,122 @@ class Test_Body_Images_Delivery extends WP_UnitTestCase
         $this->assertSame('publish', $after->post_status);
         $this->assertSame($before->post_date, $after->post_date);
         $this->assertSame($before->post_date_gmt, $after->post_date_gmt);
+    }
+
+    /** 2.7.1 (audit 27.11): the retry downloaded under the article lock, for up to a minute. */
+    public function test_retry_downloads_outside_the_article_lock(): void
+    {
+        $this->http_ok = false;
+        $r = PostWriter::write($this->payload(), $this->author);
+        $this->http_ok = true;
+        $free  = [];
+        $probe = static function ($pre) use (&$free) {
+            global $wpdb;
+            $free[] = (string) $wpdb->get_var($wpdb->prepare('SELECT IS_FREE_LOCK(%s)', PostWriter::lock_name(self::UUID)));
+
+            return $pre;
+        };
+        add_filter('pre_http_request', $probe, 5);
+
+        PostWriter::retry_body_images($r['post_id']);
+        remove_filter('pre_http_request', $probe, 5);
+
+        $this->assertSame(['1'], $free);
+        $this->assertStringContainsString('[caption id="attachment_', get_post($r['post_id'])->post_content);
+    }
+
+    /**
+     * One image budget per delivery: body photos that use it up leave the featured image to its
+     * retry instead of adding another download to the answer Tribune Desk waits 30 s for.
+     */
+    public function test_body_photos_using_the_budget_leave_the_featured_image_to_its_retry(): void
+    {
+        $budget = static fn () => 1;
+        add_filter('tribune_desk_delivery_media_budget', $budget);
+        $featured_calls = 0;
+        $slow = static function ($pre, array $args, string $url) use (&$featured_calls) {
+            if (str_contains($url, 'featured.png')) {
+                $featured_calls++;
+            } else {
+                usleep(1_100_000);
+            }
+
+            return $pre;
+        };
+        add_filter('pre_http_request', $slow, 5, 3);
+        $image = ['label' => 'main', 'url' => 'https://storage.tribunedesk.com/abc/featured.png'];
+
+        $r = PostWriter::write($this->payload() + ['generated_images' => [$image]], $this->author);
+        remove_filter('pre_http_request', $slow, 5);
+        remove_filter('tribune_desk_delivery_media_budget', $budget);
+
+        $this->assertSame(0, $featured_calls);
+        $this->assertSame(0, (int) get_post_thumbnail_id($r['post_id']));
+        $this->assertNotFalse(wp_next_scheduled(MediaHandler::RETRY_HOOK, [$r['post_id'], $image, 'T']));
+        wp_unschedule_hook(MediaHandler::RETRY_HOOK);
+    }
+
+    /** The waits of one delivery fit in the 30 s Tribune Desk gives it, with room for the database. */
+    public function test_delivery_waits_add_up_to_less_than_thirty_seconds(): void
+    {
+        $this->assertLessThanOrEqual(25, PostWriter::LOCK_WAIT + BodyImages::DELIVERY_BUDGET + PublishNotifier::TIMEOUT);
+        $this->assertLessThanOrEqual(BodyImages::DELIVERY_BUDGET, MediaHandler::DELIVERY_TIMEOUT);
+    }
+
+    /** @return array<string, mixed> a delivery of a draft with the featured image $file */
+    private function with_cover(string $file, string $asset): array
+    {
+        return ['article_id' => self::UUID, 'title' => 'T', 'html' => '<p>a</p>', 'generated_images' => [[
+            'label' => 'main', 'url' => 'https://storage.tribunedesk.com/abc/' . $file, 'asset_id' => $asset,
+        ]]];
+    }
+
+    /** 2.7.1 (audit 27.11): a draft kept the featured image of its first send forever. */
+    public function test_draft_resend_replaces_the_featured_image(): void
+    {
+        $r     = PostWriter::write($this->with_cover('one.png', '33333333-3333-3333-3333-333333333333'), $this->author);
+        $first = (int) get_post_thumbnail_id($r['post_id']);
+
+        PostWriter::write($this->with_cover('two.png', '44444444-4444-4444-4444-444444444444'), $this->author);
+
+        $second = (int) get_post_thumbnail_id($r['post_id']);
+        $this->assertGreaterThan(0, $first);
+        $this->assertNotSame($first, $second);
+        $this->assertSame('44444444-4444-4444-4444-444444444444', get_post_meta($second, '_hf_asset_id', true));
+    }
+
+    public function test_draft_resend_with_the_same_image_downloads_nothing(): void
+    {
+        $r = PostWriter::write($this->with_cover('one.png', '33333333-3333-3333-3333-333333333333'), $this->author);
+        $before = $this->attachments_count();
+
+        PostWriter::write($this->with_cover('one.png', '33333333-3333-3333-3333-333333333333'), $this->author);
+
+        $this->assertSame($before, $this->attachments_count());
+        $this->assertGreaterThan(0, (int) get_post_thumbnail_id($r['post_id']));
+    }
+
+    public function test_draft_resend_keeps_a_featured_image_the_newsroom_chose(): void
+    {
+        $r   = PostWriter::write($this->with_cover('one.png', '33333333-3333-3333-3333-333333333333'), $this->author);
+        $own = (int) self::factory()->attachment->create(['post_mime_type' => 'image/png']);
+        // set_post_thumbnail() refuses an attachment without a file; the meta is what it stores.
+        update_post_meta($r['post_id'], '_thumbnail_id', $own);
+
+        PostWriter::write($this->with_cover('two.png', '44444444-4444-4444-4444-444444444444'), $this->author);
+
+        $this->assertSame($own, (int) get_post_thumbnail_id($r['post_id']));
+    }
+
+    public function test_published_post_keeps_its_featured_image(): void
+    {
+        $r     = PostWriter::write($this->with_cover('one.png', '33333333-3333-3333-3333-333333333333'), $this->author);
+        $first = (int) get_post_thumbnail_id($r['post_id']);
+        wp_publish_post($r['post_id']);
+
+        PostWriter::write($this->with_cover('two.png', '44444444-4444-4444-4444-444444444444'), $this->author);
+
+        $this->assertSame($first, (int) get_post_thumbnail_id($r['post_id']));
     }
 
     public function test_retry_does_not_filter_content_through_kses(): void

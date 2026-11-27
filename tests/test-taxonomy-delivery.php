@@ -127,6 +127,16 @@ class Test_TaxonomyDelivery extends WP_UnitTestCase
         $this->assertSame([], $answer['taxonomy']['ignored']);
     }
 
+    /** 2.7.1 (audit 27.11): WordPress stores `&` in a term name as `&amp;`; the answer has the name. */
+    public function test_answer_names_have_no_html_entities(): void
+    {
+        $id = (int) self::factory()->category->create(['name' => 'Kultura & Sztuka "Nowa"']);
+
+        $answer = $this->deliver('art-tax-entities', ['categories' => [self::ref($id, 'x')]]);
+
+        $this->assertSame([self::ref($id, 'Kultura & Sztuka "Nowa"')], $answer['taxonomy']['categories']);
+    }
+
     public function test_new_post_finds_terms_by_name_ignoring_case(): void
     {
         $answer = $this->deliver('art-tax-2', [

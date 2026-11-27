@@ -16,8 +16,11 @@ if (!defined('ABSPATH')) {
  */
 final class BodyImages
 {
-    /** Seconds for all body image downloads inside one delivery (the featured image has its own 15 s). */
-    public const DELIVERY_BUDGET = 10;
+    /**
+     * Seconds for all image downloads inside one delivery: body photos first, then the featured
+     * image in what is left (2.7.1; before, 10 s here and 15 s more for the featured image).
+     */
+    public const DELIVERY_BUDGET = 12;
     public const RETRY_HOOK      = 'tribunedesk_body_images_retry';
 
     /**

@@ -15,25 +15,33 @@ class MediaHandler
     public const META_FROM_TD = '_hf_from_td';
 
     /**
-     * Seconds for the featured image download inside a delivery. Tribune Desk waits 30 s for
+     * The longest featured image download inside a delivery: the delivery's image budget, of
+     * which the body photos may already have used some (PostWriter). Tribune Desk waits 30 s for
      * the whole answer; a slower download leaves the post without the image and the image
      * comes a minute later from `RETRY_HOOK` (see PostWriter).
      */
-    public const DELIVERY_TIMEOUT = 15;
+    public const DELIVERY_TIMEOUT = BodyImages::DELIVERY_BUDGET;
     /** Seconds for a download outside a delivery (cron). */
     public const BACKGROUND_TIMEOUT = 60;
     public const RETRY_HOOK = 'tribunedesk_featured_image_retry';
 
     /**
      * Returns attachment ID or null on failure. Idempotent per post via post_meta flag.
-     * 
+     *
+     * $replace (2.7.1, a new send of a draft): a featured image set earlier by a delivery is
+     * replaced when the delivery brings another image, unless the newsroom chose another one in
+     * WordPress since. Without $replace (a published post, a retry) it is set once, as before.
+     * The flag holds the attachment id the plugin set (before 2.7.1: `1`).
+     *
      * @param array<string, string> $metadata Optional metadata (filename, caption, description, alt)
      * @param array<string, mixed>  $hints    Optional: asset_id (string), cms_attachment_id (int)
      */
-    public static function set_featured_from_url(int $post_id, string $image_url, string $title = '', array $metadata = [], array $hints = [], int $timeout = self::BACKGROUND_TIMEOUT): ?int
+    public static function set_featured_from_url(int $post_id, string $image_url, string $title = '', array $metadata = [], array $hints = [], int $timeout = self::BACKGROUND_TIMEOUT, bool $replace = false): ?int
     {
         if (get_post_meta($post_id, self::META_THUMBNAIL_SET, true)) {
-            return null;
+            if (!$replace || !self::may_replace_featured($post_id, $image_url, self::asset_id($hints))) {
+                return null;
+            }
         }
 
         require_once ABSPATH . 'wp-admin/includes/media.php';
@@ -50,9 +58,14 @@ class MediaHandler
                 update_post_meta($existing, self::META_ASSET_ID, $asset_id);
             }
             set_post_thumbnail($post_id, $existing);
-            update_post_meta($post_id, self::META_THUMBNAIL_SET, 1);
+            update_post_meta($post_id, self::META_THUMBNAIL_SET, $existing);
 
             return $existing;
+        }
+
+        // No time left in the delivery's image budget: the caller schedules a retry.
+        if ($timeout <= 0) {
+            return null;
         }
 
         // Not media_sideload_image(): it takes the file name from the URL, and Tribune Desk serves
@@ -79,9 +92,34 @@ class MediaHandler
         self::apply_metadata_to_attachment($attachment_id, $metadata);
 
         set_post_thumbnail($post_id, $attachment_id);
-        update_post_meta($post_id, self::META_THUMBNAIL_SET, 1);
+        update_post_meta($post_id, self::META_THUMBNAIL_SET, $attachment_id);
 
         return $attachment_id;
+    }
+
+    /**
+     * Whether a new send may replace the featured image a delivery set: the post still shows
+     * the plugin's image (by the flag's id; for a pre-2.7.1 flag, an image from Tribune Desk),
+     * and the delivery's image is another one (another asset_id or address).
+     */
+    private static function may_replace_featured(int $post_id, string $image_url, string $asset_id): bool
+    {
+        $current = (int) get_post_thumbnail_id($post_id);
+        if ($current > 0) {
+            $flag = (int) get_post_meta($post_id, self::META_THUMBNAIL_SET, true);
+            $ours = $flag > 1 ? $flag === $current : (bool) get_post_meta($current, self::META_FROM_TD, true);
+            if (!$ours) {
+                return false;
+            }
+            if ($asset_id !== '' && (string) get_post_meta($current, self::META_ASSET_ID, true) === $asset_id) {
+                return false;
+            }
+            if ($image_url !== '' && (string) get_post_meta($current, '_source_url', true) === $image_url) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -146,12 +184,12 @@ class MediaHandler
      */
     public static function find_existing(string $url, array $hints): ?int
     {
-        $cms_id = isset($hints['cms_attachment_id']) ? (int) $hints['cms_attachment_id'] : 0;
-        if ($cms_id > 0 && get_post_type($cms_id) === 'attachment') {
+        $asset_id = self::asset_id($hints);
+        $cms_id   = isset($hints['cms_attachment_id']) ? (int) $hints['cms_attachment_id'] : 0;
+        if ($cms_id > 0 && self::cms_id_matches($cms_id, $asset_id, $url)) {
             return $cms_id;
         }
 
-        $asset_id = self::asset_id($hints);
         if ($asset_id !== '') {
             $found = get_posts([
                 'post_type'     => 'attachment',
@@ -192,6 +230,30 @@ class MediaHandler
         }
 
         return self::attach_existing_file($rel);
+    }
+
+    /**
+     * 2.7.1 (audit 27.11): the attachment id Tribune Desk sends (`cms_attachment_id`,
+     * `data-td-cms-media-id`) is used only when the attachment is that file: it holds the same
+     * asset_id; or it holds none and either the address is its own (its URL or `_source_url`)
+     * or this site sent it to Tribune Desk, which pairs a sent file without telling (guide 4).
+     * Before, any attachment id was taken, so a wrong id put another photo in the post and
+     * re-paired it with the wrong asset.
+     */
+    private static function cms_id_matches(int $cms_id, string $asset_id, string $url): bool
+    {
+        if (get_post_type($cms_id) !== 'attachment') {
+            return false;
+        }
+        $held = (string) get_post_meta($cms_id, self::META_ASSET_ID, true);
+        if ($held !== '') {
+            return $asset_id !== '' && $held === $asset_id;
+        }
+        if ($url !== '' && ($url === wp_get_attachment_url($cms_id) || $url === (string) get_post_meta($cms_id, '_source_url', true))) {
+            return true;
+        }
+
+        return $asset_id !== '' && preg_match('/^(?:accepted|known)@/', (string) get_post_meta($cms_id, MediaPush::META_PUSHED, true)) === 1;
     }
 
     /**

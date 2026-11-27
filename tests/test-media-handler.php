@@ -159,6 +159,8 @@ class Test_Media_Handler extends WP_UnitTestCase
     public function test_cms_attachment_id_is_used_when_present(): void
     {
         $existing = $this->make_attachment($this->put_file_in_uploads('2026/10/cms.png'));
+        // 2.7.1: a file this site sent to Tribune Desk (level 4), whose pair it has not learned yet.
+        update_post_meta($existing, '_hf_media_pushed', 'accepted@' . time());
         add_filter('pre_http_request', [$this, 'count_http'], 5);
 
         $id = MediaHandler::set_featured_from_url($this->post_id, 'https://storage.tribunedesk.com/abc/result.png', 'T', [], [
@@ -170,6 +172,52 @@ class Test_Media_Handler extends WP_UnitTestCase
         $this->assertSame($existing, $id);
         $this->assertSame(0, $this->http_calls);
         $this->assertSame('22222222-2222-2222-2222-222222222222', get_post_meta($existing, '_hf_asset_id', true));
+    }
+
+    /** 2.7.1 (audit 27.11): an id from Tribune Desk pointing at another file is not taken on trust. */
+    public function test_cms_attachment_id_of_file_with_other_asset_is_ignored(): void
+    {
+        $other = $this->make_attachment($this->put_file_in_uploads('2026/10/inny.png'));
+        update_post_meta($other, '_hf_asset_id', '99999999-9999-9999-9999-999999999999');
+
+        $id = MediaHandler::set_featured_from_url($this->post_id, 'https://storage.tribunedesk.com/abc/result.png', 'T', [], [
+            'cms_attachment_id' => $other,
+            'asset_id'          => '22222222-2222-2222-2222-222222222222',
+        ]);
+
+        $this->assertNotSame($other, $id);
+        $this->assertSame('99999999-9999-9999-9999-999999999999', get_post_meta($other, '_hf_asset_id', true));
+        $this->assertSame('22222222-2222-2222-2222-222222222222', get_post_meta($id, '_hf_asset_id', true));
+    }
+
+    /** A file never sent to Tribune Desk, with another address: Tribune Desk cannot hold its pair. */
+    public function test_cms_attachment_id_of_unrelated_file_is_ignored(): void
+    {
+        $unrelated = $this->make_attachment($this->put_file_in_uploads('2026/10/obcy.png'));
+
+        $id = MediaHandler::set_featured_from_url($this->post_id, 'https://storage.tribunedesk.com/abc/result.png', 'T', [], [
+            'cms_attachment_id' => $unrelated,
+            'asset_id'          => '22222222-2222-2222-2222-222222222222',
+        ]);
+
+        $this->assertNotSame($unrelated, $id);
+        $this->assertSame('', get_post_meta($unrelated, '_hf_asset_id', true));
+    }
+
+    /** The id of the file the address points at is fine without a pair. */
+    public function test_cms_attachment_id_with_matching_url_is_used(): void
+    {
+        $rel      = $this->put_file_in_uploads('2026/10/ten-sam.png');
+        $existing = $this->make_attachment($rel);
+        add_filter('pre_http_request', [$this, 'count_http'], 5);
+
+        $id = MediaHandler::set_featured_from_url($this->post_id, wp_upload_dir()['baseurl'] . '/' . $rel, 'T', [], [
+            'cms_attachment_id' => $existing,
+        ]);
+        remove_filter('pre_http_request', [$this, 'count_http'], 5);
+
+        $this->assertSame($existing, $id);
+        $this->assertSame(0, $this->http_calls);
     }
 
     public function test_cms_attachment_id_of_non_attachment_is_ignored(): void

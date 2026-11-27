@@ -27,6 +27,8 @@ if (!defined('ABSPATH')) {
 class PublishNotifier
 {
     public const RETRY_HOOK  = 'headlinesforge_notify_retry';
+    /** 2.7.1: the deferred send of a bulk publication: a first attempt, so it may get its retry. */
+    public const BULK_HOOK   = 'tribunedesk_notify_bulk';
     public const RETRY_DELAY = 5 * MINUTE_IN_SECONDS;
     public const TIMEOUT     = 5;
     public const BULK_DELAY  = 30;
@@ -105,18 +107,50 @@ class PublishNotifier
         // 75 s with HF unavailable and the request dying on max_execution_time halfway through the batch.
         // That is why on bulk publishing the send is deferred to cron — by the same
         // mechanism that handles retries. The editor does not wait, the addresses arrive within a minute.
+        // 2.7.1: on its own hook, not the retry's: the deferred send is a first attempt, and a
+        // failed one gets its retry like any other (before, a failure here was never retried).
         if (isset($_REQUEST['bulk_edit'])) {
-            wp_schedule_single_event(time() + self::BULK_DELAY, self::RETRY_HOOK, [$post->ID]);
+            wp_schedule_single_event(time() + self::BULK_DELAY, self::BULK_HOOK, [$post->ID]);
 
             return;
         }
 
+        self::first_attempt($post, $article_id);
+    }
+
+    /** `BULK_HOOK`: the deferred send of a post published in bulk. @param int|string $post_id */
+    public static function send_deferred($post_id): void
+    {
+        $post = get_post((int) $post_id);
+        if (!$post instanceof \WP_Post || $post->post_status !== 'publish') {
+            return;
+        }
+        $article_id = PostWriter::article_id_of($post);
+        if ($article_id !== null) {
+            self::first_attempt($post, $article_id);
+        }
+    }
+
+    /**
+     * A send that may get one retry: after the wait Tribune Desk asked for in a 429
+     * (`retry_after`, 2.7.1), otherwise after RETRY_DELAY.
+     */
+    private static function first_attempt(\WP_Post $post, string $article_id): void
+    {
         $result = self::notify($post, $article_id, false);
 
         if ($result['retryable']) {
             // Core deduplicates an identical event (hook + arguments) within a 10-minute window.
-            wp_schedule_single_event(time() + self::RETRY_DELAY, self::RETRY_HOOK, [$post->ID]);
+            wp_schedule_single_event(time() + self::retry_delay($result), self::RETRY_HOOK, [$post->ID]);
         }
+    }
+
+    /** @param array<string, mixed> $result */
+    private static function retry_delay(array $result): int
+    {
+        $asked = $result['retry_after'] ?? null;
+
+        return is_int($asked) && $asked > 0 ? $asked : self::RETRY_DELAY;
     }
 
     /** @param int|string $post_id */
@@ -160,7 +194,7 @@ class PublishNotifier
                 $detail = PublishedUrlsClient::describe($status, $url);
             } else {
                 $status = PublishedUrlsClient::STATUS_REJECTED;
-                $detail = __('HeadlinesForge did not return a status for this item', 'tribune-desk');
+                $detail = __('Tribune Desk did not return a status for this item', 'tribune-desk');
             }
         }
 
@@ -169,7 +203,11 @@ class PublishNotifier
             $detail = trim($retry_label . ': ' . (string) $detail, ': ');
             $detail = str_starts_with($detail, $retry_label) ? $detail : $retry_label . ': ' . $detail;
         } elseif (!empty($result['retryable'])) {
-            $detail = trim((string) $detail . ' — ' . __('retry in 5 min', 'tribune-desk'));
+            $delay  = self::retry_delay($result);
+            $detail = trim((string) $detail . ' — ' . ($delay === self::RETRY_DELAY
+                ? __('retry in 5 min', 'tribune-desk')
+                /* translators: %d: seconds until the retry */
+                : sprintf(__('retry in %d s', 'tribune-desk'), $delay)));
         }
 
         DeliveriesLog::record(

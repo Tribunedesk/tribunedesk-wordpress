@@ -132,6 +132,27 @@ class Test_RestEndpoint extends WP_UnitTestCase
         $this->assertSame('Third', PostWriter::find_by_article_id($uuid)->post_title);
     }
 
+    /** 2.7.1 (audit 27.11): a new send after the post went to the trash made a second post. */
+    public function test_send_after_trash_restores_the_post_instead_of_a_duplicate(): void
+    {
+        $uuid  = '3c4d5e6f-7a8b-4c9d-8e1f-2a3b4c5d6e7f';
+        $first = $this->send($this->delivery($uuid, 'First', '2026-11-16T09:00:00+00:00'))->get_data();
+        wp_trash_post((int) $first['cms_post_id']);
+
+        $again = $this->send($this->delivery($uuid, 'Again', '2026-11-16T10:00:00+00:00'));
+
+        $this->assertSame(200, $again->get_status());
+        $this->assertSame($first['cms_post_id'], $again->get_data()['cms_post_id']);
+        $this->assertSame('updated', $again->get_data()['status']);
+        $post = get_post((int) $first['cms_post_id']);
+        $this->assertSame('draft', $post->post_status);
+        $this->assertSame('Again', $post->post_title);
+        $this->assertCount(1, get_posts([
+            'meta_key' => PostWriter::META_ARTICLE_ID, 'meta_value' => $uuid,
+            'post_status' => ['any', 'trash'], 'fields' => 'ids',
+        ]));
+    }
+
     public function test_delivery_waits_for_the_article_lock(): void
     {
         // guide 1, "Store under a unique key": overlapping attempts of one send must not make two posts.
@@ -648,6 +669,8 @@ class Test_RestEndpoint extends WP_UnitTestCase
         delete_post_meta($att, \TribuneDesk\WordPress\MediaHandler::META_ASSET_ID);
         $payload = $this->payload_with_image('88888888-8888-4888-8888-888888888884', $att);
         unset($payload['generated_images'][0]['asset_id']);
+        // 2.7.1: without an asset_id the attachment id counts only when the address is the file's own.
+        $payload['generated_images'][0]['url'] = wp_get_attachment_url($att);
         $data = $this->send($payload)->get_data();
 
         $this->assertNotSame(0, (int) get_post_thumbnail_id($data['cms_post_id']));

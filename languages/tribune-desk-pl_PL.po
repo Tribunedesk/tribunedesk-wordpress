@@ -1028,3 +1028,17 @@ msgstr "Sekret podpisu dostaw z Tribune Desk. Wtyczka przyjmuje tylko dostawy z 
 #: src/WordPress/Settings.php:502
 msgid "Token from Tribune Desk for the link back and the media sync. Required permissions: articles:write, settings:read, settings:write, media:read, media:write, backfill:write. Without a token the plugin sends no addresses of published posts back to Tribune Desk."
 msgstr "Token z Tribune Desk do linku zwrotnego i synchronizacji mediów. Potrzebne uprawnienia: articles:write, settings:read, settings:write, media:read, media:write, backfill:write. Bez tokenu wtyczka nie odsyła do Tribune Desk adresów opublikowanych wpisów."
+
+#: src/WordPress/Settings.php
+msgid "Publishing from Tribune Desk"
+msgstr "Publikowanie z Tribune Desk"
+
+#: src/WordPress/Settings.php
+msgid "Do not let Tribune Desk publish or schedule posts. A request to publish or schedule is ignored: a new post follows the option above, an existing one keeps its status. Use it when only WordPress editors may publish."
+msgstr "Nie pozwalaj Tribune Desk publikować ani planować wpisów. Prośba o publikację lub zaplanowanie jest pomijana: nowy wpis idzie według opcji powyżej, istniejący zachowuje swój status. Zaznacz, gdy publikować mogą tylko redaktorzy WordPressa."
+
+#. translators: %d: seconds until the retry
+#: src/WordPress/PublishNotifier.php
+#, php-format
+msgid "retry in %d s"
+msgstr "ponowienie za %d s"

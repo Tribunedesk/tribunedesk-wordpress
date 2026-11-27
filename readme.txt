@@ -7,17 +7,17 @@ Requires PHP: 8.3
 Stable tag: 2.7.0
 License: MIT
 
-Receives finished articles from Tribune Desk (ArticleWriter) and creates them as drafts in WordPress.
+Receives finished articles from Tribune Desk (ArticleWriter) and creates them in WordPress: as drafts, published or scheduled, as the site and the newsroom choose.
 
 == Description ==
 
-This plugin exposes one REST endpoint under two paths — `POST /wp-json/tribunedesk/v1/receive` and, unchanged, `POST /wp-json/headlinesforge/v1/receive` — that accepts a JSON payload from Tribune Desk / ArticleWriter and creates the article as a draft post. Every delivery must carry a valid Standard Webhooks signature made with the newsroom's signing secret (`whsec_…`).
+This plugin exposes one REST endpoint under two paths — `POST /wp-json/tribunedesk/v1/receive` and, unchanged, `POST /wp-json/headlinesforge/v1/receive` — that accepts a JSON payload from Tribune Desk / ArticleWriter and creates the article as a post: a draft by default, published at once with "Publish immediately", or published or scheduled when the delivery asks for it (`publication`) and the site allows it. Every delivery must carry a valid Standard Webhooks signature made with the newsroom's signing secret (`whsec_…`).
 
 Features:
 
-* Idempotent — same `article_id` re-sent updates the existing draft (only if still in draft state)
+* Idempotent — same `article_id` re-sent updates the existing post while nobody has published it (draft, pending, scheduled); a post in the trash is restored as a draft and updated
 * Featured image auto-set from the first image in `generated_images[]`; an existing library attachment is reused (optional `asset_id`, `cms_attachment_id`) instead of a duplicate, and the response reports it as `featured_image` {asset_id, attachment_id, url}
-* HTML sanitization with `<iframe>` whitelist for YouTube, Vimeo, Twitter, Instagram, TikTok, Facebook embeds
+* HTML sanitization with an `<iframe>` whitelist for YouTube, Vimeo, Twitter, Instagram, TikTok and Facebook embeds, checked on the parsed address
 * Post author taken from Tribune Desk: the person who clicked "Send to CMS", then the article author — matched by e-mail or assigned by hand; the configurable default author covers everyone else
 * Last 20 deliveries visible in the admin settings page, each tagged as received / URL sent / backfill
 * Yoast SEO fields (`_yoast_wpseo_title`, `_yoast_wpseo_metadesc`, `_yoast_wpseo_focuskw`) filled from the payload — never overwriting a value an editor already set

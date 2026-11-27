@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 use TribuneDesk\WordPress\Activator;
+use TribuneDesk\WordPress\PostWriter;
 use TribuneDesk\WordPress\RestEndpoint;
 
 /**
@@ -28,6 +29,7 @@ class Test_PublicationMode extends WP_UnitTestCase
     {
         remove_filter('pre_http_request', [$this, 'fake_http'], 10);
         delete_option(RestEndpoint::OPTION_PUBLISH);
+        delete_option(PostWriter::OPTION_IGNORE_PUBLICATION);
         parent::tearDown();
     }
 
@@ -132,6 +134,39 @@ class Test_PublicationMode extends WP_UnitTestCase
         $answer = $this->deliver(wp_generate_uuid4(), null);
         $this->assertSame('draft', $this->post_of($answer)->post_status);
         $this->assertSame(['status' => 'draft', 'at' => null], $answer['publication']);
+    }
+
+    /**
+     * 2.7.1 (audit 27.11): the site may refuse publishing from Tribune Desk, whose sender need not
+     * hold a WordPress role that publishes. Publish and schedule then count as an absent field.
+     */
+    public function test_site_switch_ignores_publish_and_schedule_from_tribune_desk(): void
+    {
+        update_option(PostWriter::OPTION_IGNORE_PUBLICATION, '1');
+        $published = $this->deliver(wp_generate_uuid4(), ['mode' => 'publish']);
+        $this->assertSame('draft', $this->post_of($published)->post_status);
+        $this->assertSame(['status' => 'draft', 'at' => null], $published['publication']);
+
+        $scheduled = $this->deliver(wp_generate_uuid4(), ['mode' => 'schedule', 'at' => self::moment(2)]);
+        $this->assertSame('draft', $this->post_of($scheduled)->post_status);
+
+        // The site's own choice for a new post still applies.
+        update_option(RestEndpoint::OPTION_PUBLISH, '1');
+        $this->assertSame('publish', $this->post_of($this->deliver(wp_generate_uuid4(), ['mode' => 'publish']))->post_status);
+        // A draft request is always honoured.
+        $this->assertSame('draft', $this->post_of($this->deliver(wp_generate_uuid4(), ['mode' => 'draft']))->post_status);
+    }
+
+    /** With the switch on, an existing scheduled post is not published or moved by a send. */
+    public function test_site_switch_keeps_an_existing_scheduled_post(): void
+    {
+        $article_id = wp_generate_uuid4();
+        $at = self::moment(2);
+        $this->deliver($article_id, ['mode' => 'schedule', 'at' => $at]);
+        update_option(PostWriter::OPTION_IGNORE_PUBLICATION, '1');
+        $post = $this->post_of($this->deliver($article_id, ['mode' => 'publish']));
+        $this->assertSame('future', $post->post_status);
+        $this->assertSame(gmdate('Y-m-d H:i:s', strtotime($at)), $post->post_date_gmt);
     }
 
     public function test_a_scheduled_post_takes_a_new_send_like_a_draft(): void

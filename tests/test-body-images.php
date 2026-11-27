@@ -98,6 +98,7 @@ class Test_Body_Images extends WP_UnitTestCase
     public function test_hinted_figure_with_cms_attachment_becomes_caption_shortcode(): void
     {
         $id   = $this->make_attachment('2026/10/x.png');
+        update_post_meta($id, '_hf_asset_id', self::ASSET);
         $html = $this->figure(
             self::SRC,
             ' data-td-asset-id="' . self::ASSET . '" data-td-cms-media-id="' . $id . '"',
@@ -185,6 +186,19 @@ class Test_Body_Images extends WP_UnitTestCase
         $this->assertStringContainsString('wp-image-' . $first['created'][0] . '"', $second['html']);
     }
 
+    /** 2.7.1 (audit 27.11): `data-td-cms-media-id` of a file paired with another asset is not used. */
+    public function test_cms_media_id_of_file_with_other_asset_is_not_used(): void
+    {
+        $other = $this->make_attachment('2026/10/inny.png');
+        update_post_meta($other, '_hf_asset_id', '99999999-9999-9999-9999-999999999999');
+        $html = $this->figure(self::SRC, ' data-td-asset-id="' . self::ASSET . '" data-td-cms-media-id="' . $other . '"', 'Podpis');
+
+        $out = $this->convert($html);
+
+        $this->assertStringNotContainsString('wp-image-' . $other . '"', $out['html']);
+        $this->assertSame('99999999-9999-9999-9999-999999999999', get_post_meta($other, '_hf_asset_id', true));
+    }
+
     public function test_cms_media_id_without_asset_id_and_foreign_src_untouched(): void
     {
         $id   = $this->make_attachment('2026/10/obcy-id.png');
@@ -229,6 +243,7 @@ class Test_Body_Images extends WP_UnitTestCase
     public function test_hidden_caption_and_alignwide_give_plain_img_alignnone(): void
     {
         $id   = $this->make_attachment('2026/10/szeroki.png');
+        update_post_meta($id, MediaHandler::META_ASSET_ID, self::ASSET);
         $html = '<figure class="wp-block-image alignwide size-large" data-hf-caption="Ukryty podpis">'
             . '<img src="x" alt="Ksiądz" data-td-asset-id="' . self::ASSET . '" data-td-cms-media-id="' . $id . '"></figure>';
 
@@ -244,6 +259,7 @@ class Test_Body_Images extends WP_UnitTestCase
     public function test_alignleft_maps_to_align_left(): void
     {
         $id   = $this->make_attachment('2026/10/lewy.png');
+        update_post_meta($id, MediaHandler::META_ASSET_ID, self::ASSET);
         $html = $this->figure(
             'x',
             ' data-td-asset-id="' . self::ASSET . '" data-td-cms-media-id="' . $id . '"',
@@ -301,6 +317,9 @@ class Test_Body_Images extends WP_UnitTestCase
     public function test_existing_attachment_texts_not_changed(): void
     {
         $id   = $this->make_attachment('2026/10/teksty.png');
+        // A file this site sent to Tribune Desk, paired there without telling (2.7.1: only then
+        // is an id without its asset_id taken, and the pair is stored here).
+        update_post_meta($id, '_hf_media_pushed', 'accepted@' . time());
         $html = $this->figure('x', ' data-td-asset-id="' . self::ASSET . '" data-td-cms-media-id="' . $id . '"', 'Nowy podpis');
 
         $this->convert($html);

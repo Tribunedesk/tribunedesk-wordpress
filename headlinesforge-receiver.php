@@ -66,6 +66,8 @@ add_action('updated_post_meta', [\TribuneDesk\WordPress\SocialQueueFlag::class, 
 add_action('deleted_post_meta', [\TribuneDesk\WordPress\SocialQueueFlag::class, 'after_change'], 10, 3);
 add_action('shutdown', [\TribuneDesk\WordPress\PublishNotifier::class, 'flush_pending']);
 add_action(\TribuneDesk\WordPress\PublishNotifier::RETRY_HOOK, [\TribuneDesk\WordPress\PublishNotifier::class, 'retry']);
+// 2.7.1: a bulk publication's deferred send, which may still get its one retry.
+add_action(\TribuneDesk\WordPress\PublishNotifier::BULK_HOOK, [\TribuneDesk\WordPress\PublishNotifier::class, 'send_deferred']);
 // 2.2.2: a featured image a delivery could not download within its time limit.
 add_action(\TribuneDesk\WordPress\MediaHandler::RETRY_HOOK, [\TribuneDesk\WordPress\PostWriter::class, 'retry_featured_image'], 10, 3);
 // 2.5.0: body photos a delivery could not download within its time limit.
@@ -120,6 +122,7 @@ register_deactivation_hook(__FILE__, static function (): void {
     // 2.2.2: one-off retries left behind by link backs and deliveries. They carry arguments,
     // which wp_clear_scheduled_hook() without arguments does not match.
     wp_unschedule_hook(\TribuneDesk\WordPress\PublishNotifier::RETRY_HOOK);
+    wp_unschedule_hook(\TribuneDesk\WordPress\PublishNotifier::BULK_HOOK);
     wp_unschedule_hook(\TribuneDesk\WordPress\MediaHandler::RETRY_HOOK);
     wp_unschedule_hook(\TribuneDesk\WordPress\BodyImages::RETRY_HOOK);
 });

@@ -132,7 +132,8 @@ class TaxonomyWriter
     }
 
     /**
-     * The terms now on the post, as the answer lists them.
+     * The terms now on the post, as the answer lists them. Names without HTML entities (2.7.1):
+     * WordPress stores `&` as `&amp;`, like CmsTaxonomy, which decodes them before sending.
      *
      * @return list<array{cms_term_id: string, name: string}>
      */
@@ -144,7 +145,7 @@ class TaxonomyWriter
         }
 
         return array_values(array_map(
-            static fn (\WP_Term $t): array => ['cms_term_id' => (string) $t->term_id, 'name' => $t->name],
+            static fn (\WP_Term $t): array => ['cms_term_id' => (string) $t->term_id, 'name' => html_entity_decode($t->name, ENT_QUOTES, 'UTF-8')],
             array_filter($terms, static fn ($t): bool => $t instanceof \WP_Term)
         ));
     }

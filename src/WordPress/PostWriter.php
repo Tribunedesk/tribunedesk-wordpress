@@ -70,11 +70,42 @@ class PostWriter
         }
     }
 
+    /**
+     * 2.7.1: '1' = the site does not let Tribune Desk publish or schedule (`publication.mode`
+     * `publish` and `schedule` are ignored, `draft` still applies). The person who sends from
+     * Tribune Desk need not hold a WordPress role that may publish, so a site that wants every
+     * post published by its own editors turns this on. Off by default: deliveries keep publishing
+     * as in 2.6.0-2.7.0, so an automatic update does not stop sites that schedule from Tribune Desk.
+     */
+    public const OPTION_IGNORE_PUBLICATION = 'tribunedesk_ignore_publication_mode';
+
+    /**
+     * The delivery's `publication` as this site accepts it: with OPTION_IGNORE_PUBLICATION on, a
+     * request to publish or schedule counts as an absent field (a new post follows "Publish
+     * immediately", an existing one keeps its status).
+     *
+     * @param array<string, mixed>|null $publication
+     * @return array<string, mixed>|null
+     */
+    public static function publication_allowed(?array $publication): ?array
+    {
+        if ($publication === null || get_option(self::OPTION_IGNORE_PUBLICATION, '') !== '1') {
+            return $publication;
+        }
+
+        return ($publication['mode'] ?? null) === 'draft' ? $publication : null;
+    }
+
     /** `sent_at` of the last send applied to the post (guide 1, "Order of sends"). */
     public const META_SENT_AT = '_hf_sent_at';
 
-    /** Seconds a delivery waits for another attempt of the same article; Tribune Desk waits 30. */
-    public const LOCK_WAIT = 20;
+    /**
+     * Seconds a delivery waits for another attempt of the same article. Tribune Desk waits 30 s
+     * for the whole answer: this wait, the images (BodyImages::DELIVERY_BUDGET, featured image
+     * included) and the link back of a post published by the delivery (PublishNotifier::TIMEOUT)
+     * add up to 25 s, which leaves the rest for the database. 2.7.1: 20 s before, ~45 s in all.
+     */
+    public const LOCK_WAIT = 8;
 
     /** Name of the MySQL lock that serialises the writes of one article. */
     public static function lock_name(string $article_id): string
@@ -144,7 +175,7 @@ class PostWriter
         // i.e. the same content the wp_insert_post_data filter will see later.
         $html = LinkResolver::resolve(Sanitizer::sanitize($raw_html), $links);
 
-        $existing = self::find_by_article_id($article_id);
+        $existing = self::find_by_article_id($article_id) ?? self::find_trashed($article_id);
         // `taxonomy_ignored` is null when the delivery has no `taxonomy` (the answer then has none),
         // [] when it has one but nothing of it was set or ignored here.
         $no_terms = Taxonomy::requested(null, $payload['taxonomy'] ?? null) !== null ? [] : null;
@@ -152,12 +183,29 @@ class PostWriter
             // Nothing of an older send is applied, not even the metadata of a published post.
             return ['post_id' => (int) $existing->ID, 'status' => WriteResult::SkippedOlderSend, 'taxonomy_ignored' => $no_terms];
         }
+        if ($existing !== null && $existing->post_status === 'trash') {
+            // 2.7.1 (audit 27.11): a new send of an article whose post is in the trash restores
+            // that post as a draft and updates it, instead of making a second post with the same
+            // article_id next to the trashed one (which "Restore" would then bring back too).
+            wp_untrash_post((int) $existing->ID);
+            clean_post_cache((int) $existing->ID);
+            $existing = get_post((int) $existing->ID);
+            if (!$existing instanceof \WP_Post || $existing->post_status === 'trash') {
+                throw new \RuntimeException('could not restore the trashed post of this article');
+            }
+            if ($existing->post_status !== 'draft') {
+                // A site filter of wp_untrash_post_status may restore to another status; a send
+                // updates only a post nobody published, so it is made a draft here.
+                wp_update_post(['ID' => $existing->ID, 'post_status' => 'draft']);
+                $existing = get_post((int) $existing->ID);
+            }
+        }
         $action   = DraftRules::action($existing === null ? null : (string) $existing->post_status);
 
         $excerpt = self::excerpt_for_post($payload);
         // Publication mode (contract 3.7): draft, scheduled for `at`, or published now; without
         // the field a new post follows the site's option and an existing one keeps its status.
-        $publication = is_array($payload['publication'] ?? null) ? $payload['publication'] : null;
+        $publication = self::publication_allowed(is_array($payload['publication'] ?? null) ? $payload['publication'] : null);
         $target = Publication::target(
             $existing === null ? null : (string) $existing->post_status,
             $publication,
@@ -168,8 +216,12 @@ class PostWriter
         // Terms before the save, so the publish hooks inside it see them (TaxonomyWriter).
         $terms = self::lookup_taxonomy($existing === null ? null : (string) $existing->post_status, $payload);
 
+        // One time budget for every image of this delivery: body photos first, the featured
+        // image gets what is left (2.7.1; before, 10 s and another 15 s).
+        $media_deadline = microtime(true) + (float) Hooks::filter('delivery_media_budget', BodyImages::DELIVERY_BUDGET);
+
         if ($existing === null) {
-            $body    = BodyImages::convert($html, 0, (float) BodyImages::DELIVERY_BUDGET);
+            $body    = BodyImages::convert($html, 0, $media_deadline - microtime(true));
             $html    = $body['html'];
             $post_id = self::with_embeds(static fn () => wp_insert_post([
                 'post_author'  => $author_id,
@@ -184,7 +236,7 @@ class PostWriter
             }
 
             self::adopt_body_images((int) $post_id, $body);
-            self::sync_featured_image((int) $post_id, $payload);
+            self::sync_featured_image((int) $post_id, $payload, $media_deadline);
             SeoMeta::sync((int) $post_id, $payload);
             ProvenanceMeta::sync((int) $post_id, $raw_html);
             // Language only on creation: an existing post may have been moved by hand.
@@ -200,7 +252,7 @@ class PostWriter
             // image generated after the first send, and Yoast SEO fields. Both are
             // idempotent (featured image guarded by post meta; SEO fields never
             // overwrite a non-empty value).
-            self::sync_featured_image((int) $existing->ID, $payload);
+            self::sync_featured_image((int) $existing->ID, $payload, $media_deadline);
             SeoMeta::sync((int) $existing->ID, $payload);
             // Link meta and rows follow every send, content does not (the newsroom may have changed it).
             // Rows only for a published post: a scheduled post gets them from the publish hook.
@@ -219,7 +271,7 @@ class PostWriter
         LinkResolver::store_links((int) $existing->ID, $links);
         Backlinks::store_meta((int) $existing->ID, $payload);
 
-        $body = BodyImages::convert($html, (int) $existing->ID, (float) BodyImages::DELIVERY_BUDGET);
+        $body = BodyImages::convert($html, (int) $existing->ID, $media_deadline - microtime(true));
         $html = $body['html'];
 
         $postarr = [
@@ -247,7 +299,8 @@ class PostWriter
         }
 
         self::adopt_body_images((int) $existing->ID, $body);
-        self::sync_featured_image((int) $existing->ID, $payload);
+        // A draft takes the new send's featured image too (2.7.1), unless the newsroom chose its own.
+        self::sync_featured_image((int) $existing->ID, $payload, $media_deadline, true);
         SeoMeta::sync((int) $existing->ID, $payload);
         // The content was replaced, so the labelling must follow it: it describes
         // the content hash, and an old signature next to new text looks like a forgery.
@@ -386,6 +439,20 @@ class PostWriter
         return $meta;
     }
 
+    /** The post of this article in the trash, if any (find_by_article_id does not see the trash). */
+    private static function find_trashed(string $article_id): ?\WP_Post
+    {
+        $posts = get_posts([
+            'meta_key'       => self::META_ARTICLE_ID,
+            'meta_value'     => $article_id,
+            'post_status'    => 'trash',
+            'posts_per_page' => 1,
+            'no_found_rows'  => true,
+        ]);
+
+        return $posts[0] ?? null;
+    }
+
     public static function find_by_article_id(string $article_id): ?\WP_Post
     {
         $posts = get_posts([
@@ -400,11 +467,12 @@ class PostWriter
 
     /** @param array<string, mixed> $payload */
     /**
-     * The featured image of a delivery, downloaded with the delivery's short limit. When the
-     * download fails the post is saved without it and one retry is scheduled a minute later,
-     * with the background limit; the retry does not schedule another.
+     * The featured image of a delivery, downloaded in the time left of the delivery's image
+     * budget ($deadline, microtime). When nothing is left or the download fails, the post is
+     * saved without it and one retry is scheduled a minute later, with the background limit;
+     * the retry ($deadline null) does not schedule another.
      */
-    private static function sync_featured_image(int $post_id, array $payload, bool $in_delivery = true): void
+    private static function sync_featured_image(int $post_id, array $payload, ?float $deadline = null, bool $replace = false): void
     {
         $images = $payload['generated_images'] ?? [];
         if (!is_array($images) || $images === []) {
@@ -439,8 +507,11 @@ class PostWriter
         }
 
         $title = (string) ($payload['title'] ?? '');
-        $timeout = $in_delivery ? MediaHandler::DELIVERY_TIMEOUT : MediaHandler::BACKGROUND_TIMEOUT;
-        $attached = MediaHandler::set_featured_from_url($post_id, $url, $title, $metadata, $hints, $timeout);
+        $in_delivery = $deadline !== null;
+        $timeout     = $in_delivery
+            ? (int) min(MediaHandler::DELIVERY_TIMEOUT, max(0, ceil($deadline - microtime(true))))
+            : MediaHandler::BACKGROUND_TIMEOUT;
+        $attached = MediaHandler::set_featured_from_url($post_id, $url, $title, $metadata, $hints, $timeout, $replace);
         if ($attached === null && $in_delivery && !get_post_meta($post_id, MediaHandler::META_THUMBNAIL_SET, true)) {
             $args = [$post_id, $first, $title];
             if (wp_next_scheduled(MediaHandler::RETRY_HOOK, $args) === false) {
@@ -459,7 +530,7 @@ class PostWriter
         if (get_post($post_id) === null) {
             return;
         }
-        self::sync_featured_image($post_id, ['generated_images' => [$image], 'title' => $title], false);
+        self::sync_featured_image($post_id, ['generated_images' => [$image], 'title' => $title]);
     }
 
     /**
@@ -484,6 +555,11 @@ class PostWriter
      * `BodyImages::RETRY_HOOK`: converts the figures with `data-td-asset-id` a delivery could not
      * download in time. Works on the content as it is now (the editor may have changed it) and
      * does not schedule another retry.
+     *
+     * 2.7.1 (audit 27.11): the downloads (up to a minute) run outside the article lock; before,
+     * the retry held it for them and a delivery of the same article waiting for it ran past
+     * Tribune Desk's 30 s and answered 5xx. Under the lock the content is read again and
+     * converted from the attachments just made, with no download, then saved.
      */
     public static function retry_body_images(int $post_id): void
     {
@@ -492,8 +568,11 @@ class PostWriter
         if ($post === null) {
             return;
         }
-        // The same lock as a delivery: the retry downloads for up to a minute and must not
-        // overwrite a newer send. Not free in time: skip, the next send converts the figures anyway.
+        // Downloads first, without the lock: the attachments they make are found by asset_id below.
+        BodyImages::convert((string) $post->post_content, $post_id, (float) MediaHandler::BACKGROUND_TIMEOUT, true);
+
+        // The same lock as a delivery, for the write only: it must not overwrite a newer send.
+        // Not free in time: skip, the next send converts the figures from the same attachments.
         $article_id = (string) get_post_meta($post_id, self::META_ARTICLE_ID, true);
         $name       = $article_id !== '' ? self::lock_name($article_id) : '';
         if ($name !== '') {
@@ -503,18 +582,14 @@ class PostWriter
             }
         }
         try {
-            $snapshot = (string) $post->post_content;
-            $body     = BodyImages::convert($snapshot, $post_id, (float) MediaHandler::BACKGROUND_TIMEOUT, true);
             // Re-read: the editor or a delivery may have saved while the images were downloading.
             clean_post_cache($post_id);
             $fresh = get_post($post_id);
             if ($fresh === null) {
                 return;
             }
-            $html = $body['html'];
-            if ((string) $fresh->post_content !== $snapshot) {
-                $html = BodyImages::convert((string) $fresh->post_content, $post_id, 1.0, true)['html'];
-            }
+            // A budget of 0: nothing is downloaded under the lock, only existing attachments are used.
+            $html = BodyImages::convert((string) $fresh->post_content, $post_id, 0.0, true)['html'];
             if ($html === (string) $fresh->post_content) {
                 return;
             }

@@ -369,7 +369,7 @@ class Test_Publish_Notifier extends WP_UnitTestCase
         }
 
         $this->assertCount(0, $this->requests, 'Przy publikacji zbiorczej nie wolno wysylac synchronicznie.');
-        $next = wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id]);
+        $next = wp_next_scheduled(PublishNotifier::BULK_HOOK, [$id]);
         $this->assertIsInt($next);
         $this->assertEqualsWithDelta(time() + PublishNotifier::BULK_DELAY, $next, 5);
         $this->assertSame([], DeliveriesLog::recent(), 'Odroczenie samo w sobie nie tworzy wiersza logu.');
@@ -386,9 +386,67 @@ class Test_Publish_Notifier extends WP_UnitTestCase
         }
         _set_cron_array([]);
 
-        PublishNotifier::retry($id);
+        PublishNotifier::send_deferred($id);
 
         $this->assertCount(1, $this->requests);
         $this->assertSame('ok', $this->last_row()['status']);
+    }
+
+    /** 2.7.1 (audit 27.11): a failed deferred send of a bulk publication was never retried. */
+    public function test_nieudana_odroczona_wysylka_zbiorcza_dostaje_ponowienie(): void
+    {
+        $id = $this->make_post(self::UUID_A);
+        $_REQUEST['bulk_edit'] = 'Update';
+        try {
+            wp_publish_post($id);
+        } finally {
+            unset($_REQUEST['bulk_edit']);
+        }
+        _set_cron_array([]);
+        $this->next_response = new WP_Error('http_request_failed', 'timeout');
+
+        PublishNotifier::send_deferred($id);
+
+        $this->assertIsInt(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id]));
+        $this->assertStringContainsString('ponowienie za 5 min', (string) $this->last_row()['error_msg']);
+    }
+
+    /** 2.7.1 (audit 27.11): the retry after a 429 waits as long as Tribune Desk asked. */
+    public function test_429_ponawia_po_retry_after(): void
+    {
+        $this->next_response = [
+            'headers'  => ['retry-after' => '42'],
+            'body'     => wp_json_encode(['error' => ['code' => 'rate_limited', 'retry_after' => 42]]),
+            'response' => ['code' => 429, 'message' => 'Too Many Requests'],
+            'cookies'  => [],
+            'filename' => null,
+        ];
+        $id = $this->make_post(self::UUID_A);
+
+        wp_publish_post($id);
+
+        $next = wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id]);
+        $this->assertIsInt($next);
+        $this->assertEqualsWithDelta(time() + 42, $next, 5);
+        $this->assertStringContainsString('ponowienie za 42 s', (string) $this->last_row()['error_msg']);
+    }
+
+    /** The log speaks of Tribune Desk, in the site's language (audit 27.11: "HeadlinesForge"). */
+    public function test_brak_statusu_pozycji_mowi_o_tribune_desk(): void
+    {
+        $this->next_response = [
+            'headers'  => [],
+            'body'     => wp_json_encode(['results' => []]),
+            'response' => ['code' => 200, 'message' => 'OK'],
+            'cookies'  => [],
+            'filename' => null,
+        ];
+        $id = $this->make_post(self::UUID_A);
+
+        wp_publish_post($id);
+
+        $msg = (string) $this->last_row()['error_msg'];
+        $this->assertStringNotContainsString('HeadlinesForge', $msg);
+        $this->assertStringContainsString('Tribune Desk', $msg);
     }
 }

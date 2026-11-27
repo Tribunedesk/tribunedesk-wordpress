@@ -324,12 +324,12 @@ class Test_Social_Queue_Flag extends WP_UnitTestCase
         wp_publish_post($id);
         unset($_REQUEST['bulk_edit']);
         $this->assertCount(0, $this->requests);
-        $this->assertIsInt(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id]));
+        $this->assertIsInt(wp_next_scheduled(PublishNotifier::BULK_HOOK, [$id]));
 
         update_post_meta($id, self::KEY, 'on');
         SocialQueueFlag::reset();
 
-        PublishNotifier::retry($id);
+        PublishNotifier::send_deferred($id);
 
         $this->assertCount(1, $this->requests);
         $this->assertTrue($this->sent_item()['social_queue_exclude']);

@@ -16,6 +16,7 @@ delete_option('headlinesforge_default_author_id');
 // This option was skipped from the start: the seven others were deleted,
 // this one stayed in the customer's database after uninstall.
 delete_option('headlinesforge_publish_immediately');
+delete_option('tribunedesk_ignore_publication_mode');
 delete_option('_headlinesforge_install_user_id');
 delete_option('headlinesforge_autoupdate_bootstrapped');
 delete_option('headlinesforge_db_version');

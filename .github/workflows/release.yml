@@ -17,31 +17,23 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - name: Bramka spojnosci wersji
         run: bash bin/check-version.sh "${GITHUB_REF_NAME#v}"
+      # Klienci dostaja to, co przeszlo CI na main: tag na commicie spoza main nie buduje ZIP-a.
+      - name: Tag na main
+        run: |
+          git fetch -q origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "::error::tag $GITHUB_REF_NAME nie wskazuje commita z main"; exit 1; }
 
-  test:
-    runs-on: ubuntu-26.04
-    steps:
-      - uses: actions/checkout@v6
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          coverage: none
-      - name: Lint PHP
-        run: find . -path ./vendor -prune -o -name '*.php' -print0 | xargs -0 -n1 -P4 php -l
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "24.14.1"
-      - name: Start wp-env
-        run: npx @wordpress/env start
-      - name: Composer install
-        run: npx @wordpress/env run tests-cli --env-cwd=wp-content/plugins/${{ github.event.repository.name }} bash -c "composer install --no-interaction"
-      - name: PHPUnit
-        run: npx @wordpress/env run tests-cli --env-cwd=wp-content/plugins/${{ github.event.repository.name }} ./vendor/bin/phpunit
+  # 2.7.1 (audyt 27.11): ta sama bramka co na main (kontrakt z tagu, kopia biblioteki, PHPUnit
+  # na 8.3 i 8.5, tdkit check). Wczesniej release mial wlasna, slabsza kopie testow.
+  ci:
+    uses: ./.github/workflows/plugin-ci.yml
 
   build:
-    needs: [verify, test]
+    needs: [verify, ci]
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6

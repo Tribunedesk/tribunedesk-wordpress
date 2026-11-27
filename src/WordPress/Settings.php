@@ -54,6 +54,12 @@ class Settings
             'default'           => '',
         ]);
 
+        register_setting(self::PAGE_SLUG, PostWriter::OPTION_IGNORE_PUBLICATION, [
+            'type'              => 'string',
+            'sanitize_callback' => static fn($v) => $v ? '1' : '',
+            'default'           => '',
+        ]);
+
         register_setting(self::PAGE_SLUG, self::OPTION_AUTO_UPDATE, [
             'type'              => 'string',
             'sanitize_callback' => [self::class, 'sanitize_auto_update'],
@@ -119,6 +125,14 @@ class Settings
             self::OPTION_PUBLISH,
             __('Publish immediately', 'tribune-desk'),
             [self::class, 'render_publish_field'],
+            self::PAGE_SLUG,
+            'headlinesforge_main'
+        );
+
+        add_settings_field(
+            PostWriter::OPTION_IGNORE_PUBLICATION,
+            __('Publishing from Tribune Desk', 'tribune-desk'),
+            [self::class, 'render_ignore_publication_field'],
             self::PAGE_SLUG,
             'headlinesforge_main'
         );
@@ -404,6 +418,14 @@ class Settings
         $checked = get_option(self::OPTION_PUBLISH, '') === '1';
         echo '<label><input type="checkbox" name="' . esc_attr(self::OPTION_PUBLISH) . '" value="1" ' . checked($checked, true, false) . '> ';
         echo esc_html__('Publish received articles immediately instead of saving them as drafts.', 'tribune-desk');
+        echo '</label>';
+    }
+
+    public static function render_ignore_publication_field(): void
+    {
+        $checked = get_option(PostWriter::OPTION_IGNORE_PUBLICATION, '') === '1';
+        echo '<label><input type="checkbox" name="' . esc_attr(PostWriter::OPTION_IGNORE_PUBLICATION) . '" value="1" ' . checked($checked, true, false) . '> ';
+        echo esc_html__('Do not let Tribune Desk publish or schedule posts. A request to publish or schedule is ignored: a new post follows the option above, an existing one keeps its status. Use it when only WordPress editors may publish.', 'tribune-desk');
         echo '</label>';
     }
 
