@@ -238,7 +238,7 @@ class PostWriter
             self::adopt_body_images((int) $post_id, $body);
             self::sync_featured_image((int) $post_id, $payload, $media_deadline);
             SeoMeta::sync((int) $post_id, $payload);
-            ProvenanceMeta::sync((int) $post_id, $raw_html);
+            ProvenanceMeta::sync((int) $post_id, $raw_html, $payload);
             // Language only on creation: an existing post may have been moved by hand.
             Language::apply((int) $post_id, $payload);
             self::remember_sent_at((int) $post_id, $payload);
@@ -306,7 +306,7 @@ class PostWriter
         // the content hash, and an old signature next to new text looks like a forgery.
         // On the SkippedAlreadyPublished path we deliberately do NOT do this — there the content
         // stays untouched, so the old signature is the right one.
-        ProvenanceMeta::sync((int) $existing->ID, $raw_html);
+        ProvenanceMeta::sync((int) $existing->ID, $raw_html, $payload);
         self::remember_sent_at((int) $existing->ID, $payload);
 
         return ['post_id' => (int) $existing->ID, 'status' => WriteResult::Updated, 'taxonomy_ignored' => $terms['ignored'] ?? $no_terms];

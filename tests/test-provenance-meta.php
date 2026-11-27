@@ -164,6 +164,38 @@ class Test_ProvenanceMeta extends WP_UnitTestCase
         $this->assertSame('eyJhbGciOiJFZERTQSJ9.eyJhIjoxfQ.c2ln2', $stored['hfProvenanceJws']);
     }
 
+    /** 2.7.1 (owner's decision 27.11): the `ai_provenance` field wins over the block in html. */
+    public function test_ai_provenance_field_is_the_source_of_truth(): void
+    {
+        $field = ['claims' => [
+            'article_id' => 'art-field', 'generated_at' => '2026-11-27T10:00:00Z',
+            'digital_source_type' => 'http://cv.iptc.org/newscodes/digitalsourcetype/compositeWithTrainedAlgorithmicMedia',
+        ], 'jws' => 'eyJ.field.sig'];
+
+        ProvenanceMeta::sync($this->post_id, '<p>Bez bloku</p>', ['ai_provenance' => $field]);
+
+        $meta = get_post_meta($this->post_id, ProvenanceMeta::META_KEY, true);
+        $this->assertSame('eyJ.field.sig', $meta['hfProvenanceJws']);
+        $this->assertSame('art-field', $meta['identifier']);
+        $this->assertSame('2026-11-27T10:00:00Z', $meta['dateCreated']);
+        $this->assertSame('NewsArticle', $meta['@type']);
+    }
+
+    public function test_null_ai_provenance_deletes_even_with_a_block_in_html(): void
+    {
+        ProvenanceMeta::sync($this->post_id, '<p>Tresc</p>' . self::BLOCK);
+        ProvenanceMeta::sync($this->post_id, '<p>Tresc</p>' . self::BLOCK, ['ai_provenance' => null]);
+
+        $this->assertSame('', get_post_meta($this->post_id, ProvenanceMeta::META_KEY, true));
+    }
+
+    public function test_without_the_field_the_block_still_counts(): void
+    {
+        ProvenanceMeta::sync($this->post_id, '<p>Tresc</p>' . self::BLOCK, ['title' => 'x']);
+
+        $this->assertNotSame('', get_post_meta($this->post_id, ProvenanceMeta::META_KEY, true));
+    }
+
     public function test_sync_without_a_block_deletes_the_stored_provenance(): void
     {
         // 1.4.0 (D3): wydawca wylaczyl znakowanie, szkic przychodzi z nowa trescia

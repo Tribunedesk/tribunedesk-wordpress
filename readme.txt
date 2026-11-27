@@ -43,6 +43,7 @@ Features:
 * The link back after a `429` waits as long as Tribune Desk asks (`retry_after`); a failed link back of a bulk publication now gets its retry too.
 * A new send of a draft replaces the featured image set by an earlier delivery, unless the newsroom chose another image.
 * Category and tag names in the answer to a delivery have no HTML entities (`&` instead of `&amp;`). A deliveries log line no longer says "HeadlinesForge".
+* The AI label comes from the delivery's `ai_provenance` field (the source of truth, guide 3); the block at the end of `html` is read only when a delivery has no such field.
 * Release builds pass the same checks as `main` (contract, protocol copy, PHPUnit on 8.3 and 8.5, `tdkit check`).
 
 = 2.7.0 =

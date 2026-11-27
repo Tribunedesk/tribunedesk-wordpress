@@ -35,8 +35,21 @@ class ProvenanceMeta
      * tampering. A bad block is treated like no block: we have no signature that matches
      * this content anyway.
      */
-    public static function sync(int $post_id, string $html): void
+    public static function sync(int $post_id, string $html, array $payload = []): void
     {
+        // 2.7.1 (owner's decision 27.11): the `ai_provenance` field is the source of truth
+        // (guide 3); the block in `html` is read only when a delivery has no such field.
+        if (array_key_exists('ai_provenance', $payload)) {
+            $data = self::from_field($payload['ai_provenance']);
+            if ($data === null) {
+                delete_post_meta($post_id, self::META_KEY);
+            } else {
+                update_post_meta($post_id, self::META_KEY, $data);
+            }
+
+            return;
+        }
+
         if (preg_match(self::BLOCK_RE, $html, $matches) !== 1) {
             delete_post_meta($post_id, self::META_KEY);
             return;
@@ -49,6 +62,30 @@ class ProvenanceMeta
         }
 
         update_post_meta($post_id, self::META_KEY, $data);
+    }
+
+    /**
+     * The stored labelling built from `ai_provenance` ({claims, jws}): the same object the
+     * block in `html` carries (headlinesforge provenance/embed.py). Null for `null` (marking
+     * off) or a field without a signature, like a bad block.
+     *
+     * @return array<string, mixed>|null
+     */
+    private static function from_field(mixed $field): ?array
+    {
+        if (!is_array($field) || !is_string($field['jws'] ?? null) || $field['jws'] === '') {
+            return null;
+        }
+        $claims = is_array($field['claims'] ?? null) ? $field['claims'] : [];
+
+        return [
+            '@context'          => 'https://schema.org',
+            '@type'             => 'NewsArticle',
+            'identifier'        => $claims['article_id'] ?? null,
+            'dateCreated'       => $claims['generated_at'] ?? null,
+            'digitalSourceType' => $claims['digital_source_type'] ?? null,
+            'hfProvenanceJws'   => $field['jws'],
+        ];
     }
 
     /** Labelling fields added to the Yoast article (the rest of the block duplicates what Yoast already describes). */
