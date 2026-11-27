@@ -4,7 +4,7 @@ Tags: webhook, automation, content
 Requires at least: 5.6
 Tested up to: 7.1
 Requires PHP: 8.3
-Stable tag: 2.8.0
+Stable tag: 2.8.1
 License: MIT
 
 Receives finished articles from Tribune Desk (ArticleWriter) and creates them in WordPress: as drafts, published or scheduled, as the site and the newsroom choose.
@@ -33,6 +33,10 @@ Features:
 3. Go to `Ustawienia → Tribune Desk`, paste the signing secret (`whsec_…`) and the CMS API token you got from Tribune Desk, pick the default author, and copy the Webhook URL into Tribune Desk Settings → Integracje.
 
 == Changelog ==
+
+= 2.8.1 =
+* The link back to Tribune Desk is retried for more than a day, waiting longer each time (5 min, 15 min, 1 h, 3 h, 6 h, 15 h), also after a bulk publication; after a `429` it waits at least as long as Tribune Desk asks.
+* On a public page an internal link to an article that is not public yet shows as plain text; the post keeps the link data, and the link appears when that article is published.
 
 = 2.8.0 =
 * Updates are signed. From this version the plugin installs an update only when it carries a valid Ed25519 signature of Tribune Desk over its version and checksum; a package without one, signed with another key or changed after signing is refused and the installed version stays. Write access to the update server alone can no longer ship code to sites.

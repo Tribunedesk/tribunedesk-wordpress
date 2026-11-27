@@ -2,9 +2,9 @@
 
 A WordPress plugin that receives finished articles from [Tribune Desk](https://tribunedesk.com) (a newsroom tool) and creates them in wp-admin, as drafts or, with **Publish immediately**, as published posts. It implements the public Tribune Desk CMS API at levels 1-4: article delivery, link back, full content and the media library.
 
-**Version:** v2.8.0
+**Version:** v2.8.1
 
-**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.8.0.zip**
+**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.8.1.zip**
 
 > Version 2.8.0 installs only updates signed by Tribune Desk (Ed25519): a package without a valid signature is refused. See the changelog in `readme.txt`.
 
@@ -77,7 +77,7 @@ A step-by-step guide for someone who has never installed a plugin by hand. Every
 
 Download **one file** from our server. You do not need a GitHub account and you **do not rename the folder**; the archive is already packed correctly:
 
-**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.8.0.zip**
+**https://updates.headlinesforge.com/wp-plugin/headlinesforge-receiver-2.8.1.zip**
 
 **Do not unpack it.** WordPress does that itself.
 
