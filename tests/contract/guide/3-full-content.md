@@ -1,6 +1,6 @@
 # Level 3 – Full content
 
-Level 3 uses the same deliveries as level 1 and reads more of their fields. Nothing here needs a new route.
+Level 3 uses the same deliveries as level 1 and reads more of their fields. The one new route is `POST /v3/cms/taxonomy/terms`, which syncs your categories and tags (see [Categories and tags](#categories-and-tags)).
 
 ## Internal links
 
@@ -60,7 +60,7 @@ Anyone can check the mark without a token, at `https://api.tribunedesk.com`:
 
 If your CMS has categories and tags, send them to Tribune Desk, so the editor can pick from them and the writer can choose among them. Tribune Desk never creates a term in your CMS.
 
-Send the terms with `POST /v3/cms/taxonomy/terms` (needs `articles:write`), up to 1000 per request. Each item has `taxonomy` (`category` or `tag`), `cms_term_id` (your identifier, as text), `name`, and optionally `slug`, `parent_id`, `post_count` and `deleted`. Page through your terms in order of their id and send them once a day as a full run: the same `run_id` (a UUID you make up) on every page, and `is_last: true` on the last one. After that page Tribune Desk removes the terms of the organization that this run did not send. A run that never reaches its last page removes nothing (the last page may have no items, when your CMS has no terms left); a run left open for 24 hours is refused (`409`). Run one full run at a time; a page with a new `run_id` abandons the previous run. Send single changes as they happen without `run_id`: a new or renamed term as an item, a removed term with `deleted: true`. `GET /v3/cms/status` shows `taxonomy` (`terms` and `last_full_sync_at`).
+Send the terms with `POST /v3/cms/taxonomy/terms` (needs `articles:write`), up to 1000 per request. Each item has `taxonomy` (`category` or `tag`), `cms_term_id` (your identifier, as text), `name`, and optionally `slug`, `parent_id`, `post_count` and `deleted`. Page through your terms in order of their id and send them once a day as a full run: the same `run_id` (a UUID you make up) on every page, and `is_last: true` on the last one. After that page Tribune Desk removes the terms of the organization that this run did not send. A run that never reaches its last page removes nothing (the last page may have no items, when your CMS has no terms left); a run left open for 24 hours is refused (`409`). Run one full run at a time; a page with a new `run_id` abandons the previous run, and a later page of the abandoned run answers `409 state_conflict` and stores nothing: start a new run then, do not continue the old one. Send single changes as they happen without `run_id`: a new or renamed term as an item, a removed term with `deleted: true`. `GET /v3/cms/status` shows `taxonomy` (`terms` and `last_full_sync_at`).
 
 A delivery may carry `taxonomy` with `categories` and `tags`, each a list of `{cms_term_id, name}`. A key that is present means: set exactly these terms (an empty list removes all of them; your CMS then falls back to its default category); a missing key means: leave that taxonomy alone; a missing `taxonomy` means the same for both. Find a term by `cms_term_id`, and when your CMS does not know the id, by `name`, ignoring letter case. Never create a term. Change the terms only of a post that is new, a draft, pending or scheduled; leave a published post alone.
 

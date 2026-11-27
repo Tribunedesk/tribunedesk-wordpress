@@ -3684,7 +3684,7 @@
   "info": {
     "description": "Contract between a CMS and Tribune Desk. The CMS is the client: it polls changes with a cursor (`GET /changes`) and sends its own.\n\n**Authentication:** `Authorization: Bearer tdcms_...`. A super admin issues the token for one organization with scopes `media:read`, `media:write`, `settings:read`, `settings:write`, `backfill:write`, `articles:read`, `articles:write`.\n\n**Limits:** 600 requests per minute per token (`429` with `Retry-After`).\n\n**Errors:** every error of every route has the body `ApiError` (`code`, `message`, `retry_after`).\n\nOperations marked `x-status: planned` require their scope but answer `501 not_implemented`.",
     "title": "Tribune Desk CMS API",
-    "version": "3.8.0-draft"
+    "version": "3.9.0-draft"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -4082,7 +4082,7 @@
     },
     "/v3/cms/articles/{article_id}/result": {
       "post": {
-        "description": "Read mode: the body your webhook would answer with, plus `delivery_id` and `error` (`ArticleResultReport`). Tribune Desk stores `social_queue_exclude`, `permalink`, `cms_post_id`, `edit_url`, `publication` and `taxonomy` and marks the send as delivered; with `error` it marks the send as failed and stores nothing else. Unlike a webhook answer, this request is validated: a field of the wrong type gives `422 validation_error`. A field of the right type that is not stored (an `edit_url` that is not `http(s)`, a `permalink` that is not a public address) is listed in `ignored_fields`. Repeating the result is safe. `404 not_found`: no such article in the organization. `409 state_conflict`: the article was never sent to the CMS, or `delivery_id` names a send that a newer send replaced (fetch the article again); nothing is stored.",
+        "description": "Read mode: the body your webhook would answer with, plus `delivery_id` and `error` (`ArticleResultReport`). Tribune Desk stores `social_queue_exclude`, `permalink`, `cms_post_id`, `edit_url`, `publication` and `taxonomy` and marks the send as delivered; with `error` it marks the send as failed and stores nothing else. Unlike a webhook answer, this request is validated: a field of the wrong type gives `422 validation_error`. A field of the right type that is not stored (an `edit_url` that is not `http(s)`, a `permalink` that is not a public address) is listed in `ignored_fields`. Repeating the result is safe: with `delivery_id` of a send already delivered the answer is the same and nothing is stored again. `404 not_found`: no such article in the organization. `409 state_conflict`: the article was never sent to the CMS, or `delivery_id` names a send that a newer send replaced (fetch the article again) or a webhook send waiting for its retry; nothing is stored.",
         "operationId": "reportArticleResult",
         "parameters": [
           {
@@ -5983,7 +5983,7 @@
     },
     "/v3/cms/taxonomy/terms": {
       "post": {
-        "description": "Level 3: send the categories and tags of your CMS, 1 to 1000 per request, so the editor can pick them and Tribune Desk can set them on a delivery. `run_id` marks a full run: send the same `run_id` on every page and `is_last: true` on the last; after that page the terms of your organization that the run did not send are removed. A run that never sends its last page removes nothing. Run one full run at a time; a page with a new `run_id` abandons the previous run. Without `run_id` the items are single changes (`deleted: true` removes a term; `unknown` when it was not there). Each item gets its own status. `409 state_conflict` when a full run was left open for more than 24 hours (nothing is applied; start a new run). `items` may be empty only on the last page of a full run, which then removes every term.",
+        "description": "Level 3: send the categories and tags of your CMS, 1 to 1000 per request, so the editor can pick them and Tribune Desk can set them on a delivery. `run_id` marks a full run: send the same `run_id` on every page and `is_last: true` on the last; after that page the terms of your organization that the run did not send are removed. A run that never sends its last page removes nothing. Run one full run at a time; a page with a new `run_id` abandons the previous run. Without `run_id` the items are single changes (`deleted: true` removes a term; `unknown` when it was not there). Each item gets its own status. `409 state_conflict` when a full run was left open for more than 24 hours or a newer run abandoned it (nothing is applied; start a new run). `items` may be empty only on the last page of a full run, which then removes every term.",
         "operationId": "postTaxonomyTerms",
         "requestBody": {
           "content": {

@@ -6,7 +6,7 @@ When a post made from a delivered article goes public, call `POST /v3/cms/articl
 
 Answering a delivery with `permalink` (and `social_queue_exclude`, below) does the same for a post published at once; use this route for posts published later. When a post is unpublished, Tribune Desk keeps the last address: no route takes it back today, so send the new address when the post comes back or moves.
 
-**When a report fails.** A report that ends with a network error, `429` or a `5xx` is sent again later (after `Retry-After` when there is one); the WordPress plugin tries once more after 5 minutes. Posts that were public before your integration had its token are reported once it has one, up to 100 per request.
+**When a report fails.** A report that ends with a network error, `429` or a `5xx` is sent again later (after `Retry-After` when there is one, else after about 5 minutes), at least once and better with more tries at growing gaps; the same holds for reports queued by bulk publishing. When to report and how to retry: [A complete integration](complete-integration.md#reporting-addresses). Posts that were public before your integration had its token are reported once it has one, up to 100 per request.
 
 ## Keeping a post off Facebook
 
