@@ -33,5 +33,8 @@ composer.lock
 # Lokalny payload do recznych testow (nie jest czescia wtyczki)
 /test-payload.json
 
+# Klucze podpisu aktualizacji (bin/generate-update-key.php) nigdy do repo
+*.key
+
 # Local secret gate (engram2 githooks install), not part of the plugin
 /.githooks/

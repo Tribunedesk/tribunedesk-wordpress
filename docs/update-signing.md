@@ -78,10 +78,14 @@ key; `bin/generate-update-key.php` refuses to run when its output is a terminal.
 3. Backup key — kept offline (password manager), used only if the release key is lost or leaks:
 
    ```powershell
-   php bin/generate-update-key.php > tribunedesk-update-backup.key
+   php bin/generate-update-key.php | Set-Content -Encoding ascii -NoNewline tribunedesk-update-backup.key
    ```
 
-   Move the file into the password manager, then delete it from disk. Note its `PUBLIC KEY`.
+   Not `>`: in Windows PowerShell 5.1 it writes UTF-16LE with a BOM. A file written that way
+   (the 2026-11-27 backup key is one: 182 bytes) still works, because the rotation command
+   below reads it with `Get-Content`, which decodes either encoding — never feed the file's raw
+   bytes anywhere. Move the file into the password manager, then delete it from disk. Note its
+   `PUBLIC KEY`. `*.key` is in `.gitignore`.
 
 4. Hand both public keys to the session that prepares 2.8.0; they go into `PUBLIC_KEYS`
    (release key first, backup second).
@@ -92,7 +96,8 @@ Installed sites trust only the keys built into the version they run, so **the re
 changes `PUBLIC_KEYS` must be signed with a key the installed sites already trust.**
 
 - **Planned rotation / suspected leak of the release key:** put the backup key into
-  `UPDATE_SIGNING_KEY` (`Get-Content backup.key | gh secret set …`), release a version whose
+  `UPDATE_SIGNING_KEY` (`Get-Content tribunedesk-update-backup.key | gh secret set UPDATE_SIGNING_KEY --env plugin-signing --repo Tribunedesk/tribunedesk-wordpress`;
+  `bin/sign-update.php` trims the trailing newline), release a version whose
   `PUBLIC_KEYS` = [backup, newly generated key], signed with the backup. Then the new key becomes
   the release key and the backup role moves to it. If the old key leaked, do this at once: until
   sites take the new version, the leaked key plus write access to R2 is enough to ship code.

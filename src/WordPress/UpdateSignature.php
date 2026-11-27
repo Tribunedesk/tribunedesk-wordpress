@@ -38,6 +38,10 @@ final class UpdateSignature
      * site takes it. Procedure: docs/update-signing.md.
      */
     public const PUBLIC_KEYS = [
+        // Release key: secret UPDATE_SIGNING_KEY of the GitHub environment plugin-signing.
+        'GPNpnxf3qJSnoVXjjnYct+9esy6AzgcPhRVGPFtTQXk=',
+        // Backup key: kept offline by the owner, used only for rotation or recovery.
+        'ZqUVk1zJANofOoOEYsCsmLO5j3eBdjQTWNpk3PxfnYY=',
     ];
 
     private const PREFIX = 'tribunedesk-wp-plugin-update:v1';

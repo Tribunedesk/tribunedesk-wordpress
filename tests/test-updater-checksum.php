@@ -280,4 +280,15 @@ class Test_Updater_Checksum extends WP_UnitTestCase
         $this->assertIsString($got);
         @unlink($got);
     }
+    public function test_wbudowane_klucze_to_dwa_rozne_klucze_ed25519(): void
+    {
+        // Pusta lista albo zly zapis zablokowalby KAZDA przyszla aktualizacje u klientow.
+        $this->assertCount(2, UpdateSignature::PUBLIC_KEYS);
+        $this->assertCount(2, array_unique(UpdateSignature::PUBLIC_KEYS));
+        foreach (UpdateSignature::PUBLIC_KEYS as $key) {
+            $raw = base64_decode($key, true);
+            $this->assertNotFalse($raw);
+            $this->assertSame(SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES, strlen($raw));
+        }
+    }
 }
