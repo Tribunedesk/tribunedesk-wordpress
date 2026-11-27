@@ -114,7 +114,8 @@
         },
         {
             "class": "Sanitizer",
-            "guide": "1-article-delivery.md#the-html-body"
+            "guide": "1-article-delivery.md#the-html-body",
+            "note": "Deliberate deviation (agreed with the guide, 27.11): an iframe with two src attributes keeps its first src and is kept when that one is an allowed player, as browsers read it; the guide removes such an iframe. Event handlers, javascript: and data: addresses are removed by WordPress kses before this filter."
         },
         {
             "class": "SeoMeta",
