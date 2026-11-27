@@ -1049,3 +1049,9 @@ msgstr ""
 #, php-format
 msgid "retry in %d s"
 msgstr ""
+
+#. translators: %d: minutes until the retry
+#: src/WordPress/PublishNotifier.php
+#, php-format
+msgid "retry in %d min"
+msgstr ""

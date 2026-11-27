@@ -131,6 +131,33 @@ class Test_Sanitizer extends WP_UnitTestCase
         ];
     }
 
+    /**
+     * Samples of tdkit 1.8 `l1-embeds` (announced 27.11): handlers, `javascript:` addresses and
+     * SVG never reach the post.
+     *
+     * @dataProvider xss_samples
+     */
+    public function test_tdkit_xss_samples_are_neutralised(string $html, string $forbidden): void
+    {
+        $this->assertStringNotContainsString($forbidden, strtolower(Sanitizer::sanitize($html)), $html);
+    }
+
+    /** @return array<string, array{string, string}> */
+    public function xss_samples(): array
+    {
+        return [
+            'img onerror'      => ['<img src="x" onerror="alert(1)">', 'onerror'],
+            'a javascript'     => ['<a href="javascript:alert(1)">x</a>', 'javascript:'],
+            'a JaVaScRiPt'     => ['<a href="JaVaScRiPt:alert(1)">x</a>', 'javascript:'],
+            'a entity'         => ['<a href="&#106;avascript:alert(1)">x</a>', 'avascript:'],
+            'svg onload'       => ['<svg onload="alert(1)"><circle r="1"/></svg>', 'onload'],
+            'svg tag'          => ['<svg><script>alert(1)</script></svg>', '<svg'],
+            'iframe unclosed'  => ['<iframe src="https://evil.example/x"><p>a</p>', 'evil.example'],
+            'address in title' => ['<iframe src="https://evil.example/x" title=\'src="https://www.youtube.com/embed/x"\'></iframe>', 'evil.example'],
+            'iframe srcdoc'    => ['<iframe srcdoc="<script>alert(1)</script>" src="https://www.youtube.com/embed/x"></iframe>', 'srcdoc'],
+        ];
+    }
+
     public function test_strips_event_handlers(): void
     {
         $html = '<a href="https://x.com" onclick="alert(1)">link</a>';

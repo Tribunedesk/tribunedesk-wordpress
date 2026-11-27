@@ -202,6 +202,46 @@ class Test_Link_Resolver extends WP_UnitTestCase
         $this->assertSame($before, $wpdb->num_queries);
     }
 
+    /** @return string the post's content as the public page shows it */
+    private function rendered(int $post_id): string
+    {
+        $GLOBALS['post'] = get_post($post_id);
+        setup_postdata($GLOBALS['post']);
+        $html = (string) apply_filters('the_content', get_post_field('post_content', $post_id));
+        wp_reset_postdata();
+
+        return $html;
+    }
+
+    /**
+     * 2.8.0 (guide "complete integration"): a placeholder to a draft target is never a link on
+     * the public page; the stored content keeps it, so the target's publication still resolves it.
+     */
+    public function test_placeholder_szkicu_na_stronie_jest_tekstem_a_w_bazie_zostaje(): void
+    {
+        $this->make_target(self::UUID_B, 'draft');
+        $content = '<p>Zob. <a href="' . self::PLACEHOLDER_B . '">tekst kotwicy</a>.</p>';
+        $a = (int) self::factory()->post->create(['post_status' => 'publish', 'post_content' => $content]);
+        LinkResolver::store_links($a, [$this->link(self::UUID_B)]);
+
+        $html = $this->rendered($a);
+
+        $this->assertStringNotContainsString(self::PLACEHOLDER_B, $html);
+        $this->assertStringContainsString('tekst kotwicy', $html);
+        $this->assertStringContainsString(self::PLACEHOLDER_B, get_post_field('post_content', $a));
+        $this->assertNotSame([], LinkResolver::links_of($a));
+    }
+
+    public function test_placeholder_opublikowanego_celu_na_stronie_to_jego_adres(): void
+    {
+        $content = '<p><a href="' . self::PLACEHOLDER_B . '">tekst kotwicy</a></p>';
+        $a = (int) self::factory()->post->create(['post_status' => 'publish', 'post_content' => $content]);
+        LinkResolver::store_links($a, [$this->link(self::UUID_B)]);
+        $b = $this->make_target(self::UUID_B, 'publish');
+
+        $this->assertStringContainsString('href="' . get_permalink($b) . '"', $this->rendered($a));
+    }
+
     public function test_store_links_zapisuje_i_kasuje_meta(): void
     {
         $post_id = (int) self::factory()->post->create(['post_status' => 'draft']);

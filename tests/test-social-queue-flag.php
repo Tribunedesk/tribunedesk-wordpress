@@ -304,7 +304,7 @@ class Test_Social_Queue_Flag extends WP_UnitTestCase
         $id = $this->make_post();
         wp_publish_post($id);
         $this->assertFalse($this->sent_item()['social_queue_exclude']);
-        $this->assertIsInt(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id]));
+        $this->assertIsInt(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id, 1]));
 
         update_post_meta($id, self::KEY, '1');
         SocialQueueFlag::reset(); // cron runs in a later request

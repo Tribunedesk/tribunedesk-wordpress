@@ -128,7 +128,7 @@ class Test_Publish_Notifier extends WP_UnitTestCase
         $row = $this->last_row();
         $this->assertSame(PublishedUrlsClient::STATUS_UNAUTHORIZED, $row['status']);
         $this->assertStringContainsString('articles:write', (string) $row['error_msg']);
-        $this->assertFalse(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id]));
+        $this->assertFalse(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id, 1]));
     }
 
     public function test_without_token_nothing_is_sent_and_the_log_says_why(): void
@@ -142,7 +142,7 @@ class Test_Publish_Notifier extends WP_UnitTestCase
         $row = $this->last_row();
         $this->assertSame(PublishedUrlsClient::STATUS_UNAUTHORIZED, $row['status']);
         $this->assertStringContainsString('articles:write', (string) $row['error_msg']);
-        $this->assertFalse(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id]));
+        $this->assertFalse(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id, 1]));
     }
 
     public function test_publikacja_wysyla_jedno_zadanie_i_loguje_ok(): void
@@ -163,7 +163,7 @@ class Test_Publish_Notifier extends WP_UnitTestCase
         $this->assertSame('ok', $row['status']);
         $this->assertSame($id, (int) $row['post_id']);
         $this->assertSame(self::UUID_A, $row['article_id']);
-        $this->assertFalse(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id]));
+        $this->assertFalse(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id, 1]));
     }
 
     public function test_publish_immediately_przez_wp_insert_post_tez_wysyla(): void
@@ -236,7 +236,7 @@ class Test_Publish_Notifier extends WP_UnitTestCase
         $this->assertSame(PublishedUrlsClient::STATUS_ERROR, $row['status']);
         $this->assertStringContainsString('cURL error 28', (string) $row['error_msg']);
         $this->assertStringContainsString('ponowienie za 5 min', (string) $row['error_msg']);
-        $next = wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id]);
+        $next = wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id, 1]);
         $this->assertIsInt($next);
         $this->assertEqualsWithDelta(time() + PublishNotifier::RETRY_DELAY, $next, 5);
     }
@@ -246,12 +246,12 @@ class Test_Publish_Notifier extends WP_UnitTestCase
         $this->next_response = $this->http_error(503);
         $a = $this->make_post(self::UUID_A);
         wp_publish_post($a);
-        $this->assertIsInt(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$a]));
+        $this->assertIsInt(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$a, 1]));
 
         $this->next_response = $this->http_error(429);
         $b = $this->make_post('22222222-2222-4222-8222-222222222222');
         wp_publish_post($b);
-        $this->assertIsInt(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$b]));
+        $this->assertIsInt(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$b, 1]));
         $this->assertSame(PublishedUrlsClient::STATUS_RATE_LIMITED, $this->last_row()['status']);
     }
 
@@ -266,7 +266,7 @@ class Test_Publish_Notifier extends WP_UnitTestCase
         $this->assertSame(PublishedUrlsClient::STATUS_UNAUTHORIZED, $row['status']);
         $this->assertStringContainsString('odrzucił token', (string) $row['error_msg']);
         $this->assertStringNotContainsString('tdcms_testtoken', (string) $row['error_msg']);
-        $this->assertFalse(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id]));
+        $this->assertFalse(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id, 1]));
     }
 
     public function test_forbidden_per_pozycja_loguje_forbidden_bez_retry(): void
@@ -279,7 +279,7 @@ class Test_Publish_Notifier extends WP_UnitTestCase
         $row = $this->last_row();
         $this->assertSame('forbidden', $row['status']);
         $this->assertStringContainsString('nie w redakcji', (string) $row['error_msg']);
-        $this->assertFalse(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id]));
+        $this->assertFalse(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id, 1]));
     }
 
     public function test_retry_wysyla_raz_i_nie_planuje_kolejnego(): void
@@ -291,27 +291,57 @@ class Test_Publish_Notifier extends WP_UnitTestCase
         $this->requests = [];
 
         $this->next_response = null; // teraz HF odpowiada 200 ok
-        PublishNotifier::retry($id);
+        PublishNotifier::retry($id, 1);
 
         $this->assertCount(1, $this->requests);
         $row = $this->last_row();
         $this->assertSame('ok', $row['status']);
         $this->assertStringStartsWith('ponowienie', (string) $row['error_msg']);
-        $this->assertFalse(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id]));
+        $this->assertSame([], _get_cron_array() ?: []);
     }
 
-    public function test_nieudany_retry_nie_planuje_trzeciej_proby(): void
+    /** 2.8.0: a failed retry schedules the next one, waiting longer each time. */
+    public function test_nieudany_retry_planuje_kolejny_z_dluzszym_odstepem(): void
     {
         $id = $this->make_post(self::UUID_A, 'publish');
         _set_cron_array([]);
         $this->next_response = new WP_Error('http_request_failed', 'timeout');
 
-        PublishNotifier::retry($id);
+        PublishNotifier::retry($id, 1);
 
         $row = $this->last_row();
         $this->assertSame(PublishedUrlsClient::STATUS_ERROR, $row['status']);
         $this->assertStringStartsWith('ponowienie:', (string) $row['error_msg']);
-        $this->assertFalse(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id]));
+        $this->assertStringContainsString('ponowienie za 15 min', (string) $row['error_msg']);
+        $next = wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id, 2]);
+        $this->assertIsInt($next);
+        $this->assertEqualsWithDelta(time() + PublishNotifier::RETRY_DELAYS[1], $next, 5);
+    }
+
+    /** The retries cover more than a day, and the last one schedules nothing. */
+    public function test_ponowienia_trwaja_ponad_dobe_i_sie_koncza(): void
+    {
+        $this->assertGreaterThan(DAY_IN_SECONDS, array_sum(PublishNotifier::RETRY_DELAYS));
+        $id = $this->make_post(self::UUID_A, 'publish');
+        _set_cron_array([]);
+        $this->next_response = new WP_Error('http_request_failed', 'timeout');
+        $last = count(PublishNotifier::RETRY_DELAYS);
+
+        PublishNotifier::retry($id, $last);
+
+        $this->assertSame([], _get_cron_array() ?: []);
+    }
+
+    /** An event scheduled by 2.7.x (only the post id) is retry 1. */
+    public function test_retry_ze_starego_zdarzenia_to_pierwsze_ponowienie(): void
+    {
+        $id = $this->make_post(self::UUID_A, 'publish');
+        _set_cron_array([]);
+        $this->next_response = new WP_Error('http_request_failed', 'timeout');
+
+        PublishNotifier::retry((string) $id);
+
+        $this->assertIsInt(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id, 2]));
     }
 
     public function test_retry_pomija_wpis_cofniety_do_szkicu(): void
@@ -407,16 +437,16 @@ class Test_Publish_Notifier extends WP_UnitTestCase
 
         PublishNotifier::send_deferred($id);
 
-        $this->assertIsInt(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id]));
+        $this->assertIsInt(wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id, 1]));
         $this->assertStringContainsString('ponowienie za 5 min', (string) $this->last_row()['error_msg']);
     }
 
-    /** 2.7.1 (audit 27.11): the retry after a 429 waits as long as Tribune Desk asked. */
+    /** 2.7.1 (audit 27.11): the retry after a 429 waits as long as Tribune Desk asked (2.8.0: at least the schedule's step). */
     public function test_429_ponawia_po_retry_after(): void
     {
         $this->next_response = [
-            'headers'  => ['retry-after' => '42'],
-            'body'     => wp_json_encode(['error' => ['code' => 'rate_limited', 'retry_after' => 42]]),
+            'headers'  => ['retry-after' => '600'],
+            'body'     => wp_json_encode(['error' => ['code' => 'rate_limited', 'retry_after' => 600]]),
             'response' => ['code' => 429, 'message' => 'Too Many Requests'],
             'cookies'  => [],
             'filename' => null,
@@ -425,10 +455,10 @@ class Test_Publish_Notifier extends WP_UnitTestCase
 
         wp_publish_post($id);
 
-        $next = wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id]);
+        $next = wp_next_scheduled(PublishNotifier::RETRY_HOOK, [$id, 1]);
         $this->assertIsInt($next);
-        $this->assertEqualsWithDelta(time() + 42, $next, 5);
-        $this->assertStringContainsString('ponowienie za 42 s', (string) $this->last_row()['error_msg']);
+        $this->assertEqualsWithDelta(time() + 600, $next, 5);
+        $this->assertStringContainsString('ponowienie za 10 min', (string) $this->last_row()['error_msg']);
     }
 
     /** The log speaks of Tribune Desk, in the site's language (audit 27.11: "HeadlinesForge"). */

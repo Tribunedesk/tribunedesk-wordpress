@@ -1048,3 +1048,9 @@ msgstr "Nie pozwalaj Tribune Desk publikować ani planować wpisów. Prośba o p
 #, php-format
 msgid "retry in %d s"
 msgstr "ponowienie za %d s"
+
+#. translators: %d: minutes until the retry
+#: src/WordPress/PublishNotifier.php
+#, php-format
+msgid "retry in %d min"
+msgstr "ponowienie za %d min"

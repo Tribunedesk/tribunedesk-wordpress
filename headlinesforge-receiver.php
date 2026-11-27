@@ -51,6 +51,8 @@ add_action('admin_menu', [\TribuneDesk\WordPress\Settings::class, 'register_menu
 add_action('admin_init', [\TribuneDesk\WordPress\Settings::class, 'register_settings']);
 
 add_filter('wp_insert_post_data', [\TribuneDesk\WordPress\LinkResolver::class, 'filter_post_data'], 10, 2);
+// 2.8.0: on the public page a placeholder to a target not public yet is plain text.
+add_filter('the_content', [\TribuneDesk\WordPress\LinkResolver::class, 'render_content'], 8);
 // Content first, then the callback to HF (PublishNotifier, wp_after_insert_post).
 add_action('transition_post_status', [\TribuneDesk\WordPress\LinkResolver::class, 'on_transition'], 10, 3);
 // Local write of link rows before the 5-second HTTP callback from PublishNotifier.
@@ -65,7 +67,7 @@ add_action('added_post_meta', [\TribuneDesk\WordPress\SocialQueueFlag::class, 'a
 add_action('updated_post_meta', [\TribuneDesk\WordPress\SocialQueueFlag::class, 'after_change'], 10, 3);
 add_action('deleted_post_meta', [\TribuneDesk\WordPress\SocialQueueFlag::class, 'after_change'], 10, 3);
 add_action('shutdown', [\TribuneDesk\WordPress\PublishNotifier::class, 'flush_pending']);
-add_action(\TribuneDesk\WordPress\PublishNotifier::RETRY_HOOK, [\TribuneDesk\WordPress\PublishNotifier::class, 'retry']);
+add_action(\TribuneDesk\WordPress\PublishNotifier::RETRY_HOOK, [\TribuneDesk\WordPress\PublishNotifier::class, 'retry'], 10, 2);
 // 2.7.1: a bulk publication's deferred send, which may still get its one retry.
 add_action(\TribuneDesk\WordPress\PublishNotifier::BULK_HOOK, [\TribuneDesk\WordPress\PublishNotifier::class, 'send_deferred']);
 // 2.2.2: a featured image a delivery could not download within its time limit.

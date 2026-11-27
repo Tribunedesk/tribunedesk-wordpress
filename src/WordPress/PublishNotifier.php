@@ -132,29 +132,60 @@ class PublishNotifier
     }
 
     /**
-     * A send that may get one retry: after the wait Tribune Desk asked for in a 429
-     * (`retry_after`, 2.7.1), otherwise after RETRY_DELAY.
+     * Waits before retry N (N = 1..count): from 5 min growing to 15 h, more than a day in all
+     * (2.8.0, guide "complete integration": retry with a growing interval for at least a day,
+     * bulk publication included). A `429` waits at least its `retry_after`. Before 2.8.0 one retry.
      */
+    public const RETRY_DELAYS = [
+        5 * MINUTE_IN_SECONDS,
+        15 * MINUTE_IN_SECONDS,
+        HOUR_IN_SECONDS,
+        3 * HOUR_IN_SECONDS,
+        6 * HOUR_IN_SECONDS,
+        15 * HOUR_IN_SECONDS,
+    ];
+
     private static function first_attempt(\WP_Post $post, string $article_id): void
     {
-        $result = self::notify($post, $article_id, false);
+        self::attempt($post, $article_id, 0);
+    }
 
-        if ($result['retryable']) {
+    /**
+     * Sends the post; a send that may be retried and still has retries left schedules the next
+     * one. $attempt: 0 = the first send, N = retry N.
+     */
+    private static function attempt(\WP_Post $post, string $article_id, int $attempt): void
+    {
+        $result = self::notify($post, $article_id, $attempt);
+        $delay  = self::next_delay($result, $attempt);
+        if ($delay !== null) {
             // Core deduplicates an identical event (hook + arguments) within a 10-minute window.
-            wp_schedule_single_event(time() + self::retry_delay($result), self::RETRY_HOOK, [$post->ID]);
+            wp_schedule_single_event(time() + $delay, self::RETRY_HOOK, [$post->ID, $attempt + 1]);
         }
     }
 
-    /** @param array<string, mixed> $result */
-    private static function retry_delay(array $result): int
+    /**
+     * Seconds until the next retry, or null when there is none (not retryable, or all used).
+     *
+     * @param array<string, mixed> $result
+     */
+    private static function next_delay(array $result, int $attempt): ?int
     {
+        if (empty($result['retryable']) || $attempt >= count(self::RETRY_DELAYS)) {
+            return null;
+        }
         $asked = $result['retry_after'] ?? null;
 
-        return is_int($asked) && $asked > 0 ? $asked : self::RETRY_DELAY;
+        return max(self::RETRY_DELAYS[$attempt], is_int($asked) ? $asked : 0);
     }
 
-    /** @param int|string $post_id */
-    public static function retry($post_id): void
+    /**
+     * `RETRY_HOOK`. Events scheduled before 2.8.0 carry only the post id: retry 1.
+     *
+     * @param int|string $post_id
+     * @param int|string $attempt
+     */
+    public static function retry($post_id, $attempt = 1): void
     {
         // An argument from the cron array can be a string after migrations/CLI, and strict_types turns that into a fatal.
         $post_id = (int) $post_id;
@@ -166,11 +197,11 @@ class PublishNotifier
         if ($article_id === null) {
             return;
         }
-        self::notify($post, $article_id, true);
+        self::attempt($post, $article_id, max(1, (int) $attempt));
     }
 
     /** @return array<string, mixed> result of PublishedUrlsClient::send() */
-    private static function notify(\WP_Post $post, string $article_id, bool $is_retry): array
+    private static function notify(\WP_Post $post, string $article_id, int $attempt): array
     {
         $url    = (string) get_permalink($post);
         $item = ['article_id' => $article_id, 'url' => $url];
@@ -198,16 +229,14 @@ class PublishNotifier
             }
         }
 
-        if ($is_retry) {
+        if ($attempt > 0) {
             $retry_label = __('retry', 'tribune-desk');
             $detail = trim($retry_label . ': ' . (string) $detail, ': ');
             $detail = str_starts_with($detail, $retry_label) ? $detail : $retry_label . ': ' . $detail;
-        } elseif (!empty($result['retryable'])) {
-            $delay  = self::retry_delay($result);
-            $detail = trim((string) $detail . ' — ' . ($delay === self::RETRY_DELAY
-                ? __('retry in 5 min', 'tribune-desk')
-                /* translators: %d: seconds until the retry */
-                : sprintf(__('retry in %d s', 'tribune-desk'), $delay)));
+        }
+        $delay = self::next_delay($result, $attempt);
+        if ($delay !== null) {
+            $detail = trim((string) $detail . ' — ' . self::describe_delay($delay));
         }
 
         DeliveriesLog::record(
@@ -219,5 +248,19 @@ class PublishNotifier
         );
 
         return $result;
+    }
+
+    private static function describe_delay(int $delay): string
+    {
+        if ($delay === self::RETRY_DELAY) {
+            return __('retry in 5 min', 'tribune-desk');
+        }
+        if ($delay % MINUTE_IN_SECONDS === 0) {
+            /* translators: %d: minutes until the retry */
+            return sprintf(__('retry in %d min', 'tribune-desk'), intdiv($delay, MINUTE_IN_SECONDS));
+        }
+
+        /* translators: %d: seconds until the retry */
+        return sprintf(__('retry in %d s', 'tribune-desk'), $delay);
     }
 }

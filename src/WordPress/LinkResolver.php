@@ -86,6 +86,28 @@ class LinkResolver
         return PlaceholderLinks::unwrap_missing($html, $links, self::marker(), [self::class, 'target_exists']);
     }
 
+    /**
+     * `the_content` (2.8.0, guide "complete integration": on a public page no placeholder
+     * address stays a link). A placeholder still in a published post points at a target that is
+     * not public yet (a draft, a scheduled post), and its address is the Tribune Desk app behind
+     * a login. The page shows the anchor text; the stored content keeps the placeholder, so the
+     * target's publication still replaces it (resolve_linking_posts), and `internal_links` stays.
+     * A target published since (the reverse limit) gets its real address here already.
+     */
+    public static function render_content(mixed $content): mixed
+    {
+        if (!is_string($content) || !str_contains($content, self::marker())) {
+            return $content;
+        }
+        $post_id = (int) get_the_ID();
+        $links   = $post_id > 0 ? self::links_of($post_id) : [];
+        if ($links === []) {
+            return $content;
+        }
+
+        return PlaceholderLinks::unwrap_missing(self::resolve($content, $links), $links, self::marker(), static fn (): bool => false);
+    }
+
     public static function target_exists(string $article_id): bool
     {
         $ids = get_posts([
